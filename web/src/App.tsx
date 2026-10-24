@@ -1,6 +1,12 @@
 // ============================================================================
-// OTONOM Chatgpt_1.176 — SÜRÜM BAŞLIĞI (her değişiklikte burayı, APP_VERSION'ı ve SÜRÜM NOTLARI'nı birlikte artır)
+// OTONOM Chatgpt_1.177 — SÜRÜM BAŞLIĞI (her değişiklikte burayı, APP_VERSION'ı ve SÜRÜM NOTLARI'nı birlikte artır)
 // Program menüsündeki rozet APP_VERSION.toBadge() ile bu sürümden otomatik üretilir.
+// v1.177 ÖZET: TikTok akışında ilk karelerin boş beyaz görünmesi giderildi. Kapak
+// görseli (tImg) yokken mühürleme öncesi kapak canvas'ına clickbait yazısız düz
+// #f4f4f4 dolgusu basılıyor ve bu boş kare final MP4'ün ilk ~1.2 sn'sine overlay
+// ediliyordu; clickbait başlığı ancak oynatma başlayınca görülüyordu. Yerine
+// drawThumbnail img=null yedek kapak şablonu (koyu gradyan + logo + clickbait
+// başlık tipografisi) tam çiziliyor ve canlı izleme günlüğüne uyarı düşüyor.
 // v1.176 ÖZET: Haber Linki akışı "gerçek resim alınamadı (NetworkError/timeout)"
 // hatası giderildi. Kök neden: sayfa çekimi tarayıcıdan yapılıyordu (CORS engeli)
 // ve 6 adayın 5'i ölü üçüncü parti CORS proxy, 1'i de hiçbir kurulumda dinlenmeyen
@@ -87,7 +93,7 @@ const { Download, RotateCcw, UploadCloud, Music, Trash2, Volume2, Clock, Loader2
 // M1: CONSTANTS & CONFIG
 // ============================================================================
 const APP_VERSION = {
-  major: 1, minor: 176, hotfix: 'Chatgpt_1.176',
+  major: 1, minor: 177, hotfix: 'Chatgpt_1.177',
   short() { return `${this.major}.${this.minor}`; },
   toString() { return `OTONOM Chatgpt_${this.major}.${this.minor}`; },
   toBadge() { return `${this.toString()} • One-Page`; }
@@ -1184,6 +1190,7 @@ const collectUltimateCoverReferences = async (jobState) => {
 const useDebounce = (value, delay = 300) => { const [debounced, setDebounced] = useState(value); useEffect(() => { const timer = setTimeout(() => setDebounced(value), delay); return () => clearTimeout(timer); }, [value, delay]); return debounced; };
 
 const FIX_CHECKLIST = Object.freeze([
+  { version: '1.177', key: 'CLICKBAIT_SEAL_WHEN_NO_COVER_IMG', text: 'TikTok akışında videonun ilk ~1.2 sn mühürlü karesi boş beyaz görünüyordu; clickbait kapak başlığı ancak oynatma ilerleyince çıkıyordu. Kök neden: kapak görseli (tImg) yokken renderWorker öncesi kapak canvas\'ına \'#f4f4f4\' DÜZ dolgu basılıyor, clickbait tipografisi hiç çizilmiyordu; bu boş kare assets._renderedClickbaitFrame olarak saklanıp FFmpeg ilk-kare mührü (lte(t,1.20) overlay) ile MP4\'ün başına bindiriliyordu. Ayrıca BLACK_FRAME_PREFLIGHT sadece karanlığı (luma) ölçtüğü için beyaz-boş kareyi de geçerli sayıyordu. Çözüm: tImg yokken RenderWorkerService.drawThumbnail ctx\'e img=null ile tam yedek kapak şablonu çizer (koyu gradyan zemin + logo + clickbait başlık) ve uyarı günlüğe düşer.' },
   { version: '1.176', key: 'LOCAL_GATEWAY_PAGE_PROXY', text: 'Haber Linki akışı "Haber linkinden gerçek resim alınamadı (... corsproxy.io: The operation was aborted | localhost: NetworkError...)" ile duruyordu. Kök neden: sayfa HTML tarayıcıdan çekiliyordu (CORS engeli) — allorigins/corsproxy/codetabs/whateverorigin ücretsiz proxy havuzu ölü veya sınır boğmasında; localhost:3457 yerel adayında ise hiçbir şey dinlemiyordu. Çözüm: gateway (4100) sıfır bağımlılık /proxy ve /api/proxy route\'u aldı — server-side fetch (tarayıcı UA, 25 sn timeout, 10 MB üst sınır, yalnız http/https dış adres = SSRF guard, CORS başlıkları) ham HTML/döndürür; Haber Linki kazandan bağımsız artık bütün üçüncü parti proxy\'lerden önce KENDİ servisini dener. Görsel indirme (_fetchPhotoDataUrl) de yerel gateway proxy\'sini aday gördü (hotlink korumalı gazete fotoğrafları). Kanıt: probe-gateway-proxy + probe-nefes-article gerçek linklerle (nefes.com.tr ana sayfa HTML 184 KB, makale og:image JPEG 179 KB, SSRF guard 400).' },
   { version: '1.175', key: 'GEMINI_MODEL_RETIRE_AND_SEARCH_JSON_FIX', text: 'Gazete/haber üretimi "Blok analiz hatası: HTTP_FAIL_404" + NO_SCENES_GENERATED ile duruyordu. Kök nedenler: (1) AI_CONFIG.GEMINI_MODEL "gemini-2.5-flash-preview-09-2025" Google tarafından emekliye ayrıldı → tüm analiz/doğrulama/onarım çağrıları 404; güncel "gemini-2.5-flash" ile değiştirildi (google_search aracıyla birlikte tek başına doğrulandı 200 OK). (2) Gemini artık google_search aracındaki isteklerde responseMimeType/JSON şemasını kabul etmiyor (HTTP 400). Tek noktadan _stripJsonConfigForSearch yardımcısı eklendi: araçlı isteklerde JSON mime/şema kaldırılır, şema STRICT JSON OUTPUT metin talimatı olarak gömülür; _callGeminiAndParse zaten kod çitlerini kesip {…} dilimlediği için tüm akışlar (analiz, karşılaştırma, iddia) şeffaf düzelir. Kanıt: A/B kombinasyon probu (araç tek 200, şema tek 200, ikisi birlikte 400) + build.' },
   { version: '1.174', key: 'FREE_IMAGE_WIKI_FALLBACK', text: 'Google tüm görsel modellerinde (Nano Banana ailesi) ücretsiz katman kotasını "limit: 0" yaptı: hiçbir görsel isteği artık ücretsiz verilmiyor. AI görsel üretimi tüm Gemini görsel modelleri hata verince — jenerik prosedürel yedeğe geçmeden önce — SIFIR MALIYET gerçek görsel araması yapar: (1) Türkçe Wikipedia aramasında en üst maddenin sayfa görseli, (2) Wikimedia Commons bitmap araması. Bu yol anahtar/ücret/faturalandırma gerektirmez; dönen görsel Atatürk akışındaki gibi doğrudan görsel kaynağı olarak kullanılır. Gazete Yorumla 16:9 gerçek sayfa referanslı kapak zorunluluğu aynen korunur (bu akış jenerik yedeğe sessizce düşmez, hata verir).' },
@@ -7373,9 +7380,12 @@ const RenderWorkerService = {
           jobData.config
         );
       } else {
-        // Thumbnail kaynağı beklenmedik şekilde yoksa bile siyah kare bırakma.
-        ctx.fillStyle = '#f4f4f4';
-        ctx.fillRect(0, 0, w, h);
+        // v1.177: Kapak görseli yoksa BOŞ BEYAZ kare mühürlenmez — TikTok akışında
+        // ilk kareler bomboş görünüyordu ve clickbait başlığı ancak oynatma başlayınca
+        // çıkıyordu. drawThumbnail img=null çağrısı koyu gradyan zemin + logo +
+        // clickbait başlık tipografisini TAM çizer (RenderWorkerService fallback şablonu).
+        RenderWorkerService.drawThumbnail(ctx, null, jobData.script.thumbnailText, w, h, fontFamily, jobData.config.sourceName, jobData.config);
+        addSystemLog('v1.177: Kapak görseli yok — clickbait başlığı gradyan yedek kapak üzerine basıldı (boş kare mühürlenmedi).', 'warn');
       }
 
       // 2) Sosyal medya CFR kodlamasında kullanılmak üzere TAM RENDER edilmiş
