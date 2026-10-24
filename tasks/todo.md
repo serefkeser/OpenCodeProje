@@ -13,5 +13,13 @@ bağlanacak. UI menüsü ekrandan birebir korunur; Canvas render + IndexedDB tar
 - [x] 7. Tam akış: vite build ✓ (26 modül, 2.19 MB), dev transform ✓ (200, 7.04MB, yama aktif), servisler ✓ — tarayıcı e2e'si masaüstü browser bağlı olmadığından otomatik yapılamadı; manuel kontrol önerilir: http://localhost:5173
 - [x] 8. commit + push (8fd772b — 12 dosya, 19.249 satır)
 
+## Buffer Kaldırma (v1.173 görevi)
+
+- [x] F1: mikro servis katmanı — media buffer köprüsü+token, gateway /api/buffer alias, .env Buffer satırı, README (kanıt: health keys{gemini:true}, 404)
+- [ ] F2: App.tsx yapraklar — PAYLAŞ/İPTAL butonları, Buffer paylaşım progress paneli, autoReview countdown (Buffer paylaşım metni), Gönderim Kuyruğu tab + kartları, Canlı İzleme buffer filtresi
+- [ ] F3: App.tsx subsystemler — posting scheduler + kuyruk sabitleri, share flow + BufferBudget, createReviewedBufferFlow, sosyal helper blok (81–133)
+- [ ] F4: v1.173 sürüm bump (başlık+APP_VERSION+not), vite build, commit+push
+Not: Sürüm notlarındaki tarihî Buffer kayıtları silinmez (geçmiş dökümanı).
+
 Sürüm kuralı: SÜRÜM BAŞLIĞI + APP_VERSION (1,172) + SÜRÜM NOTLARI birlikte artırılır.
 Not: .env anahtarlar ASLA repoya yazılmaz.

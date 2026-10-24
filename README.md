@@ -11,7 +11,7 @@ Akış: `S1 → M1 analiz → 2 AI görsel → S2 → M2 analiz → 2 AI görsel
 1. Haber metni yüklenir (veya AI analiz moduna göre haber/eleştiri/iddia/güzel söz/OCR seçilir).
 2. Her sahne için AI metni analiz ederek senaryo çıkarır ve 2 adet AI görseli üretir.
 3. Canvas render motoru, seslendirme (%80 hız) ve arka plan müziği (%20 varsayılan) ile videoyu üretir.
-4. Biten video sosyal kanallara (Buffer entegrasyonu) paylaşılabilir: X, Instagram, LinkedIn, TikTok, Facebook, YouTube, Pinterest, Bluesky, Threads.
+4. Biten video MP4 olarak yerel ortamda saklanır/indirilir.
 
 ## Özellikler
 
@@ -20,7 +20,6 @@ Akış: `S1 → M1 analiz → 2 AI görsel → S2 → M2 analiz → 2 AI görsel
 - 🎬 **Canvas video render** — 30 FPS CFR, 4 Mbps, maksimum 10 blok
 - 🔊 **Ses kontrolü** — seslendirme/müzik seviyeleri kullanıcı tarafından ayarlanabilir
 - 💾 **Local-first** — SafeStorage (localStorage) + IndexedDB (AssetManager)
-- 📤 **Sosyal paylaşım** — Buffer kanal aşamaları ve limit kontrolleri
 - 🔐 **Kullanıcı API anahtarı** — Ayarlar ekranından girilir, cihazda saklanır
 
 ## Çalıştırma

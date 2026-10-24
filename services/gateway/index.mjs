@@ -107,7 +107,6 @@ const SERVICE_ALIASES = [
   { prefix: '/api/gemini-proxy', handler: undefined }, // özel (aşağıda)
   { prefix: '/api/analysis', name: 'ANALYSIS', port: ANALYSIS_PORT },
   { prefix: '/api/media', name: 'MEDIA', port: MEDIA_PORT },
-  { prefix: '/api/buffer', name: 'MEDIA', port: MEDIA_PORT },
 ];
 
 // -- Health probe -------------------------------------------------------------
