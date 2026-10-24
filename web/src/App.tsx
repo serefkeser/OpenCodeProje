@@ -1,6 +1,23 @@
 // ============================================================================
-// OTONOM Chatgpt_1.180 — SÜRÜM BAŞLIĞI (her değişiklikte burayı, APP_VERSION'ı ve SÜRÜM NOTLARI'nı birlikte artır)
+// OTONOM Chatgpt_1.181 — SÜRÜM BAŞLIĞI (her değişiklikte burayı, APP_VERSION'ı ve SÜRÜM NOTLARI'nı birlikte artır)
 // Program menüsündeki rozet APP_VERSION.toBadge() ile bu sürümden otomatik üretilir.
+// v1.181 ÖZET: Üç kırılma giderildi. (1) TTS CIZIRTI: gemini-3.8-flash-tts ve
+// -lite-tts ÇIPLAK WAV (RIFF başlığı + data chunk, mime 'audio/wav') döndürüyor;
+// 3.1-preview L16 raw PCM (mime 'audio/l16; rate=24000') döndürüyor. Eski kod
+// WAV'da başlığın ilk ~44 byte'ını PCM örneği gibi işleyip üstüne YENİDEN WAV
+// yazıyordu → 3.8 zincirine düşen her sahne/deneme başında ~22 çöp örnek =
+// cızırtı/tık. RIFF algılanınca fmt+data çözülür, yalnız data byte'ları sarılır,
+// rate/kanal/bits gömülü değerlerden alınır (kanıt: probe-tts-wav-unwrap.mjs).
+// (2) SAYI OKUMA: "yaklaşık 3 000" binlik boşluklu ayraçla gelince bağımsız-sayı
+// kuralına takılıp "üç sıfır (sıfır)" okunuyordu; binlik ayraçlar (3.000 / 3 000 /
+// 3 000 000 / 85.450 TL) artık tek sayıya birleştirilip Türkçe sözcüğe çevrilir
+// (kanıt: probe-tr-number-norm.mjs + üretimde v1.35 normalize günlük satırı).
+// (3) KAPAK SİLÜETİ: Haber Linki üretimlerinde kapak görseli (tImg) yüklenmezse
+// arka plan bomboş gradyandı; kullanıcı gazete kapağı örneğinde olduğu gibi arka
+// plan silüeti istedi — sırası öncelikli sahne/haber görseli → sahne 2 → outro
+// görselinden yüklenen ilk aday kapak zemine koyu kaplama + clickbait başlıkla
+// basılır; hiçbiri yüklenmezse v1.177 gradyan şablonu. Silüet, preflight yeniden
+// çizimi ve kapak sahnesinde de korunur (coverImageForScene).
 // v1.180 ÖZET: İki kırılma giderildi. (1) Analysis zinciri devralıp sağlayıcıdan
 // yanıt aldı ama JSON "~224. karakterde kesik" döndü; kök neden: uygulama
 // maxOutputTokens göndermediği için zincir default 2048 token'da kalıyordu ve
@@ -127,7 +144,7 @@ const { Download, RotateCcw, UploadCloud, Music, Trash2, Volume2, Clock, Loader2
 // M1: CONSTANTS & CONFIG
 // ============================================================================
 const APP_VERSION = {
-  major: 1, minor: 180, hotfix: 'Chatgpt_1.180',
+  major: 1, minor: 181, hotfix: 'Chatgpt_1.181',
   short() { return `${this.major}.${this.minor}`; },
   toString() { return `OTONOM Chatgpt_${this.major}.${this.minor}`; },
   toBadge() { return `${this.toString()} • One-Page`; }
@@ -1224,6 +1241,9 @@ const collectUltimateCoverReferences = async (jobState) => {
 const useDebounce = (value, delay = 300) => { const [debounced, setDebounced] = useState(value); useEffect(() => { const timer = setTimeout(() => setDebounced(value), delay); return () => clearTimeout(timer); }, [value, delay]); return debounced; };
 
 const FIX_CHECKLIST = Object.freeze([
+  { version: '1.181', key: 'TR_TTS_THOUSAND_SEPARATOR_GROUPS', text: 'Seslendirmede "yaklaşık 3 000" ifadesi "üç" + "000" diye iki bağımsız sayı sanılıp "üç sıfır (sıfır) gazeteci" gibi okunuyordu (kullanıcı kaydında doğrulanan gerçek üretim hatası). Kök neden: Türkçe TTS normalizer\'ındaki binlik ayraçlar (boşluk / nokta / thin-space) bilinmiyordu; bağımsız-sayı kuralı her rakam kümesini tek tek sözcüğe çeviriyordu. Çözüm: bağımsız-sayı kuralından ÖNCE binlik ayraç birleştirme eklendi — "3.000" / "3 000" / "3 000 000" / "85.450 TL" tek sayıya çevrilip Türkçe sözcükte yazılır (üç bin, üç milyon, seksen beş bin dört yüz elli); tarih/saat/ondalık kuralları zaten bundan önce işlediği için korunur. Kanıt: probe-tr-number-norm.mjs simülasyonu + üretimde v1.35 normalize günlük satırı (önce/sonra metnini basar).' },
+  { version: '1.181', key: 'COVER_SILHOUETTE_FALLBACK_FROM_SCENE_IMAGE', text: 'Kullanıcı talebi: kapak görseli (tImg) yüklenemeyen Haber Linki üretimlerinde arka planda gazete kapağı örneğindeki gibi silüet görsel olsun (bomboş gradyan kare bilinen kötü örnek). Çözüm: tImg boşsa render sırası öncelikli adaylar (assets.images[0] = haber fotoğrafı veya AI görsel, sonra images[1], sonra outro görseli) dener; yüklenen İLK aday drawThumbnail\'a img olarak verilir (koyu kaplama + glow + clickbait başlık ile). Siyah kare ön kontrolü (BLACK_FRAME_PREFLIGHT), recorder-start primer çizimi ve kapak sahnesi (renderScene) aynı görseli kullanır (coverImageForScene) — silüet ilk 1.2 sn mühründe korunur. Hiçbir aday yüklenemezse v1.177 gradyan şablonu aynen kullanılır; hangi kaynak kullanıldığı günlüğe yazılır.' },
+  { version: '1.181', key: 'TTS_GEMINI38_EMBEDDED_WAV_DOUBLE_HEADER', text: 'Seslendirmede arada cızırtı/tık sesi geliyordu. Kök neden [kanıt: canlı probe — gemini-3.1-flash-tts-preview mime "audio/l16; rate=24000" ÇIPLAK PCM, gemini-3.8-flash-tts ve -lite-tts mime "audio/wav" tam WAV dosyası]: zincir 3.8 modeline düştüğünde dönen RIFF/WAVE/fmt başlığının ilk ~44 baytı PCM örneği gibi işleniyor ve üstüne YENİDEN WAV başlığı yazılıyordu → 3.8 zincirine düşen her sahne/denemenin başında ~22 çöp örnek (cızırtı/tık). Çözüm: RIFF algılanınca fmt+data chunk\'ları çözülür, yalnız data baytları WAV\'a sarılır; örnek hızı/kanal/bits gömülü değerlerden okunur ve "TTS çıktı çözüldü: gömülü WAV 24000Hz / 1ch / 16bit" günlüğü düşür; fmt çözülmezse hata loglu şekilde sonraki TTS denemeye geçer (sessiz geçiş yok). 3.1 raw PCM yolu değişmedi.' },
   { version: '1.180', key: 'ANALYSIS_CHAIN_TRUNCATED_JSON_FIX', text: 'Zincir devraldı ve "openai/gpt-oss-120b" yanıt döndürdü ama "JSON.parse: end of data when ... column 224" ile FAILED oldu. Kök neden: uygulama analiz isteklerinde maxOutputTokens göndermiyor; zincir default 2048 token zemininde kalıyordu ve reasoning üreten gpt-oss-120b bütçenin çoğunu reasoning üstüne harcayıp JSON çıktısını ortada kesiyordu (kesim ~224. karakter). Çözüm üç katmanlı: (1) zincir çağrısına 8192 token zemini; (2) analysis servisi default zeminleri 4096 (openai-style + gemini dahil); (3) kesik JSON metnini dize kaçışlarına duyarlı tarama ile kapatıp onaran _parseMaybeTruncatedJson — onarım kullanılırsa "çıktı kesik geldi; JSON onarıldı" WARN, onarılamazsa ham çıktı başını ERROR olarak loglar ve durur (sessiz sahte veri yok).' },
   { version: '1.180', key: 'LIVE_MONITOR_METRICS_CRASH_CADENCE_CARD_REMOVED', text: 'Canlı izleme\'de SÜRE/TOKEN sekmesi beyaz sayfa veriyordu (HATA/LİMİT v1.179\'da düzelmişti). Kök neden: "ORT. GAZETE ÇEVRİMİ (EK BEKLEME YOK)" kartı hiçbir yerde tanımlanmamış performanceAverageCadenceMs değişkenini kullanıyordu — eski kopyada (haber_saas) performanceAverageDeliveryMs\'ye alias\'lanmıştı; o metrik web App\'e hiç port edilmemişti, dolayısıyla ölçülen gerçek veri yoktu [kanıt: tüm dosyada tek geçiş = kullanım satırı]. Render sırasında ReferenceError → React ağacı çöküyordu. Çözüm: sahte değer uydurulmadı; kart kaldırıldı ("ORT. GAZETE → MP4" kartı zaten aynı çevrim süresini gösteriyor). Kalan tüm metrik değişkenleri tanımlı olarak doğrulandı.' },
   { version: '1.179', key: 'ANALYSIS_CHAIN_FALLBACK_ON_GEMINI_QUOTA', text: '"İçerik analiz ediliyor..." HTTP 429 x5 deneme tükenmesiyle FAILED oluyordu (fetchWithRetry: tüm denemeler başarısız): tarayıcı üretimi yalnız kullanıcının Gemini anahtarına (ücretsiz metin kotası) bağımlıydı; sunucu zinciri (OpenRouter→Groq→NVIDIA→Gemini, 4201) idde çalışırken işe yaramıyordu. Çözüm: _callGeminiAndParse transport/kota kırılmalarında aynı istek şeklini (systemInstruction + contents metinleri + inlineData görseller) gateway /api/analysis/text|vision\'a pas eder, dönen metni aynı gevşek parser ile JSON\'a çevirir; "Gemini kota aşımı → kendi analysis zinciri devraldı (sağlayıcı: X, model: Y)" SUCCESS satırı basılır. google_search aracı sağlayıcılara taşınmaz (gerçek doğrulanmış-tabanlı analiz bu yolda sınırlıdır: zincir yalnız verilen metinden analiz eder). Canvas sürümünde yedek yok (gateway adresi define edilmemiş); yedek de patlarsa asıl Gemini hatası yüzeye çıkar.' },
@@ -2140,6 +2160,15 @@ const _normalizeTurkishTtsText = (input) => {
   s = s.replace(/\b(\d+),(\d+)\b/g, (_, whole, decimal) =>
     `${_trIntegerToWords(Number(whole))} virgül ${decimal.split('').map(d => _trIntegerToWords(Number(d))).join(' ')}`
   );
+
+  // v1.181: Binlik ayraç grupları TEK sayıdır. "yaklaşık 3 000" önceki sürümde
+  // bağımsız-sayı kuralına takılıp "üç" + "000"→"sıfır" diye okunuyordu (gerçek
+  // üretim hatası: 22:47 döngüsünde "3 sıfır gazeteci" diye duyuldu). Haber
+  // ekonomi metinleri "85.450 TL" ve "yaklaşık 3 000" biçimleriyle gelir;
+  // bu kural hem boşluk hem nokta/thin-space ayraçlarını birleştirir
+  // (3.000 / 3 000 / 3 000 000 → üç bin / üç milyon). Tarih (17.09.2026) ve
+  // saat (14:30) kuralları bu noktaya gelmeden önce işlendiği için etkilenmez.
+  s = s.replace(/\b(\d{1,3})(?:[ .\u00A0\u202F](\d{3}))+(?![0-9])/g, (raw) => _trIntegerToWords(Number(raw.replace(/[^0-9]/g, ''))));
 
   // Kalan bağımsız sayılar: 17 -> on yedi, 2026 -> iki bin yirmi altı
   s = s.replace(
@@ -5524,9 +5553,44 @@ class MediaSynthesisService {
         const binaryStr = atob(b64Data);
         const pcmBytes = new Uint8Array(binaryStr.length);
         for (let i = 0; i < binaryStr.length; i++) pcmBytes[i] = binaryStr.charCodeAt(i);
-        const audioDuration = pcmBytes.length / (sampleRate * 2);
+        let audioBytes = pcmBytes;
+        let numChannels = 1;
+        let bitsPerSample = 16;
+        // v1.181 CIZIRTI KÖK NEDENİ: gemini-3.8-flash-tts ve -lite-tts ÇIPLAK WAV
+        // döndürüyor (mime 'audio/wav'; kanıt: probe — 3.1 'audio/l16; rate=24000',
+        // 3.8 ailesi 'RIFF' başlıkli). Eski kod 44+'lık RIFF/WAVE/fmt başlığını
+        // PCM örneği gibi işleyip ÜSTÜNE yeniden WAV yazıyordu: 3.8 modeline düşen
+        // her sahne/deneme başında ~22 çöp örnek = cızırtı/tık sesi. RIFF ise
+        // fmt+data chunk'ları çözülür, yalnız 'data' byte'ları sarılır; örnek
+        // hızı/kanal/bits gömülü değerlerden alınır.
+        if (pcmBytes.length > 44 && pcmBytes[0] === 0x52 && pcmBytes[1] === 0x49 && pcmBytes[2] === 0x46 && pcmBytes[3] === 0x46) {
+          const headerView = new DataView(pcmBytes.buffer, pcmBytes.byteOffset, pcmBytes.byteLength);
+          let off = 12; let dataStart = -1; let dataLen = 0; let audioFormat = -1;
+          while (off + 8 <= pcmBytes.length) {
+            const chunkId = String.fromCharCode(pcmBytes[off], pcmBytes[off + 1], pcmBytes[off + 2], pcmBytes[off + 3]);
+            const chunkSize = headerView.getUint32(off + 4, true);
+            if (chunkId === 'fmt ') {
+              audioFormat = headerView.getUint16(off + 8, true);
+              numChannels = headerView.getUint16(off + 10, true);
+              sampleRate = headerView.getUint32(off + 12, true);
+              bitsPerSample = headerView.getUint16(off + 22, true);
+            } else if (chunkId === 'data') {
+              dataStart = off + 8;
+              dataLen = Math.min(chunkSize, pcmBytes.length - off - 8);
+              break;
+            }
+            off += 8 + chunkSize + (chunkSize & 1);
+          }
+          if (dataStart < 0 || sampleRate <= 0 || (audioFormat !== 1 && audioFormat !== 0xFFFE)) {
+            addSystemLog(`TTS çıktısı çıplak WAV geldi ama fmt/data çözülmedi (format: ${audioFormat}, data: ${dataStart === -1 ? 'BULUNAMADI' : 'ok'}) (${model}); sonraki deneme.`, 'error');
+            continue;
+          }
+          audioBytes = pcmBytes.subarray(dataStart, dataStart + dataLen);
+          addSystemLog(`TTS çıktı çözüldü: gömülü WAV ${sampleRate}Hz / ${numChannels}ch / ${bitsPerSample}bit, data ${(dataLen / 1024).toFixed(0)}KB`, 'info');
+        }
+        const audioDuration = audioBytes.length / (sampleRate * numChannels * (bitsPerSample / 8));
         if (audioDuration < expectedMinDuration * 0.5 && attempt < maxRetries) { addSystemLog(`Ses çok kısa (${audioDuration.toFixed(1)}sn), tekrar deneniyor...`, 'warn'); continue; }
-        const pcmView = new DataView(pcmBytes.buffer);
+        const pcmView = new DataView(audioBytes.buffer, audioBytes.byteOffset, audioBytes.byteLength);
         let maxAmplitude = 0;
         for (let i = 0; i < pcmView.byteLength - 1; i += 2) { const sample = Math.abs(pcmView.getInt16(i, true)); if (sample > maxAmplitude) maxAmplitude = sample; }
         if (maxAmplitude > 0 && maxAmplitude < 16000) {
@@ -5539,19 +5603,17 @@ class MediaSynthesisService {
           }
           addSystemLog(`Ses normalize edildi (boost: ${boostFactor.toFixed(1)}x)`, 'info');
         }
-        const numChannels = 1;
-        const bitsPerSample = 16;
         const byteRate = sampleRate * numChannels * (bitsPerSample / 8);
         const blockAlign = numChannels * (bitsPerSample / 8);
-        const wavBuffer = new ArrayBuffer(44 + pcmBytes.length);
+        const wavBuffer = new ArrayBuffer(44 + audioBytes.length);
         const view = new DataView(wavBuffer);
         const writeString = (offset, str) => { for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i)); };
-        writeString(0, 'RIFF'); view.setUint32(4, 36 + pcmBytes.length, true); writeString(8, 'WAVE'); writeString(12, 'fmt ');
+        writeString(0, 'RIFF'); view.setUint32(4, 36 + audioBytes.length, true); writeString(8, 'WAVE'); writeString(12, 'fmt ');
         view.setUint32(16, 16, true); view.setUint16(20, 1, true); view.setUint16(22, numChannels, true);
         view.setUint32(24, sampleRate, true); view.setUint32(28, byteRate, true); view.setUint16(32, blockAlign, true);
-        view.setUint16(34, bitsPerSample, true); writeString(36, 'data'); view.setUint32(40, pcmBytes.length, true);
-        new Uint8Array(wavBuffer, 44).set(pcmBytes);
-        addSystemLog(`Ses hazır: ${(pcmBytes.length / 1024).toFixed(0)}KB, ${sampleRate}Hz`, 'success');
+        view.setUint16(34, bitsPerSample, true); writeString(36, 'data'); view.setUint32(40, audioBytes.length, true);
+        new Uint8Array(wavBuffer, 44).set(audioBytes);
+        addSystemLog(`Ses hazır: ${(audioBytes.length / 1024).toFixed(0)}KB, ${sampleRate}Hz (${model})`, 'success');
         return { wavBuffer, sampleRate };
       } catch (e) {
         if (/^HTTP_FAIL_(401|403)\b/.test(String(e?.message || e))) {
@@ -7517,6 +7579,7 @@ const RenderWorkerService = {
       const outroImg = await NetworkUtils.loadImage(customOutroData || jobData.assets.outroImage);
 
       // 1) Önce gerçek clickbait kapağını canvas'a çiz.
+      let coverImageForScene = tImg;
       if (tImg) {
         RenderWorkerService.drawThumbnail(
           ctx,
@@ -7529,12 +7592,42 @@ const RenderWorkerService = {
           jobData.config
         );
       } else {
-        // v1.177: Kapak görseli yoksa BOŞ BEYAZ kare mühürlenmez — TikTok akışında
-        // ilk kareler bomboş görünüyordu ve clickbait başlığı ancak oynatma başlayınca
-        // çıkıyordu. drawThumbnail img=null çağrısı koyu gradyan zemin + logo +
-        // clickbait başlık tipografisini TAM çizer (RenderWorkerService fallback şablonu).
-        RenderWorkerService.drawThumbnail(ctx, null, jobData.script.thumbnailText, w, h, fontFamily, jobData.config.sourceName, jobData.config);
-        addSystemLog('v1.177: Kapak görseli yok — clickbait başlığı gradyan yedek kapak üzerine basıldı (boş kare mühürlenmedi).', 'warn');
+        // v1.181 KULLANICI TALEBİ: Haber Linki üretimlerinde kapak görseli yoksa bile
+        // arkada SİLÜET görsel olsun (gazete kapağı örnekindeki gibi): kapak zemin
+        // görseli yoksa sahne görsellerinden (haber fotoğrafı veya AI görseli —
+        // assets.images[0]/[1]) ya da outro görselinden yüklenen İLK aday kapak
+        // zemini olur; koyu kaplama + clickbait başlık üstüne basılır (drawThumbnail
+        // img>0 yolu). Hiçbir aday yüklenemezse v1.177 gradyan şablonu aynen kullanılır.
+        // Yükleme denemeleri ayrı ayrı olduğundan sessiz fallback yok; sonuç günlüğe yazılır.
+        let silhouetteImg = null;
+        let silhouetteSource = '';
+        for (const [silhouetteLabel, silhouetteCandidate] of [
+          ['sahne/haber görseli 1', jobData.assets.images?.[0]],
+          ['sahne/haber görseli 2', jobData.assets.images?.[1]],
+          ['outro görseli', jobData.assets.outroImage],
+        ]) {
+          if (!silhouetteCandidate) continue;
+          try {
+            const silhouetteLoaded = await NetworkUtils.loadImage(silhouetteCandidate);
+            if (silhouetteLoaded && silhouetteLoaded.naturalWidth > 0 && silhouetteLoaded.naturalHeight > 0) {
+              silhouetteImg = silhouetteLoaded;
+              silhouetteSource = silhouetteLabel;
+              break;
+            }
+          } catch (e) { ErrorHandler.silent(e); }
+        }
+        if (silhouetteImg) {
+          coverImageForScene = silhouetteImg;
+          RenderWorkerService.drawThumbnail(ctx, silhouetteImg, jobData.script.thumbnailText, w, h, fontFamily, jobData.config.sourceName, jobData.config);
+          addSystemLog(`v1.181: Kapak görseli yok — arka plan silüeti ${silhouetteSource} üzerinden basıldı (koyu kaplama + clickbait başlık).`, 'warn');
+        } else {
+          // v1.177: Kapak görseli yoksa BOŞ BEYAZ kare mühürlenmez — TikTok akışında
+          // ilk kareler bomboş görünüyordu ve clickbait başlığı ancak oynatma başlayınca
+          // çıkıyordu. drawThumbnail img=null çağrısı koyu gradyan zemin + logo +
+          // clickbait başlık tipografisini TAM çizer (RenderWorkerService fallback şablonu).
+          RenderWorkerService.drawThumbnail(ctx, null, jobData.script.thumbnailText, w, h, fontFamily, jobData.config.sourceName, jobData.config);
+          addSystemLog('v1.177: Kapak görseli ve silüet adayı da yok — clickbait başlığı gradyan yedek kapak üzerine basıldı.', 'warn');
+        }
       }
 
       // 2) Sosyal medya CFR kodlamasında kullanılmak üzere TAM RENDER edilmiş
@@ -7552,7 +7645,7 @@ const RenderWorkerService = {
       let frameCheck = _inspectCanvasFrame(canvasElement);
       if (!frameCheck.ok) {
         addSystemLog(`BLACK_FRAME_PREFLIGHT: ilk kontrol karanlık (luma=${frameCheck.avgLuma.toFixed(1)}); kapak yeniden çiziliyor.`, 'warn');
-        RenderWorkerService.drawThumbnail(ctx, tImg, jobData.script.thumbnailText, w, h, fontFamily, jobData.config.sourceName, jobData.config);
+        RenderWorkerService.drawThumbnail(ctx, coverImageForScene, jobData.script.thumbnailText, w, h, fontFamily, jobData.config.sourceName, jobData.config);
         await nextFrame();
         frameCheck = _inspectCanvasFrame(canvasElement);
       }
@@ -7643,7 +7736,7 @@ const RenderWorkerService = {
       // Kapak kararması koruması: MediaRecorder başladıktan SONRA da ilk gerçek kareleri
       // clickbait kapağı olarak zorla kaydet. Böylece yalnız ilk tek kare değil,
       // açılıştaki görünür içerik penceresi de güvence altına alınır.
-      RenderWorkerService.drawThumbnail(ctx, tImg, jobData.script.thumbnailText, w, h, fontFamily, jobData.config.sourceName, jobData.config);
+      RenderWorkerService.drawThumbnail(ctx, coverImageForScene, jobData.script.thumbnailText, w, h, fontFamily, jobData.config.sourceName, jobData.config);
       const coverPrimerFrames = Math.max(18, Math.round(FPS * Number(RENDER_CONFIG.BLACK_FRAME_LEADIN_SEC || 1.20)));
       if (jobData.config?._useUltimateClickbaitCover) addSystemLog('✓ FIRST-FRAME LOCK: ULTIMATE AI kapağı encoder başlamadan canvas üzerine çizildi; ilk kare ve 1.20 sn kapak kilidi bu görselle yapılacak.', 'success');
       for (let cf = 0; cf < coverPrimerFrames; cf++) {
@@ -7655,7 +7748,7 @@ const RenderWorkerService = {
       const fixedKapakRenderDur = (jobData.config.tip === 'iddia_analizi' || jobData.script._muteNarration) ? (rawKapakDur / Math.max(scaleFactor, 0.01)) : rawKapakDur;
       // Açılış kapağında transition kullanma: thumbnail kareleri her zaman tam opak kalsın.
       prefetchDecodedAudio(jobData.assets.thumbnailAudio); prefetchDecodedAudio(jobData.assets.audio?.[0]); prefetchDecodedAudio(jobData.assets.audio?.[1]);
-      await renderScene(tImg, jobData.script.thumbnailText, jobData.assets.thumbnailAudio, fixedKapakRenderDur, true, false, null, 0, null, 'none');
+      await renderScene(coverImageForScene, jobData.script.thumbnailText, jobData.assets.thumbnailAudio, fixedKapakRenderDur, true, false, null, 0, null, 'none');
       const slideIsCustom = [];
       const blocks = jobData.script.imageBlocks || [];
       let gIdx = 0;
