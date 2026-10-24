@@ -1,6 +1,17 @@
 // ============================================================================
-// OTONOM Chatgpt_1.177 — SÜRÜM BAŞLIĞI (her değişiklikte burayı, APP_VERSION'ı ve SÜRÜM NOTLARI'nı birlikte artır)
+// OTONOM Chatgpt_1.178 — SÜRÜM BAŞLIĞI (her değişiklikte burayı, APP_VERSION'ı ve SÜRÜM NOTLARI'nı birlikte artır)
 // Program menüsündeki rozet APP_VERSION.toBadge() ile bu sürümden otomatik üretilir.
+// v1.178 ÖZET: İki üretim kırilması giderildi. (1) BGM/fon müziği: render'da tüm
+// hata yolları sessizdi (yalnız F12 console.warn); artık her kırılma günlüğe
+// ERROR/WARN olarak düşer + 'BGM başlatıldı: isim (süre, seviye)' başarı satırı
+// basılır; aktif default parça (polyushka) init'te kalıcı yerel kütüphaneye
+// aynalanır — render uzantıbağımlılığından çıkarıldı. (2) TTS: app'lerdeki
+// 'gemini-2.5-flash-preview-tts' ücretsiz kotası 0'a düştü (HTTP 429);
+
+// 'Son Söz seslendirmesi üretilemedi' fail-stop'u bundandı. TTS artık doğrulanmış
+// zincirde sıçrar: gemini-3.1-flash-tts-preview → 3.8-flash-tts → 3.8-flash-lite-tts
+// (üçü de bugün gerçek istekle ses üretti: 77/73/70 KB). Media servisi default'u da
+// güncellendi; .env'deki çift GEMINI_TTS_MODEL satırı tek indirgendi.
 // v1.177 ÖZET: TikTok akışında ilk karelerin boş beyaz görünmesi giderildi. Kapak
 // görseli (tImg) yokken mühürleme öncesi kapak canvas'ına clickbait yazısız düz
 // #f4f4f4 dolgusu basılıyor ve bu boş kare final MP4'ün ilk ~1.2 sn'sine overlay
@@ -93,7 +104,7 @@ const { Download, RotateCcw, UploadCloud, Music, Trash2, Volume2, Clock, Loader2
 // M1: CONSTANTS & CONFIG
 // ============================================================================
 const APP_VERSION = {
-  major: 1, minor: 177, hotfix: 'Chatgpt_1.177',
+  major: 1, minor: 178, hotfix: 'Chatgpt_1.178',
   short() { return `${this.major}.${this.minor}`; },
   toString() { return `OTONOM Chatgpt_${this.major}.${this.minor}`; },
   toBadge() { return `${this.toString()} • One-Page`; }
@@ -1190,6 +1201,8 @@ const collectUltimateCoverReferences = async (jobState) => {
 const useDebounce = (value, delay = 300) => { const [debounced, setDebounced] = useState(value); useEffect(() => { const timer = setTimeout(() => setDebounced(value), delay); return () => clearTimeout(timer); }, [value, delay]); return debounced; };
 
 const FIX_CHECKLIST = Object.freeze([
+  { version: '1.178', key: 'BGM_SILENT_FAILURE_INSTRUMENTATION', text: 'Videoda fon müziği çalmıyordu ve canlı izleme günlüğünde hiçbir BGM hatası görünmüyordu. Kök neden 1: render BGM yükleyicisi (loadBGM) tüm hata yollarını console.warn ile F12 konsoluna basıyordu — parça bulunamadı, ses verisi eksik, decode hatası hepsi sessiz geçiliyordu (sessiz fallback ihlali). Kök neden 2: default parça (polyushka) init\'te hydrate edilip tercihe yazılsa da kalıcı yerel kütüphaneye kaydedilmiyordu; her üretim uzantı MUSIC_GET (20 sn) round-trip\'ine bağımlıydı ve eklentideki tek seferlik bir durgunluk müziksiz video üretiyordu. Çözüm: (a) loadBGM tüm kırılma noktaları ERROR/WARN olarak günlüğe düşer; (b) "BGM başlatıldı: isim (süre, seviye)" başarı satırı basılır; (c) init ve müzik yenileme akışları aktif parçayı AssetManagerService.saveMusicToLib ile kalıcı yerel IndexedDB\'ye aynalar; render uzantısız da çalabilir.' },
+  { version: '1.178', key: 'TTS_MODEL_QUOTA_ZERO_CHAIN', text: 'Son Söz seslendirme fail-stop\'u ("Son Söz seslendirmesi üretilemedi; video render durduruldu") tüm TTS\'in null dönmesinden geliyordu. Kök neden: app\'deki TTS modeli hardcoded "gemini-2.5-flash-preview-tts" ve ücretsiz kotası 0\'a düşmüştü — gerçek istekte HTTP 429 "You exceeded your current quota" [kanıt: probe-tts-models.mjs]. Model emekli DEĞİL, kotasız: aynı görsel modellerinin akıbeti. Çözüm: generateAudio artık doğrulanmış TTS_MODELS zincirinde sıçrar (gemini-3.1-flash-tts-preview → gemini-3.8-flash-tts → gemini-3.8-flash-lite-tts); üçü de bugün ücretsiz katmanda gerçek ses üretti (77/73/70 KB, probe-tts-models + probe-tts-38). Deneme başına model bilinen şekilde günlüğe yazılır ("TTS deneme 2/3 (model: ...)"). Media servisi varsayılanı da aynı şekilde güncellendi; .env\'de iki satır çift GEMINI_TTS_MODEL tek satıra indirgendi (son satır kazanmıştı servislerde — bu yüzden servisler çalışıp app kırılmıştı).' },
   { version: '1.177', key: 'CLICKBAIT_SEAL_WHEN_NO_COVER_IMG', text: 'TikTok akışında videonun ilk ~1.2 sn mühürlü karesi boş beyaz görünüyordu; clickbait kapak başlığı ancak oynatma ilerleyince çıkıyordu. Kök neden: kapak görseli (tImg) yokken renderWorker öncesi kapak canvas\'ına \'#f4f4f4\' DÜZ dolgu basılıyor, clickbait tipografisi hiç çizilmiyordu; bu boş kare assets._renderedClickbaitFrame olarak saklanıp FFmpeg ilk-kare mührü (lte(t,1.20) overlay) ile MP4\'ün başına bindiriliyordu. Ayrıca BLACK_FRAME_PREFLIGHT sadece karanlığı (luma) ölçtüğü için beyaz-boş kareyi de geçerli sayıyordu. Çözüm: tImg yokken RenderWorkerService.drawThumbnail ctx\'e img=null ile tam yedek kapak şablonu çizer (koyu gradyan zemin + logo + clickbait başlık) ve uyarı günlüğe düşer.' },
   { version: '1.176', key: 'LOCAL_GATEWAY_PAGE_PROXY', text: 'Haber Linki akışı "Haber linkinden gerçek resim alınamadı (... corsproxy.io: The operation was aborted | localhost: NetworkError...)" ile duruyordu. Kök neden: sayfa HTML tarayıcıdan çekiliyordu (CORS engeli) — allorigins/corsproxy/codetabs/whateverorigin ücretsiz proxy havuzu ölü veya sınır boğmasında; localhost:3457 yerel adayında ise hiçbir şey dinlemiyordu. Çözüm: gateway (4100) sıfır bağımlılık /proxy ve /api/proxy route\'u aldı — server-side fetch (tarayıcı UA, 25 sn timeout, 10 MB üst sınır, yalnız http/https dış adres = SSRF guard, CORS başlıkları) ham HTML/döndürür; Haber Linki kazandan bağımsız artık bütün üçüncü parti proxy\'lerden önce KENDİ servisini dener. Görsel indirme (_fetchPhotoDataUrl) de yerel gateway proxy\'sini aday gördü (hotlink korumalı gazete fotoğrafları). Kanıt: probe-gateway-proxy + probe-nefes-article gerçek linklerle (nefes.com.tr ana sayfa HTML 184 KB, makale og:image JPEG 179 KB, SSRF guard 400).' },
   { version: '1.175', key: 'GEMINI_MODEL_RETIRE_AND_SEARCH_JSON_FIX', text: 'Gazete/haber üretimi "Blok analiz hatası: HTTP_FAIL_404" + NO_SCENES_GENERATED ile duruyordu. Kök nedenler: (1) AI_CONFIG.GEMINI_MODEL "gemini-2.5-flash-preview-09-2025" Google tarafından emekliye ayrıldı → tüm analiz/doğrulama/onarım çağrıları 404; güncel "gemini-2.5-flash" ile değiştirildi (google_search aracıyla birlikte tek başına doğrulandı 200 OK). (2) Gemini artık google_search aracındaki isteklerde responseMimeType/JSON şemasını kabul etmiyor (HTTP 400). Tek noktadan _stripJsonConfigForSearch yardımcısı eklendi: araçlı isteklerde JSON mime/şema kaldırılır, şema STRICT JSON OUTPUT metin talimatı olarak gömülür; _callGeminiAndParse zaten kod çitlerini kesip {…} dilimlediği için tüm akışlar (analiz, karşılaştırma, iddia) şeffaf düzelir. Kanıt: A/B kombinasyon probu (araç tek 200, şema tek 200, ikisi birlikte 400) + build.' },
@@ -5360,22 +5373,29 @@ class MediaSynthesisService {
 
     if (cleanText.length < 2) return null;
     const expectedMinDuration = Math.max(2.0, (cleanText.split(/\s+/).length / 2.5));
+    // v1.178: 'gemini-2.5-flash-preview-tts' ücretsiz kotası 0'a düştü (gerçek istekte
+    // HTTP 429 "You exceeded your current quota"); tüm sahne/Son Söz/outro sesleri
+    // null dönüyordu ve Son Söz fail-stop tetikleniyordu. Güncel zincir gerçek istekle
+    // doğrulandı: 3.1-flash-tts-preview → OK 77KB, 3.8-flash-tts → OK 73KB,
+    // 3.8-flash-lite-tts → OK 70KB (hepsi ücretsiz katmanda ses üretti).
+    const TTS_MODELS = ['gemini-3.1-flash-tts-preview', 'gemini-3.8-flash-tts', 'gemini-3.8-flash-lite-tts'];
     const maxRetries = 2;
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      const model = TTS_MODELS[attempt % TTS_MODELS.length];
       try {
-        if (attempt === 0) addSystemLog(`Ses sentezleniyor (${voice}): "${cleanText.substring(0, 40)}..."`, 'info');
-        else addSystemLog(`TTS deneme ${attempt + 1}/${maxRetries + 1}...`, 'info');
-        const payload = { model: "gemini-2.5-flash-preview-tts", contents: [{ parts: [{ text: cleanText }] }], generationConfig: { responseModalities: ["AUDIO"], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } } } };
+        if (attempt === 0) addSystemLog(`Ses sentezleniyor (${voice} / ${model}): "${cleanText.substring(0, 40)}..."`, 'info');
+        else addSystemLog(`TTS deneme ${attempt + 1}/${maxRetries + 1} (model: ${model})...`, 'info');
+        const payload = { model, contents: [{ parts: [{ text: cleanText }] }], generationConfig: { responseModalities: ["AUDIO"], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } } } };
         const ttsController = new AbortController();
         const ttsTimeout = setTimeout(() => ttsController.abort(), 45000);
         let r;
         try {
-          r = await NetworkUtils.fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), signal: ttsController.signal }, 2);
+          r = await NetworkUtils.fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), signal: ttsController.signal }, 2);
         } catch (ttsError) {
-          if (ttsController.signal.aborted) throw new Error(`TTS API 45 sn içinde yanıt vermedi (${voice}); yeniden deneme kuyruğuna geçiliyor.`);
+          if (ttsController.signal.aborted) throw new Error(`TTS API 45 sn içinde yanıt vermedi (${voice} / ${model}); yeniden deneme kuyruğuna geçiliyor.`);
           throw ttsError;
         } finally { clearTimeout(ttsTimeout); }
-        if (!r || !r.ok) { if (r) PerformanceTelemetry.finishResponse(r, null, false, `HTTP ${r.status}`); addSystemLog(`TTS API yanıt hatası: ${r?.status || 'undefined'}`, 'warn'); continue; }
+        if (!r || !r.ok) { if (r) PerformanceTelemetry.finishResponse(r, null, false, `HTTP ${r.status}`); addSystemLog(`TTS API yanıt hatası (${model}): ${r?.status || 'undefined'}`, 'warn'); continue; }
         const d = await r.json();
         PerformanceTelemetry.finishResponse(r, d, r.ok);
         const b64Data = d.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
@@ -7323,7 +7343,12 @@ const RenderWorkerService = {
         } else {
           try {
             const track = await AssetManagerService.getMusicFromLib(musicId);
-            if (track && track.data) {
+            if (!track) {
+              // v1.178: sessiz fallback yasak — müzik hangi halkada kırıldıysa günlükte görünsün.
+              addSystemLog(`BGM hatası: seçili parça (${musicId}) yerel kütüphanede ve bağlı eklentide bulunamadı; video MÜZİKSİZ devam ediyor. Müziği içe aktarın veya başka parça seçin.`, 'error');
+            } else if (!track.data) {
+              addSystemLog(`BGM hatası: parça "${track.name || musicId}" listelendi fakat ses verisi döndürmedi; video MÜZİKSİZ devam ediyor.`, 'error');
+            } else {
               const blob = _base64ToBlob(track.data);
               const musicUrl = ObjectURLManager.create(blob);
               const res = await fetch(musicUrl);
@@ -7339,8 +7364,12 @@ const RenderWorkerService = {
               masterGain = audioCtx.createGain();
               masterGain.gain.value = Math.min(1, Math.max(0, Number(preferences?.backgroundMusicVolume ?? DEFAULT_BGM_VOLUME)));
               bgmSource.connect(masterGain); masterGain.connect(audioOutput); bgmSource.start(0, audible ? audible.start : 0);
+              addSystemLog(`BGM başlatıldı: "${track.name || musicId}" (${buf.duration.toFixed(1)}sn, seviye ${(masterGain.gain.value * 100).toFixed(0)}%).`, 'success');
             }
-          } catch (e) { console.warn("Müzik okunamadı", e); }
+          } catch (e) {
+            addSystemLog(`BGM hatası: müzik dosyası çözümlenemedi (${String(e?.message || e)}); video MÜZİKSİZ devam ediyor.`, 'error');
+            console.warn("Müzik okunamadı", e);
+          }
         }
       };
       const initialBgmId = jobData.script._bgmId || preferences.ambientSound || 'none';
@@ -10424,6 +10453,13 @@ export default function App() {
               addSystemLog(`Müzik kataloğunda bulundu ancak ses verisi alınamadı: ${activeTrack.name || activeTrack.id}`, 'warn');
             } else {
             activeTrack = { ...activeTrack, ...hydratedTrack };
+            // v1.178: Aktif default parça kalıcı yerel kütüphaneye aynalanır; böylece
+            // her üretimde uzantıya MUSIC_GET round-trip'i bağımlılığı kalmaz ve
+            // eklentideki tek seferlik bir durgunluk müziksiz videoya yol açmaz.
+            try {
+              const mirrored = await AssetManagerService.saveMusicToLib({ id: activeTrack.id, name: activeTrack.name, data: activeTrack.data });
+              addSystemLog(mirrored ? 'Aktif BGM parçası yerel kütüphaneye aynalandı (render artık eklentiye bağımlı değil).' : 'BGM aynalama başarısız; render uzantıya bağımlı kalıyor (erişim yoksa bölüm tekrar denenir).', mirrored ? 'info' : 'warn');
+            } catch (mirrorError) { ErrorHandler.silent(mirrorError); }
             const blob = _base64ToBlob(activeTrack.data);
             const url = ObjectURLManager.create(blob);
             await AssetManagerService.saveMedia('CUSTOM_MUSIC', url);
@@ -10758,6 +10794,12 @@ export default function App() {
         return;
       }
       activeTrack = { ...activeTrack, ...hydrated };
+      // v1.178: Aktif parçayı kalıcı yerel kütüphaneye aynala (render, uzantı MUSIC_GET
+      // round-trip'ine bağımlı kalmasın; eklenti durgunlğünde müziksiz video kalmasın).
+      try {
+        const mirrored = await AssetManagerService.saveMusicToLib({ id: activeTrack.id, name: activeTrack.name, data: activeTrack.data });
+        addSystemLog(mirrored ? `Aktif BGM '${activeTrack.name}' yerel kütüphaneye aynalandı.` : `BGM aynalama başarısız (uzantı erişimi yok); render uzantıya bağımlı kalıyor.`, mirrored ? 'info' : 'warn');
+      } catch (mirrorError) { ErrorHandler.silent(mirrorError); }
 
       const oldUrl = await AssetManagerService.loadMedia('CUSTOM_MUSIC');
       if (oldUrl && oldUrl.startsWith('blob:')) ObjectURLManager.revoke(oldUrl);

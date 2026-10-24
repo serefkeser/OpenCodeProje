@@ -9,7 +9,7 @@ const PORT = Number(process.env.MEDIA_PORT || 4202);
 const HOST = process.env.HOST || '127.0.0.1';
 const GEMINI_API_KEY = String(process.env.GEMINI_API_KEY || '');
 // .env'de GEMINI_TTS_MODEL iki kez geçer; node --env-file'da SON satır kazanır.
-const GEMINI_TTS_MODEL = String(process.env.GEMINI_TTS_MODEL || 'gemini-2.5-flash-preview-tts');
+const GEMINI_TTS_MODEL = String(process.env.GEMINI_TTS_MODEL || 'gemini-3.1-flash-tts-preview'); // v1.178: 2.5-flash-preview-tts ücretsiz kotası 0 (HTTP 429)
 const GEMINI_TTS_VOICE = String(process.env.GEMINI_TTS_VOICE || 'Aoede');
 const GEMINI_IMAGE_MODEL = String(process.env.GEMINI_IMAGE_MODEL || 'gemini-2.5-flash-image');
 
