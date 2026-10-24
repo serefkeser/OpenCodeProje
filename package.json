@@ -1,0 +1,18 @@
+{
+  "name": "otonom-microservices",
+  "version": "1.172.0",
+  "description": "OTONOM monolit -> mikro servis dönüşümü (gateway + analysis + media + web)",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start:all": "node --env-file=.env --import ./scripts/spawn-all.mjs",
+    "start:gateway": "node --env-file=.env services/gateway/index.mjs",
+    "start:analysis": "node --env-file=.env services/analysis/index.mjs",
+    "start:media": "node --env-file=.env services/media/index.mjs",
+    "start:web": "npm --workspace web run dev"
+  },
+  "workspaces": [
+    "services/*",
+    "web"
+  ]
+}
