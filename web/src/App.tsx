@@ -1,6 +1,16 @@
 // ============================================================================
 // OTONOM Chatgpt_1.181 — SÜRÜM BAŞLIĞI (her değişiklikte burayı, APP_VERSION'ı ve SÜRÜM NOTLARI'nı birlikte artır)
 // Program menüsündeki rozet APP_VERSION.toBadge() ile bu sürümden otomatik üretilir.
+// v1.186 ÖZET: Kullanıcı onayı — GAZETE_MANIFEST_VERIFY "sayfalar alındı ama
+// eşleşme yok" dalı artık KAYNAK BAŞINA en güncel görülen tarihi raporlar
+// ("GazeteOku en fazla 24 Ekim tarihli içerik sundu", "GZT 25 Ekim başlıklı
+// sayfayı sundu ancak günün listesi HTML içinde doğrulanamadı (liste JS ile
+// yükleniyor)") — kullanıcı tarihe göre neden durduğunu tek logda görür; süreç
+// aynı eski tasarım gibi DURUR (eski/yarım liste gösterilmez; fail-closed korundu).
+// Tanı kanıtı (25 Ekim gece): GazeteOku/tekal HÜRRİYET 24 Ekim 2026; Aydınlık
+// storage/newspapers yalnız 2026-10-24 (gateway'siz doğrudan çekişte aynı);
+// GZT RSC JSON tarih-image eşleşmesiz. Kaynaklar o saatte günün sayılarını
+// yayımlamamıştı; kapı doğru davrandı.
 // v1.185 ÖZET: Kullanıcı talebi — OTONOM_1_105_Firefox uzantısı analiz edildi;
 // program tarayıcı-uzantısından bağımsız hale getirildi. Analiz: Buffer köprüsü
 // v1.173'te zaten App'ten çıkarılmış (uzantının buffer-* dosyaları ölü), gazete
@@ -182,7 +192,7 @@ const { Download, RotateCcw, UploadCloud, Music, Trash2, Volume2, Clock, Loader2
 // M1: CONSTANTS & CONFIG
 // ============================================================================
 const APP_VERSION = {
-  major: 1, minor: 185, hotfix: 'Chatgpt_1.185',
+  major: 1, minor: 186, hotfix: 'Chatgpt_1.186',
   short() { return `${this.major}.${this.minor}`; },
   toString() { return `OTONOM Chatgpt_${this.major}.${this.minor}`; },
   toBadge() { return `${this.toString()} • One-Page`; }
@@ -1279,6 +1289,7 @@ const collectUltimateCoverReferences = async (jobState) => {
 const useDebounce = (value, delay = 300) => { const [debounced, setDebounced] = useState(value); useEffect(() => { const timer = setTimeout(() => setDebounced(value), delay); return () => clearTimeout(timer); }, [value, delay]); return debounced; };
 
 const FIX_CHECKLIST = Object.freeze([
+  { version: '1.186', key: 'GAZETE_VERIFY_PER_SOURCE_LATEST_DATE_REPORT', text: 'Kullanıcı onayı: gazete listesi doğrulanamadığında (sayfalar alındı, eşleşme yok dalı) mesaj artık kaynak başına en güncel görülen tarihi açıkça verir — örn. "GazeteOku en fazla 24 Ekim 2026 tarihli içerik sundu", "GZT 25 Ekim 2026 başlıklı sayfayı sundu ancak günün listesi HTML içinde doğrulanamadı (liste muhtemelen JS ile yükleniyor)" — ve eski/yarım listeyi göstermeden DURUR. Kanıt: 25 Ekim gece tanısı — GazeteOku kartları HÜRRİYET 24 Ekim 2026, Aydınlık storage yalnız 2026-10-24 (gateway dışı doğrudan çekişte aynı), GZT SSR listesiz; kaynaklar o saatte günün sayılarını yayımlamamıştı.' },
   { version: '1.185', key: 'MUSIC_LIBRARY_GATEWAY_NO_EXTENSION', text: 'Kullanıcı talebi: Firefox eklentisi (OTONOM_1_105) tarayıcıdan bağımsız olsun — müzik kütüphanesi tek canlı uzantı bağımlılığıydı (Buffer v1.173te zaten çıkarılmış, gazete fetch uzantısız aynen çalışıyor). Çözüm: gateway 4100 /api/music kalıcı deposu (services/gateway/muzik/ klasörü: katalog.json + <id>.audio; id regex ^fm_[A-Za-z0-9_-]{1,230}$, 32 MB üst sınır, yalnız audio veya ogg/octet-stream data-URL) + App müzik metodları uzantı MUSIC_* protokolünden gateway fetch çağrılarına bağlandı (saveMusicToLib/getAllMusicFromLib/getMusicFromLib/removeMusicFromLib/mirrorLocalMusicToGateway/refreshMusicLibrary; musicExtensionRequest ve probeMusicExtension silindi). Yerel IndexedDB birincil önbellek; gateway kapalıysa açık WARN, sessiz düşme yok. UI uzantı rozeti "Gateway Kalıcı Müzik (4100)". Kanıt: probe-gateway-music.mjs 8/8 PASS (boş katalog, kayıt, liste, data-URL okuma, id reddi, mime reddi, silme, yeniden boş).' },
   { version: '1.184', key: 'TTS_NULL_SILENT_FAILURE_RETRY_CAP_TOP_AND_SCENE', text: 'Kullanıcı üretim dosyası analizi (MP4+ses haritesi): (1) kapak clickbait başlığı/tarih/gazete adı ekrandaydı ama 0-2 sn konuşma yoktu — kök neden: clickbait TTS null döndürüp kod koşulsuz "Clickbait seslendirme hazır" SUCCESS yazıyordu, null sessizce atanıyordu; (2) 0:48-0:52 aralığı yazılı ama konuşmasızdı — kök neden: sahne TTS null döndüğünde null sessizce atanıp render da o sahneyi 4 sn sessiz oynatmada bırakıyordu (sessiz fallback). Çözüm: kapak ve sahne TTS null dönme noktalarında TEK yeniden deneme, yine null kalırsa açık ERROR; render tarafında sesi olmayan sahnede açık WARN. Kanıt: konuşma-bandı RMS haritası (0-2 ve 48-51 yalnız müzik -35..-37dB; 2-47 ve 52-65 konuşma -23..-27dB), kare çıkarımı, build.' },
   { version: '1.183', key: 'LIVE_MONITOR_CLIPBOARD_VERSION_HEADER', text: 'Kullanıcı talebi: panoya kopyalanan canlı izleme logunun başına sürüm eklensin; çünkü yapıştırdığı log kayıtları hangi app sürümünden geldiği birebir görünmüyordu (SÜREÇ TXT ise başlığındaki Sürüm satırı taşıyordu). Çözüm: copyLiveMonitorLogs çıktısının İLK satırı artık "OTONOM Chatgpt_1.183 — canlı izleme logları (tr-TR tarih)" biçiminde sürüm dosyalı; kalan metin aynen zaman damgalı satırlar. Sessiz davranış değişikliği yok.' },
@@ -12394,7 +12405,18 @@ export default function App() {
       } else if (latestKnownDate && latestKnownDate < selectedDate) {
         cause = `Kaynakların gövdesi alındı ancak seçilen ${formatGazeteDateForMessage(selectedDate)} tarihli sayı bulunamadı. En yeni görülen kaynak tarihi ${latestLabel}. Yeni sayılar yayımlanana kadar yenileyin; eski tarihli liste gösterilmedi.`;
       } else {
-        cause = `Kaynakların sayfaları alındı ancak ${selectedDate} için yeterli sayıda gazete adı+tarih eşleşmesi çıkarılamadı. Kısmi veya eski liste gösterilmedi.`;
+        // v1.186: "Sayfalar alındı ama eşleşme yok" dalı artık kaynak başına en güncel
+        // görülen tarihi açıkça raporlar: hangi kaynak seçilen tarihi yalnız başlıkta
+        // taşıyıp listeyi JS ile yüklediyse, hangisi daha eski sayı gösteriyorsa net
+        // ayrışır; süreç yalnız bilgilendirir ve DURUR (eski liste gösterilmez).
+        const perSource = sourceDiagnostics.map(item => {
+          const label = item.source?.label || item.source?.key || '?';
+          const d = item.latestDate;
+          if (!d) return `${label} sayfasında okunur tarih bilgisi yok`;
+          if (d >= selectedDate) return `${label} ${formatGazeteDateForMessage(d)} başlıklı sayfayı sundu ancak günün gazete listesi HTML içinde adı+tarihla doğrulanamadı (liste muhtemelen JS ile yükleniyor)`;
+          return `${label} en fazla ${formatGazeteDateForMessage(d)} tarihli içerik sundu`;
+        }).join('; ');
+        cause = `Kaynakların sayfaları alındı ancak ${formatGazeteDateForMessage(selectedDate)} tarihli sayılara henüz ulaşılamadı. Durum: ${perSource}. Gazeteler bu tarih için henüz yayımlanmamış olabilir; yayımlanır yayımlanmaz (genel olarak sabah saatleri) yenileyin. Eski veya yarım liste gösterilmedi.`;
       }
       throw new Error(
         `GAZETE_MANIFEST_VERIFY: ${selectedDate} günlük gazete listesi doğrulanamadı. ${cause} Kaynak durumları: ${status.join(' | ')}.`
