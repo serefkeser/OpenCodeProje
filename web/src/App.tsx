@@ -1,8 +1,9 @@
 // ============================================================================
-// OTONOM Chatgpt_1.172 — SÜRÜM BAŞLIĞI (her değişiklikte burayı, APP_VERSION'ı ve SÜRÜM NOTLARI'nı birlikte artır)
+// OTONOM Chatgpt_1.173 — SÜRÜM BAŞLIĞI (her değişiklikte burayı, APP_VERSION'ı ve SÜRÜM NOTLARI'nı birlikte artır)
 // Program menüsündeki rozet APP_VERSION.toBadge() ile bu sürümden otomatik üretilir.
-// v1.172 ÖZET: Monolit (1.171) aynen korunur; Gemini generateContent çağrıları yerel
-// mikro servislere (gateway:4100 → analysis:4201 / media:4202) taşınır; .env anahtarları sunucuda kalır.
+// v1.173 ÖZET: Buffer sosyal paylaşım katmanı tamamen kaldırıldı. Üretim yalnızca
+// ses/video üretir ve MP4'ü yerel ortamda saklar/indirir; gönderim kuyruğu, scheduler,
+// Buffer bridge uzantı protokolü ve paylaşım panoları koddan çıkarıldı.
 // ============================================================================
 // ============================================================================
 // OTONOM - Gemini Canvas Uyumlu Versiyon (Firebase KALDIRILDI — Local-First)
@@ -78,61 +79,12 @@ const ICONS = {
 };
 const { Download, RotateCcw, UploadCloud, Music, Trash2, Volume2, Clock, Loader2, Copy, AlertCircle, Activity, Server, Database, ShieldCheck, ImagePlus, Smartphone, Clapperboard, Type, Palette, Globe, MessageSquare, Monitor, Filter, Wand2, CloudRain, ChevronDown, Film, FileText, Layers, RefreshCw, Share2, Check, Link2, Newspaper, Scissors, ExternalLink, Eye } = ICONS;
 
-const bufferSocialService = value => {
-  const key = String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-  if (key === 'twitter' || key === 'x') return 'x';
-  if (key.startsWith('instagram')) return 'instagram';
-  if (key.startsWith('linkedin')) return 'linkedin';
-  if (key.startsWith('tiktok')) return 'tiktok';
-  if (key.startsWith('facebook')) return 'facebook';
-  if (key.startsWith('youtube')) return 'youtube';
-  if (key.startsWith('pinterest')) return 'pinterest';
-  if (key.startsWith('bluesky')) return 'bluesky';
-  if (key.startsWith('threads')) return 'threads';
-  return 'other';
-};
-const bufferSocialLabel = service => ({
-  x: 'X', instagram: 'Instagram', linkedin: 'LinkedIn', tiktok: 'TikTok',
-  facebook: 'Facebook', youtube: 'YouTube', pinterest: 'Pinterest',
-  bluesky: 'Bluesky', threads: 'Threads', other: 'Sosyal ağ'
-}[bufferSocialService(service)]);
-const bufferChannelLogName = (service, name) => `[${bufferSocialLabel(service)}] ${name}`;
-const BufferSocialIcon = ({ service, size = 18 }) => {
-  const platform = bufferSocialService(service);
-  const color = {
-    x: '#f8fafc', instagram: '#fb7185', linkedin: '#60a5fa', tiktok: '#67e8f9',
-    facebook: '#60a5fa', youtube: '#f87171', pinterest: '#fb7185',
-    bluesky: '#60a5fa', threads: '#f8fafc', other: '#94a3b8'
-  }[platform];
-  if (platform === 'other') return <Globe size={size} className="shrink-0 text-slate-400" aria-label="Sosyal ağ" />;
-  return <svg width={size} height={size} viewBox="0 0 24 24" className="shrink-0" style={{ color }} role="img" aria-label={bufferSocialLabel(service)}>
-    {platform === 'x' && <path fill="currentColor" d="M18.9 2h3.1l-6.8 7.8L23.2 22h-6.3l-5-7.5L5.3 22H2.2l7.3-8.5L1.8 2h6.5l4.5 6.8L18.9 2Zm-1.1 18h1.7L7.3 4H5.5l12.3 16Z" />}
-    {platform === 'instagram' && <><rect x="2.2" y="2.2" width="19.6" height="19.6" rx="5.5" fill="none" stroke="currentColor" strokeWidth="2.3" /><circle cx="12" cy="12" r="4.3" fill="none" stroke="currentColor" strokeWidth="2.3" /><circle cx="17.7" cy="6.4" r="1.4" fill="currentColor" /></>}
-    {platform === 'linkedin' && <><rect x="1.5" y="1.5" width="21" height="21" rx="3" fill="currentColor" /><path d="M5.5 9.2h2.8V19H5.5V9.2Zm1.4-4.1a1.6 1.6 0 1 1 0 3.2 1.6 1.6 0 0 1 0-3.2ZM10.2 9.2h2.7v1.3c.4-.7 1.3-1.5 2.8-1.5 3 0 3.4 2 3.4 4.5V19h-2.8v-5c0-1.2 0-2.7-1.7-2.7s-1.6 1.3-1.6 2.6V19h-2.8V9.2Z" fill="#0f172a" /></>}
-    {platform === 'tiktok' && <path fill="currentColor" d="M15.3 2h2.5c.3 2.2 1.6 3.5 3.9 3.7v2.8a8.7 8.7 0 0 1-3.9-1.1v7a6 6 0 1 1-6-6h.6v3a3 3 0 1 0 2.9 3V2Z" />}
-    {platform === 'facebook' && <path fill="currentColor" d="M14.4 22v-8.2h2.8l.4-3.3h-3.2V8.4c0-1 .3-1.6 1.7-1.6h1.7V3.9a22 22 0 0 0-2.5-.2c-2.5 0-4.2 1.5-4.2 4.4v2.4H8.3v3.3h2.8V22h3.3Z" />}
-    {platform === 'youtube' && <><rect x="1.5" y="4.5" width="21" height="15" rx="4" fill="currentColor" /><path d="m10 8 6 4-6 4V8Z" fill="#0f172a" /></>}
-    {platform === 'pinterest' && <><circle cx="12" cy="12" r="10" fill="currentColor" /><text x="7" y="18" fontSize="17" fontWeight="900" fontFamily="Georgia,serif" fill="#0f172a">P</text></>}
-    {platform === 'bluesky' && <path fill="currentColor" d="M12 11.4C9.4 7.7 5.1 3.7 2.7 3.7 1.5 3.7 1.5 5.3 1.5 6.5c0 2.5 1.3 5.8 4.5 6.1-3.2.3-4.2 2.3-3.6 4.1 1.3 3.8 5.6 4.4 9.6-1.5 4 5.9 8.3 5.3 9.6 1.5.6-1.8-.4-3.8-3.6-4.1 3.2-.3 4.5-3.6 4.5-6.1 0-1.2 0-2.8-1.2-2.8-2.4 0-6.7 4-9.3 7.7Z" />}
-    {platform === 'threads' && <text x="1" y="19" fontSize="22" fontWeight="900" fontFamily="Arial,sans-serif" fill="currentColor">@</text>}
-  </svg>;
-};
-const BUFFER_SHARE_STAGES = Object.freeze([
-  { id: 'channels', label: 'Kanal ve limit kontrolü', start: 0, end: 12 },
-  { id: 'media', label: 'Medya hostu kontrolü', start: 12, end: 20 },
-  { id: 'cfr', label: 'Video 30 FPS dönüşümü', start: 20, end: 65 },
-  { id: 'upload', label: 'Medya yükleme', start: 65, end: 85 },
-  { id: 'posts', label: 'Buffer kanallarına gönderim', start: 85, end: 95 },
-  { id: 'verify', label: 'Buffer teslim kaydı', start: 95, end: 100 }
-]);
-const bufferDuration = ms => `${(Math.max(0, Number(ms) || 0) / 1000).toFixed(1)} sn`;
 
 // ============================================================================
 // M1: CONSTANTS & CONFIG
 // ============================================================================
-const AUTO_BUFFER_SHARING_ENABLED = false; // v1.155: Üretim yalnızca ses/video üretir ve MP4 indirir; otomatik Buffer gönderimi kapalı.
 const APP_VERSION = {
-  major: 1, minor: 172, hotfix: 'Chatgpt_1.172',
+  major: 1, minor: 173, hotfix: 'Chatgpt_1.173',
   short() { return `${this.major}.${this.minor}`; },
   toString() { return `OTONOM Chatgpt_${this.major}.${this.minor}`; },
   toBadge() { return `${this.toString()} • One-Page`; }
@@ -352,9 +304,6 @@ const SafeStorage = {
   removeItem: (key) => { try { localStorage.removeItem(key); } catch (e) { delete SafeStorage.memoryStore[key]; } }
 };
 
-// v1.37 Buffer API anahtarı artık TSX/localStorage içinde tutulmaz.
-// Anahtar yalnız OTONOM Buffer Bridge tarayıcı eklentisinin storage.local alanındadır.
-SafeStorage.removeItem('BUFFER_API_KEY');
 
 let apiKey = (typeof window !== 'undefined' && (window.apiKey || window.__google_api_key)) || SafeStorage.getItem('GEMINI_API_KEY') || "";
 const setGeminiApiKey = (key) => { apiKey = key || ""; SafeStorage.setItem('GEMINI_API_KEY', apiKey); };
@@ -434,7 +383,7 @@ const PerformanceTelemetry = (() => {
       const prev = runs.find(r => r.id === currentRunId);
       if (prev && !prev.productionMs && !prev.finishedAt) updateCurrentRun({ status: 'INTERRUPTED', finishedAt: at });
       currentRunId = `run-${at}-${Math.random().toString(36).slice(2, 7)}`;
-      runs.push({ id: currentRunId, startedAt: at, title: '', status: 'RUNNING', productionMs: null, bufferMs: null, sourceCount: null });
+      runs.push({ id: currentRunId, startedAt: at, title: '', status: 'RUNNING', productionMs: null, sourceCount: null });
       changed = true;
     }
     const rules = [
@@ -443,8 +392,6 @@ const PerformanceTelemetry = (() => {
       { id: 'assets', label: 'Ses ve varlık hazırlığı', start: /ASSETS fase:/i, end: /ASSETS tamamlandı/i },
       { id: 'render', label: 'Video render', start: /Video render başlatılıyor/i, end: /Video kaydediliyor/i },
       { id: 'cfr', label: 'MP4 FPS / CFR doğrulaması', start: /MP4 FPS doğrulanıyor/i, end: /MP4 hazır:.*FPS CFR|MP4 hazır: 30\.000 FPS CFR/i },
-      { id: 'cloudinary', label: 'Medya yükleme', start: /Video\/Medya public HTTPS adrese Buffer eklentisi üzerinden yükleniyor/i, end: /Video\/Medya public HTTPS adrese yüklendi/i },
-      { id: 'buffer', label: 'Buffer gönderim isteği', start: /Buffer HARD GATE: 30\.000 FPS CFR doğrulandı/i, end: /Buffer gönderimi kabul etti/i }
     ];
     for (const rule of rules) {
       if (rule.start.test(text)) { startStage(rule.id, rule.label, at); changed = true; }
@@ -462,19 +409,9 @@ const PerformanceTelemetry = (() => {
         changed = true;
       }
     }
-    if (currentRunId && /Buffer gönderim denemeleri tamamlandı/i.test(text)) {
-      const row = runs.find(r => r.id === currentRunId);
-      if (row && row.bufferMs == null) { runs = runs.map(r => r.id === currentRunId ? { ...r, bufferAt: at, bufferMs: Math.max(0, at - r.startedAt), status: 'BUFFER_ATTEMPTED', finishedAt: at } : r); changed = true; }
-    }
     if (currentRunId && /(?:Gazete job kilidi: kaynak=|YORUMLA: .*gazete ilk sayfası)/i.test(text)) {
       const row = runs.find(r => r.id === currentRunId);
       if (row && !row.title) { runs = runs.map(r => r.id === currentRunId ? { ...r, title: text.slice(0, 90) } : r); changed = true; }
-    }
-    // Başlık bilgisini video kuyruğa yazıldığı anda al; üretim süresini ise final MP4/indirme isteğinde kapat.
-    if (currentRunId && /Video kalıcı gönderim kuyruğuna kaydedildi:\s*/i.test(text)) {
-      const match = text.match(/Video kalıcı gönderim kuyruğuna kaydedildi:\s*([^.(]+)/i);
-      const row = runs.find(r => r.id === currentRunId);
-      if (row && !row.title && match?.[1]) { runs = runs.map(r => r.id === currentRunId ? { ...r, title: match[1].trim() } : r); changed = true; }
     }
     if (changed) publish();
   };
@@ -883,9 +820,6 @@ _processLogManager = (() => {
       return;
     }
     if (!current || current.status !== 'RUNNING') return;
-    // Bu mesaj, yeni iş başlamış olsa bile önceki videoya ait olabilir; yeni log dosyasına karıştırma.
-    const previousVideoDispatchNotice = /Buffer gönderim denemeleri .*Yeni video üretimi başlıyor/i.test(text);
-    if (previousVideoDispatchNotice) return;
     const meta = current;
     identifyFrom(meta, text);
     appendRaw(meta, entry);
@@ -1237,6 +1171,7 @@ const collectUltimateCoverReferences = async (jobState) => {
 const useDebounce = (value, delay = 300) => { const [debounced, setDebounced] = useState(value); useEffect(() => { const timer = setTimeout(() => setDebounced(value), delay); return () => clearTimeout(timer); }, [value, delay]); return debounced; };
 
 const FIX_CHECKLIST = Object.freeze([
+  { version: '1.173', key: 'BUFFER_REMOVED', text: 'Buffer sosyal paylaşım katmanı koddan tamamen çıkarıldı: PAYLAŞ düğmesi ve paylaşım rapor panosu, kalıcı gönderim kuyruğu + scheduler (IndexedDB store’ları da dahil), Buffer API/GraphQL akışı, Buffer Bridge Chrome/Firefox uzantı protokolü, Buffer istek bütçesi (rate-limit ledger), otomatik Buffer zamanlama anahtarları ve canlı izlemedeki gönderim filtresi/kartları kaldırıldı. Üretim artık yalnız ses/video üretir ve MP4’ü yerel ortamda saklar/indirir; gazete sırası, önizleme-ended kapısı, MP4 onarım döngüsü ve süre/token ölçümleri aynen korunur.' },
   { version: '1.171', key: 'MP4_AUTO_REPAIR_LOOP', text: 'MP4 üretimi hata verince artık 2 denemede pes edilmez: 10 adımlık otomatik onarım döngüsü. Her başarısız denemeden sonra FFmpeg runtime sıfırlanır ve strateji sadeleşir (1: süre kilidi+fade+kapak, 2: süre kilidi yok, 3: kapak bindirme yok, 4: ses filtresi yok; 2-3-4 tekrar eder). FFmpeg’in son log satırları hata mesajına eklenir. Ayrıca çift döngüsü adımı MP4/FFmpeg hatasıyla bitiyorsa video baştan üretilerek en fazla 2 kez daha denenir; doğru MP4 çıkana kadar sıradaki adıma geçilmez.' },
   { version: '1.170', key: 'MP4_HARD_DURATION_LOCK_NO_MUSIC_TAIL', text: 'Son Söz bittikten sonra donmuş son karede müziğin devam etmesi kök nedeni giderildi: MP4 dönüştürmede kapak bindirme girdisi sonsuz döngüdeydi (-loop 1) ve overlay son kareyi tekrarladığı için -shortest etkisiz kalıyor, ses/müzik kaydı görüntüden uzunsa son kare donup müzik çalmaya devam ediyordu. Artık render, MediaRecorder başlangıcından son kapanış karesine kadar gerçek süreyi ölçer; ffmpeg çıktısı -t ile bu süreye kilitlenir ve son 0.4 sn ses fade-out edilir. Süre uyuşmazlığı logda uyarılır.' },
   { version: '1.169', key: 'PAIR_LOOP_RESUME_FROM_PROCESS_LOGS', text: 'Çift döngüsü kaldığı yeri artık önceki süreç loglarını inceleyerek bulur: aynı tarihte COMPLETED biten gazete/karşılaştırma süreçleri loglardan okunur (gazete adı veya “Karşılaştırma: A × B”), döngü yalnız eksik adımlardan devam eder. İlerleme defteri tarayıcı kotası dolduğunda eski süreç loglarını budayarak yazılır (önceden sessizce bellekte kalıp kayboluyordu). Süreç logu saklama sayısı 12 → 60 koşuya çıkarıldı; tam bir 45 videoluk döngü boyunca loglar korunur. İLERLEMEYİ SIFIRLA ve döngü sonunda sıfırlama anı kaydedilir; eski loglar yeni döngüyü etkilemez.' },
@@ -1686,131 +1621,6 @@ const _resolveManagedBlobUrl = async (url, options = {}) => {
 const AUTO_DOWNLOAD_URL_TTL_MS = 60_000;
 const AUTO_DOWNLOAD_DIR_PICKER_ID = 'otonom-auto-mp4-downloads-v1';
 const _sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-// v1.104: yalnız bu oturumda üretilen video; izleme + gerçek kayıt + vazgeçme süresi.
-const createReviewedBufferFlow = ({ onChange, onShare, isVisible = () => true,
-  now = () => Date.now(), setEvery = setInterval, clearEvery = clearInterval, setLater = setTimeout, clearLater = clearTimeout }) => {
-  let serial = 0, timer = null, previewWait = null, shareAt = 0;
-  const completionWaiters = new Map();
-  let state = { id: '', phase: 'idle', message: '', secondsRemaining: 5 };
-  const active = id => state.id === id && ['preparing', 'review', 'countdown'].includes(state.phase);
-  const settle = snapshot => {
-    if (!['done', 'blocked', 'cancelled'].includes(snapshot.phase)) return;
-    const waiters = completionWaiters.get(snapshot.id) || [];
-    completionWaiters.delete(snapshot.id);
-    waiters.forEach(resolve => resolve({ ...snapshot }));
-  };
-  const emit = () => { onChange({ ...state }); settle(state); };
-  const stopTimer = () => { if (timer !== null) clearEvery(timer); timer = null; };
-  const releasePreview = () => {
-    if (!previewWait) return;
-    clearLater(previewWait.timer); previewWait.resolve(); previewWait = null;
-  };
-  const advance = () => {
-    if (!active(state.id) || !state.downloadComplete || state.phase === 'countdown' || (!state.previewEnded && isVisible())) return;
-    shareAt = now() + 5000;
-    state = { ...state, phase: 'countdown', secondsRemaining: 5, previewDeferred: !state.previewEnded,
-      message: state.previewEnded
-        ? 'Önizleme ve MP4 indirme tamamlandı. 5 saniye sonra Buffer paylaşımı başlayacak.'
-        : 'Sekme arka planda: önizleme beklenmedi. MP4 indirme doğrulandı; 5 saniye sonra Buffer paylaşımı başlayacak.' };
-    emit();
-    timer = setEvery(() => {
-      if (state.phase !== 'countdown') return stopTimer();
-      // Arka plan timer'ı gecikirse geçen süreyi kaybetme; görünür sekme şartı yok.
-      state.secondsRemaining = Math.max(0, Math.ceil((shareAt - now()) / 1000));
-      if (state.secondsRemaining > 0) { emit(); return; }
-      stopTimer();
-      // İptal ile aynı turda yarışmasın; tüketilen işi hiçbir olay tekrar kuramaz.
-      const payload = { id: state.id, title: state.title, mediaUrl: state.mediaUrl };
-      state = { ...state, phase: 'sharing', message: 'Buffer paylaşımı başladı.' }; emit();
-      Promise.resolve().then(() => onShare(payload)).then(result => {
-        if (state.id !== payload.id || state.phase !== 'sharing') return;
-        state = { ...state, result, phase: result?.error ? 'blocked' : 'done',
-          message: result?.error ? `Otomatik paylaşım durdu: ${result.error}` : 'Buffer sonucu aşağıdaki paylaşım panelinde gösteriliyor.' };
-        emit();
-      }, error => {
-        if (state.id !== payload.id || state.phase !== 'sharing') return;
-        state = { ...state, phase: 'blocked', message: `Otomatik paylaşım durdu: ${error.message || error}` }; emit();
-      });
-    }, 1000);
-  };
-  return {
-    getState: () => ({ ...state }), active,
-    waitForCompletion(id) {
-      if (state.id !== id) return Promise.resolve({ id, phase: 'cancelled' });
-      if (['done', 'blocked', 'cancelled'].includes(state.phase)) return Promise.resolve({ ...state });
-      return new Promise(resolve => completionWaiters.set(id, [...(completionWaiters.get(id) || []), resolve]));
-    },
-    begin(jobId, title) {
-      stopTimer(); releasePreview();
-      settle({ ...state, phase: 'cancelled' });
-      state = { id: `${jobId}:${++serial}`, phase: 'preparing', title, mediaUrl: '', fileName: '',
-        previewStarted: false, previewAttempted: false, previewEnded: false, previewDeferred: false, downloadComplete: false,
-        secondsRemaining: 5, message: 'MP4 hazırlanıyor. Ardından önizleme, indirme ve iptal süresi başlayacak.' };
-      emit(); return state.id;
-    },
-    ready(id, mediaUrl, fileName) {
-      if (!active(id)) return;
-      state = { ...state, phase: 'review', mediaUrl, fileName, message: 'Video açılıyor; MP4 otomatik indirilecek.' }; emit();
-    },
-    waitForPreviewAttempt(id) {
-      if (!active(id) || state.previewAttempted || !isVisible()) return Promise.resolve();
-      return new Promise(resolve => {
-        previewWait = { resolve, timer: setLater(() => {
-          if (active(id)) {
-            state.previewAttempted = true;
-            state.message = 'Önizleme henüz başlamadı. OYNAT düğmesine basın; izleme bitmeden paylaşım başlamaz.'; emit();
-          }
-          releasePreview();
-        }, 15000) };
-      });
-    },
-    playing(id) {
-      if (!active(id)) return;
-      // Gizli sekmedeki gecikmiş play() yanıtı, başlamış geri sayımı yeniden kurmaz.
-      if (state.phase === 'countdown' && state.previewDeferred) {
-        state.previewStarted = true; emit(); return;
-      }
-      if (state.phase === 'countdown') {
-        stopTimer(); state.phase = 'review'; state.previewEnded = false;
-      }
-      state.previewStarted = true; state.previewAttempted = true;
-      state.message = state.downloadComplete ? 'MP4 indirildi. Önizlemenin bitmesi bekleniyor; paylaşımı iptal edebilirsiniz.' : 'Önizleme oynuyor; MP4 indirmenin tamamlanması bekleniyor.';
-      releasePreview(); emit();
-    },
-    playbackBlocked(id) {
-      if (!active(id) || state.phase === 'countdown') return;
-      state.previewAttempted = true;
-      state.message = 'Tarayıcı otomatik oynatmayı engelledi. ÖNİZLEMEYİ OYNAT düğmesine basın; izlenmeden paylaşılmaz.';
-      releasePreview(); emit(); advance();
-    },
-    visibilityChanged() {
-      if (!active(state.id) || isVisible() || state.phase !== 'review') return;
-      // Kullanıcı başka sekmedeyken tarayıcının önizleme başlatmasını bekleme.
-      releasePreview(); advance();
-    },
-    ended(id) {
-      if (!active(id) || !state.previewStarted) return;
-      state.previewEnded = true;
-      if (state.phase === 'countdown') { emit(); return; }
-      state.message = 'Önizleme bitti; MP4 indirmenin tamamlanması bekleniyor.'; emit(); advance();
-    },
-    downloaded(id, result) {
-      if (!active(id)) return;
-      if (result?.completed !== true) return this.block(id, 'MP4 indirme tamamlanması doğrulanamadı; otomatik paylaşım yapılmadı.');
-      state.downloadComplete = true;
-      state.message = 'MP4 indirildi. Önizlemenin bitmesi bekleniyor; paylaşımı iptal edebilirsiniz.'; emit(); advance();
-    },
-    block(id, message) {
-      if (!active(id)) return;
-      stopTimer(); releasePreview(); state = { ...state, phase: 'blocked', message }; emit();
-    },
-    cancel(message = 'Otomatik paylaşım iptal edildi. Video ve MP4 kaydı korunuyor.') {
-      if (!active(state.id)) return false;
-      stopTimer(); releasePreview(); state = { ...state, phase: 'cancelled', message }; emit(); return true;
-    },
-    dispose() { stopTimer(); releasePreview(); state = { ...state, phase: 'cancelled' }; settle(state); }
-  };
-};
 
 // Seçim sırası sabitlenir; bir öğenin inceleme/paylaşım kapısı bitmeden sonraki başlamaz.
 // v1.167: Çift döngüsü ilerleme defteri (tarih bazlı). Yalnız başarıyla biten adımlar yazılır.
@@ -1902,23 +1712,6 @@ const createGazeteSelectionQueue = ({ runItem, onChange }) => {
   };
 };
 
-const waitForVerifiedDownload = async (saved, request, stillActive, wait = _sleep, now = Date.now) => {
-  if (saved?.completed === true) return saved;
-  if (!saved?.downloadUrl || !saved?.requestedAt) throw new Error('MP4 indirme kimliği bulunamadı; otomatik paylaşım durduruldu.');
-  const deadline = now() + 5 * 60_000;
-  while (stillActive() && now() < deadline) {
-    const result = await request('BUFFER_DOWNLOAD_STATUS', { url: saved.downloadUrl, requestedAt: saved.requestedAt }, 10000);
-    if (!stillActive()) return { completed: false, cancelled: true };
-    if (!result?.ok) throw new Error(!result || /BUFFER_UNKNOWN_ACTION/.test(String(result.error || ''))
-      ? 'İndirme doğrulanamadı. Uzantıyı v1.105 olarak güncelleyin ve indirme iznini kontrol edin.'
-      : result.error || 'İndirme durumu okunamadı; otomatik paylaşım durduruldu.');
-    if (result.state === 'complete') return { ...saved, completed: true, downloadId: result.downloadId };
-    if (result.state === 'interrupted') throw new Error(`MP4 indirme tamamlanmadı: ${result.error || 'tarayıcı indirmeyi durdurdu'}. Otomatik paylaşım yapılmadı.`);
-    await wait(1000);
-  }
-  if (!stillActive()) return { completed: false, cancelled: true };
-  throw new Error('MP4 indirme 5 dakika içinde doğrulanamadı. Otomatik paylaşım durduruldu; video korunuyor.');
-};
 const _cooperativeMainThreadYield = async () => {
   try {
     if (globalThis.scheduler && typeof globalThis.scheduler.yield === 'function') { await globalThis.scheduler.yield(); return; }
@@ -2596,9 +2389,6 @@ const STORE_MEDIA = 'media_cache';
 const STORE_JOBS = 'temporal_jobs';
 const LIB_STORE = 'musicLib';
 const DIR_STORE = 'dirHandles';
-const STORE_POST_VIDEOS = 'posting_videos';
-const STORE_POST_MEDIA = 'posting_media';
-const STORE_POST_TASKS = 'posting_tasks';
 
 // v1.114: DURDUR düğmesi artık IndexedDB'yi beklemeden çalışır. Durdurma anında yeni diske yazma dondurulur,
 // iş akışı bir sonraki ilerleme adımında kendini sonlandırır ve sayfa en geç 4 sn içinde yenilenir.
@@ -2615,7 +2405,7 @@ class AssetManagerService {
     pending.catch(() => { if (AssetManagerService._dbPromise === pending) AssetManagerService._dbPromise = null; });
     return pending;
   }
-  static _openDB() { return new Promise((resolve, reject) => { const req = indexedDB.open(ASSET_DB, 3); req.onupgradeneeded = (e) => { const db = e.target.result; if (!db.objectStoreNames.contains(STORE_MEDIA)) db.createObjectStore(STORE_MEDIA, { keyPath: 'id' }); if (!db.objectStoreNames.contains(STORE_JOBS)) db.createObjectStore(STORE_JOBS, { keyPath: 'jobId' }); if (!db.objectStoreNames.contains(LIB_STORE)) db.createObjectStore(LIB_STORE, { keyPath: 'id' }); if (!db.objectStoreNames.contains(DIR_STORE)) db.createObjectStore(DIR_STORE, { keyPath: 'id' }); if (!db.objectStoreNames.contains(STORE_POST_VIDEOS)) db.createObjectStore(STORE_POST_VIDEOS, { keyPath: 'id' }); if (!db.objectStoreNames.contains(STORE_POST_MEDIA)) db.createObjectStore(STORE_POST_MEDIA, { keyPath: 'id' }); if (!db.objectStoreNames.contains(STORE_POST_TASKS)) db.createObjectStore(STORE_POST_TASKS, { keyPath: 'id' }); }; req.onsuccess = () => { const db = req.result; db.onversionchange = () => { try { db.close(); } catch (e) { /* kapalı */ } AssetManagerService._dbPromise = null; }; resolve(db); }; req.onerror = () => reject(req.error); }); }
+  static _openDB() { return new Promise((resolve, reject) => { const req = indexedDB.open(ASSET_DB, 3); req.onupgradeneeded = (e) => { const db = e.target.result; if (!db.objectStoreNames.contains(STORE_MEDIA)) db.createObjectStore(STORE_MEDIA, { keyPath: 'id' }); if (!db.objectStoreNames.contains(STORE_JOBS)) db.createObjectStore(STORE_JOBS, { keyPath: 'jobId' }); if (!db.objectStoreNames.contains(LIB_STORE)) db.createObjectStore(LIB_STORE, { keyPath: 'id' }); if (!db.objectStoreNames.contains(DIR_STORE)) db.createObjectStore(DIR_STORE, { keyPath: 'id' }); }; req.onsuccess = () => { const db = req.result; db.onversionchange = () => { try { db.close(); } catch (e) { /* kapalı */ } AssetManagerService._dbPromise = null; }; resolve(db); }; req.onerror = () => reject(req.error); }); }
   static async saveMedia(id, data) { try { const db = await this.getDB(); const tx = db.transaction(STORE_MEDIA, 'readwrite'); tx.objectStore(STORE_MEDIA).put({ id, data, timestamp: Date.now() }); return new Promise(r => tx.oncomplete = () => r(true)); } catch (e) { return false; } }
   static async loadMedia(id) { try { const db = await this.getDB(); const tx = db.transaction(STORE_MEDIA, 'readonly'); const req = tx.objectStore(STORE_MEDIA).get(id); return new Promise(r => req.onsuccess = () => r(req.result?.data || null)); } catch (e) { return null; } }
   static async deleteMedia(id) { try { const db = await this.getDB(); const tx = db.transaction(STORE_MEDIA, 'readwrite'); tx.objectStore(STORE_MEDIA).delete(id); return new Promise(r => { tx.oncomplete = () => r(true); tx.onerror = () => r(false); tx.onabort = () => r(false); }); } catch (e) { return false; } }
@@ -2832,95 +2622,6 @@ const syncMusicFromDir = async (dirHandle, existingMusic) => {
   return newCount;
  };
 
-// v1.130: Kuyruk metaverisi ile MP4 Blob'u ayrı IndexedDB store'larında kalıcı tutulur.
-// Buffer yanıtı bu yazımlardan sonra devreye girer; üretici gönderim sonucu beklemez.
-const POSTING_MIN_INTERVAL_MS = 0; // Sabit kanal beklemesi yok; Buffer rate-limit yanıtları tek erteleme kaynağıdır.
-const POSTING_SCHEDULER_GAP_MS = 5000; // Farklı kanallar tek tüketicide art arda işlenebilir; global 5 dk bekleme yok
-const POSTING_BETWEEN_VIDEOS_MS = 0; // Ek video beklemesi yok; gönderim denemeleri işlendiğinde sonraki üretim hemen başlar.
-const POSTING_SCHEDULER_TICK_MS = 5000;
-const POSTING_MAX_RETRIES = 8;
-const POSTING_LAST_DISPATCH_KEY = 'otonom_posting_last_dispatch_v130';
-const POSTING_CHANNEL_CLOCKS_KEY = 'otonom_posting_channel_clocks_v130';
-const POSTING_ACTIVE_DISPATCH_KEY = 'otonom_posting_active_dispatch_v130';
-const POSTING_ACTIVE_DISPATCH_TTL_MS = 2 * 60 * 1000;
-const POSTING_QUOTA_SNAPSHOT_KEY = 'otonom_posting_quota_snapshot_v130';
-const DurablePostingQueue = {
-  async _all(storeName) {
-    const db = await AssetManagerService.getDB();
-    const tx = db.transaction(storeName, 'readonly');
-    const req = tx.objectStore(storeName).getAll();
-    return await new Promise((resolve, reject) => { req.onsuccess = () => resolve(req.result || []); req.onerror = () => reject(req.error); });
-  },
-  async _get(storeName, id) {
-    const db = await AssetManagerService.getDB();
-    const tx = db.transaction(storeName, 'readonly');
-    const req = tx.objectStore(storeName).get(id);
-    return await new Promise((resolve, reject) => { req.onsuccess = () => resolve(req.result || null); req.onerror = () => reject(req.error); });
-  },
-  async _put(storeName, value) {
-    const db = await AssetManagerService.getDB();
-    const tx = db.transaction(storeName, 'readwrite');
-    tx.objectStore(storeName).put(value);
-    return await new Promise((resolve, reject) => { tx.oncomplete = () => resolve(value); tx.onerror = () => reject(tx.error); tx.onabort = () => reject(tx.error || new Error('IndexedDB işlemi iptal edildi.')); });
-  },
-  listVideos() { return this._all(STORE_POST_VIDEOS); },
-  listTasks() { return this._all(STORE_POST_TASKS); },
-  getVideo(id) { return this._get(STORE_POST_VIDEOS, id); },
-  getTask(id) { return this._get(STORE_POST_TASKS, id); },
-  getMedia(id) { return this._get(STORE_POST_MEDIA, id).then(row => row?.blob || null); },
-  async saveVideo(video, blob) {
-    if (!(blob instanceof Blob) || blob.size <= 0) throw new Error('Kuyruğa yalnız boş olmayan video Blob’u kaydedilebilir.');
-    const db = await AssetManagerService.getDB();
-    const tx = db.transaction([STORE_POST_VIDEOS, STORE_POST_MEDIA], 'readwrite');
-    const videos = tx.objectStore(STORE_POST_VIDEOS);
-    const media = tx.objectStore(STORE_POST_MEDIA);
-    const get = videos.get(video.id);
-    get.onsuccess = () => {
-      const existing = get.result;
-      videos.put(existing ? { ...existing, title: video.title || existing.title, fileName: video.fileName || existing.fileName, updatedAt: Date.now() } : video);
-      media.put({ id: video.id, blob, size: blob.size, mimeType: blob.type || 'video/mp4', savedAt: Date.now() });
-    };
-    await new Promise((resolve, reject) => { tx.oncomplete = () => resolve(true); tx.onerror = () => reject(tx.error); tx.onabort = () => reject(tx.error || new Error('Kalıcı video kuyruğu yazımı iptal edildi.')); });
-    return true;
-  },
-  async updateVideo(id, patch) {
-    const current = await this.getVideo(id);
-    if (!current) return null;
-    return this._put(STORE_POST_VIDEOS, { ...current, ...patch, id, updatedAt: Date.now() });
-  },
-  async updateTask(id, patch) {
-    const current = await this.getTask(id);
-    if (!current) return null;
-    return this._put(STORE_POST_TASKS, { ...current, ...patch, id, updatedAt: Date.now() });
-  },
-  async ensureTasks(videoId, channels) {
-    const video = await this.getVideo(videoId);
-    if (!video) throw new Error('Gönderim kuyruğu videosu bulunamadı.');
-    const existing = await this.listTasks();
-    const byId = new Set(existing.map(task => task.id));
-    const now = Date.now();
-    for (const ch of channels) {
-      if (!ch?.id) continue;
-      const id = `${videoId}::${ch.id}`;
-      if (byId.has(id)) continue;
-      const blockedReason = ch.isDisconnected ? 'Buffer kanal bağlantısı kopmuş.' : ch.isLocked ? 'Buffer bu kanalı kilitlemiş.' : '';
-      await this._put(STORE_POST_TASKS, {
-        id, videoId, channelId: ch.id, channelName: ch.displayName || ch.name || ch.service || 'Sosyal ağ',
-        service: bufferSocialService(ch.service), rawService: ch.service || '',
-        status: blockedReason ? 'FAILED' : 'QUEUED', createdAt: now, updatedAt: now,
-        nextRetryTime: blockedReason ? null : now, attemptCount: 0, postId: null,
-        lastError: blockedReason, detail: blockedReason, postedAt: null, retryable: !blockedReason,
-        needsManualCheck: false
-      });
-    }
-    await this.updateVideo(videoId, {
-      targetResolutionPending: false,
-      targetChannels: channels.map(ch => ({ id: ch.id, name: ch.displayName || ch.name || ch.service, service: bufferSocialService(ch.service), rawService: ch.service || '' })),
-      status: 'QUEUED', lastError: '', nextRetryTime: null
-    });
-    return true;
-  }
-};
 
 // ============================================================================
 // M4b: HELPER
@@ -3111,98 +2812,6 @@ const _getFontFamily = (fontStyle) => {
   return "'Inter', 'Arial Black', Arial, sans-serif";
 };
 
-// === v1.107 BUFFER İSTEK BÜTÇESİ ===
-// Buffer limitleri istemci başına kayan pencerelerdir: 15 dk = 100 istek (tüm planlar),
-// 24 saat = 100 (Free) / 250 (Essentials) / 500 (Team). 429 alan istekler de sayılabileceği için
-// sınıra çarpınca yeni istek gönderilmez; bekleme süresi tarayıcıda kalıcıdır.
-const BUFFER_LEDGER_KEY = 'otonom_buffer_request_ledger_v1';
-const BUFFER_COOLDOWN_KEY = 'otonom_buffer_rate_cooldown_v1';
-const BUFFER_REMAINING_KEY = 'otonom_buffer_ratelimit_remaining_v1';
-const BUFFER_ACCOUNT_CACHE_MS = 10 * 60 * 1000;
-const BUFFER_15M_SOFT_LIMIT = 88;
-// Resmî limitler (developers.buffer.com/guides/api-limits): 15 dk = 100 (tüm planlar);
-// 24 saat = 250 (Free/Essentials) / 500 (Team); 30 gün = 3.000 / 7.500 / 15.000. 429 kota harcamaz.
-const BUFFER_WINDOW_LABELS = { '15m': '15 dakikalık', '15min': '15 dakikalık', '1d': '24 saatlik', '24h': '24 saatlik', '1day': '24 saatlik', '30d': '30 günlük', '30days': '30 günlük' };
-const BufferBudget = {
-  _read(key, fallback) { try { const v = JSON.parse(SafeStorage.getItem(key)); return v === null || v === undefined ? fallback : v; } catch (e) { return fallback; } },
-  _ledger() {
-    const now = Date.now();
-    const raw = BufferBudget._read(BUFFER_LEDGER_KEY, []);
-    return (Array.isArray(raw) ? raw : []).filter(t => Number.isFinite(t) && now - t < 24 * 60 * 60 * 1000);
-  },
-  record() {
-    const ledger = BufferBudget._ledger();
-    ledger.push(Date.now());
-    SafeStorage.setItem(BUFFER_LEDGER_KEY, JSON.stringify(ledger.slice(-1000)));
-  },
-  usage() {
-    const now = Date.now();
-    const ledger = BufferBudget._ledger();
-    const recent = ledger.filter(t => now - t < 15 * 60 * 1000);
-    return { last15m: recent.length, last24h: ledger.length, freesIn15mMs: recent.length ? Math.max(0, Math.min(...recent) + 15 * 60 * 1000 - now) : 0 };
-  },
-  cooldown() {
-    const saved = BufferBudget._read(BUFFER_COOLDOWN_KEY, null);
-    return saved && Number(saved.until) > Date.now() ? saved : null;
-  },
-  windowLabel(name) { return BUFFER_WINDOW_LABELS[String(name || '').toLowerCase()] || ''; },
-  trip(retryAfterSec, windowName) {
-    const saved = BufferBudget._read(BUFFER_COOLDOWN_KEY, null);
-    const recentStrikes = saved && Date.now() - Number(saved.lastAt || 0) < 6 * 60 * 60 * 1000 ? Number(saved.strikes || 0) : 0;
-    const strikes = recentStrikes + 1;
-    const header = Number(retryAfterSec);
-    const exact = Number.isFinite(header) && header > 0;
-    // Uzantı v1.106+ Retry-After iletir (kesin süre). Eski uzantıda süre bilinmez: 15 dk → 1 sa → 6 sa tahmini.
-    const waitSec = exact ? header : [15 * 60, 60 * 60, 6 * 60 * 60][Math.min(strikes - 1, 2)];
-    const next = { until: Date.now() + waitSec * 1000, strikes, lastAt: Date.now(), fromHeader: exact, window: String(windowName || '') };
-    SafeStorage.setItem(BUFFER_COOLDOWN_KEY, JSON.stringify(next));
-    return next;
-  },
-  // RateLimit: "100-in-15min"; r=98; t=897, "250-in-1day"; r=248; t=86397, "3000-in-30days"; r=2969; t=696980
-  noteRateLimit(headerText) {
-    const text = String(headerText || '');
-    if (!text) return null;
-    const windows = [];
-    const re = /"([^"]+)"\s*;\s*r=(\d+)\s*;\s*t=(\d+)/g;
-    let m;
-    while ((m = re.exec(text))) {
-      const key = (m[1].split('-in-')[1] || m[1]).toLowerCase();
-      windows.push({ name: key, r: Number(m[2]), t: Number(m[3]) });
-    }
-    if (!windows.length) return null;
-    const info = { at: Date.now(), windows };
-    SafeStorage.setItem(BUFFER_REMAINING_KEY, JSON.stringify(info));
-    return info;
-  },
-  remainingSummary() {
-    const info = BufferBudget._read(BUFFER_REMAINING_KEY, null);
-    if (!info?.windows?.length) return '';
-    return info.windows.map(w => `${BufferBudget.windowLabel(w.name) || w.name}: ${w.r}`).join(' • ');
-  },
-  lowWindow(needed = 8) {
-    const info = BufferBudget._read(BUFFER_REMAINING_KEY, null);
-    if (!info?.windows?.length) return null;
-    const ageSec = (Date.now() - Number(info.at || 0)) / 1000;
-    for (const w of info.windows) {
-      const waitSec = Number(w.t) - ageSec;
-      if (waitSec > 0 && Number(w.r) < needed) return { name: w.name, r: Number(w.r), waitMs: waitSec * 1000 };
-    }
-    return null;
-  },
-  formatWait(ms) {
-    const min = Math.max(1, Math.ceil(Number(ms || 0) / 60000));
-    if (min >= 2880) return `${Math.round(min / 1440)} gün`;
-    if (min >= 120) return `${Math.round(min / 60)} saat`;
-    return `${min} dk`;
-  },
-  limitedError(cool) {
-    const label = BufferBudget.windowLabel(cool?.window);
-    const waitText = BufferBudget.formatWait(cool.until - Date.now());
-    const error = new Error(`Buffer ${label ? label + ' ' : ''}istek sınırı doldu (HTTP 429). ${cool.fromHeader ? 'Buffer\'ın bildirdiği bekleme' : 'Tahmini bekleme'}: yaklaşık ${waitText}; bu sürede Buffer'a istek gönderilmeyecek. Video indirildi, paylaşım atlandı.`);
-    error.code = 'BUFFER_RATE_LIMITED';
-    return error;
-  }
-};
 
 // === WebM → MP4 DÖNÜŞÜM (ffmpeg.wasm @0.11 — GERÇEK SINGLE THREAD) ===
 let _ffmpegInstance = null;
@@ -9054,7 +8663,7 @@ class WorkflowCoordinator {
       if (this.state.status === 'GENERATING_ASSETS' && this.state.config?.outputType !== 'image') {
         const safeSceneCount = Array.isArray(this.state.script?.videoSlides) ? this.state.script.videoSlides.length : 0;
         if (safeSceneCount === 0) {
-          addSystemLog('ÜRETİM DURDURULDU: içerik analizinden 0 sahne çıktı. Eksik içerikle Son Söz/TTS/render ve Buffer kuyruğuna devam edilmeyecek.', 'error');
+          addSystemLog('ÜRETİM DURDURULDU: içerik analizinden 0 sahne çıktı. Eksik içerikle Son Söz/TTS/render devam edilmeyecek.', 'error');
           throw new Error('NO_SCENES_GENERATED: İçerik analizi sahne üretmedi. Video oluşturulmadı; kimlik doğrulama ve analiz hatasını giderip yeniden deneyin.');
         }
       }
@@ -10167,15 +9776,6 @@ export default function App() {
   });
   const gazeteQueueActive = gazeteQueueUi.active;
   useEffect(() => { if (!gazeteQueueRef.current.getState().active) setGazeteSelectedNames([]); }, [gazeteDate]);
-  const reviewedShareRef = useRef(null);
-  const reviewFlowRef = useRef(null);
-  const [autoReview, setAutoReview] = useState({ id: '', phase: 'idle', message: '', secondsRemaining: 5 });
-  if (!reviewFlowRef.current) reviewFlowRef.current = createReviewedBufferFlow({
-    onChange: setAutoReview,
-    onShare: payload => reviewedShareRef.current(payload),
-    isVisible: () => !document.hidden
-  });
-  const autoReviewActive = ['preparing', 'review', 'countdown'].includes(autoReview.phase);
   const settleGazetePreviewGate = (result = { phase: 'done' }) => {
     const gate = gazetePreviewGateRef.current;
     if (!gate || gate.settled) return false;
@@ -10260,34 +9860,13 @@ export default function App() {
   const cancelReviewedShare = () => {
     const queueCancelled = gazeteQueueRef.current.cancel();
     const previewCancelled = settleGazetePreviewGate({ phase: 'cancelled', reason: 'Kullanıcı sırayı iptal etti.' });
-    const reviewCancelled = reviewFlowRef.current.cancel('Kalan gazete sırası iptal edildi. MP4 kaydı korunuyor; otomatik Buffer paylaşımı kapalı.');
-    if (queueCancelled || previewCancelled || reviewCancelled) {
+    if (queueCancelled || previewCancelled) {
       setGazeteSelectedNames([]); setGazeteSelectMode(false);
       setActiveTab('gazete'); setGazeteGalleryView('grid');
       setTimeout(() => gazeteGridRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
       addSystemLog('GAZETE SIRASI İPTAL EDİLDİ: mevcut önizleme ve kalan gazete kuyruğu kullanıcı tarafından durduruldu. MP4 kaydı korunuyor.', 'info');
     }
   };
-  const playReviewedVideo = async () => {
-    const flow = reviewFlowRef.current;
-    const current = flow.getState();
-    const video = outputVideoRef.current;
-    if (!video || !flow.active(current.id) || video.getAttribute('src') !== current.mediaUrl) return;
-    try {
-      await video.play();
-      flow.playing(current.id);
-    } catch (_) { flow.playbackBlocked(current.id); }
-  };
-  useEffect(() => {
-    if (autoReview.phase !== 'review' || !autoReview.mediaUrl || finalMp4Busy) return;
-    outputPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    void playReviewedVideo();
-  }, [autoReview.id, autoReview.mediaUrl, finalMp4Busy]);
-  useEffect(() => {
-    const onVisibility = () => reviewFlowRef.current.visibilityChanged();
-    document.addEventListener('visibilitychange', onVisibility);
-    return () => document.removeEventListener('visibilitychange', onVisibility);
-  }, []);
 
   // v1.155: Her MP4 kaydedilip indirme isteği başlatıldıktan sonra otomatik oynatılır.
   // Gazete kuyruğu oynatma bitene kadar bekler; otomatik paylaşım kapalıdır.
@@ -10306,7 +9885,7 @@ export default function App() {
       try {
         video.muted = false;
         await video.play();
-        addSystemLog(`✓ ${pending.title || 'Video'} otomatik oynatılıyor; indirme tamamlandı, otomatik Buffer paylaşımı kapalı.`, 'success');
+        addSystemLog(`✓ ${pending.title || 'Video'} otomatik oynatılıyor; indirme tamamlandı.`, 'success');
         if (pendingOutputAutoplayRef.current?.mediaUrl === uiState.videoUrl) pendingOutputAutoplayRef.current = null;
       } catch (audibleError) {
         try {
@@ -10331,7 +9910,7 @@ export default function App() {
     };
   }, [uiState.videoUrl, finalMp4Busy, finalMp4Error, config.outputType]);
 
-  useEffect(() => () => { gazeteQueueRef.current.cancel(); reviewFlowRef.current.dispose(); }, []);
+  useEffect(() => () => { gazeteQueueRef.current.cancel(); }, []);
 
   // Daha önce seçilmiş otomatik kayıt klasörünü uygulama açılışında belleğe al.
   useEffect(() => {
@@ -10375,105 +9954,12 @@ export default function App() {
     { id: 'bluesky', name: 'Bluesky', color: '#0085FF', loginUrl: 'https://bsky.app/', shareUrl: 'https://bsky.app/' }
   ];
 
-  const [connectedPlatforms, setConnectedPlatforms] = useState(() => { const saved = JSON.parse(SafeStorage.getItem('ns_connectedPlatforms')) || {}; return saved; });
-  const [shareTargets, setShareTargets] = useState(() => { const saved = JSON.parse(SafeStorage.getItem('ns_shareTargets')) || {}; return saved; });
-  const [showSharePanel, setShowSharePanel] = useState(false);
-  const [bufferShareReport, setBufferShareReport] = useState({ status: 'idle', results: [], message: '' });
-  const [postingDashboard, setPostingDashboard] = useState({ videos: [], tasks: [] });
-  const [postingSchedulerState, setPostingSchedulerState] = useState({ state: 'starting', message: 'Kalıcı gönderim kuyruğu hazırlanıyor.', lastSuccessAt: null, lastErrorAt: null, lastError: '' });
   const [postingDashboardClock, setPostingDashboardClock] = useState(Date.now());
-  const postingSchedulerRef = useRef({ inFlight: false, lastDispatchAt: Number(SafeStorage.getItem(POSTING_LAST_DISPATCH_KEY) || 0) || 0, nextDispatchAt: 0, leaderId: `tab_${Date.now()}_${Math.random().toString(36).slice(2)}` });
-  const bufferQuotaSnapshotRef = useRef(BufferBudget._read(POSTING_QUOTA_SNAPSHOT_KEY, null));
-  const [bufferShareProgress, setBufferShareProgress] = useState(null);
-  const [bufferShareClock, setBufferShareClock] = useState(Date.now());
-  const bufferCfrGuardRef = useRef({ verified: false, fps: 0, sourceType: '', checkedAt: 0 });
-  // v1.139: Aynı videonun CFR edilmiş Buffer medyası ve public URL'si kanallar arasında yeniden kullanılır.
-  const bufferPreparedMediaCacheRef = useRef(new Map());
-  const bufferManualShareLockRef = useRef(false);
-  const bufferShareRunRef = useRef(0);
-  const bufferShareTrackersRef = useRef(new Map());
-  const bufferMediaReportsRef = useRef(new Map());
-  const bufferLastManualMediaRef = useRef('');
-  useEffect(() => () => {
-    for (const tracker of bufferShareTrackersRef.current.values()) clearTimeout(tracker.timer);
-    bufferShareTrackersRef.current.clear();
-  }, []);
+  // v1.173: gönderim scheduler ile birlikte eski tick kaldırıldı; canlı izleme saati için hafif tick.
   useEffect(() => {
-    if (!bufferShareProgress?.startedAt || bufferShareProgress.finishedAt) return undefined;
-    const timer = setInterval(() => setBufferShareClock(Date.now()), 1000);
-    return () => clearInterval(timer);
-  }, [bufferShareProgress?.startedAt, bufferShareProgress?.finishedAt]);
-
-  const updateBufferShareProgress = (stageId, fraction = 0) => {
-    setBufferShareProgress(prev => {
-      if (!prev || prev.finishedAt) return prev;
-      const index = BUFFER_SHARE_STAGES.findIndex(stage => stage.id === stageId);
-      if (index < 0) return prev;
-      const now = Date.now();
-      const amount = Math.max(0, Math.min(1, Number(fraction) || 0));
-      const steps = prev.steps.map((step, i) => {
-        if (i < index && step.status !== 'done' && step.status !== 'skipped') {
-          return step.startedAt
-            ? { ...step, status: 'done', durationMs: now - step.startedAt, progress: 100 }
-            : { ...step, status: 'skipped', durationMs: 0, progress: 100 };
-        }
-        if (i !== index || step.status === 'done') return step;
-        const startedAt = step.startedAt || now;
-        return amount >= 1
-          ? { ...step, startedAt, status: 'done', durationMs: now - startedAt, progress: 100 }
-          : { ...step, startedAt, status: 'running', progress: Math.max(step.progress, Math.round(amount * 100)) };
-      });
-      return { ...prev, steps, stageId, percent: Math.max(prev.percent, Math.round(BUFFER_SHARE_STAGES[index].start + (BUFFER_SHARE_STAGES[index].end - BUFFER_SHARE_STAGES[index].start) * amount)) };
-    });
-  };
-
-  const finishBufferShareProgress = (state, description) => {
-    setBufferShareProgress(prev => {
-      if (!prev || prev.finishedAt) return prev;
-      const now = Date.now();
-      const steps = prev.steps.map(step => step.status === 'running'
-        ? { ...step, status: state === 'error' ? 'error' : 'done', durationMs: now - step.startedAt, progress: state === 'error' ? step.progress : 100 }
-        : step.status === 'waiting' ? { ...step, status: 'skipped' } : step);
-      return { ...prev, steps, state, description, finishedAt: now, percent: state === 'error' ? prev.percent : 100 };
-    });
-  };
-
-  // v1.37 Buffer Chrome Extension bridge
-  const bufferExtensionAvailableRef = useRef(null);
-  const bufferAccountCacheRef = useRef(null);
-  const BUFFER_AUTO_5MIN_ENABLED_KEY = 'ns_bufferAuto5MinEnabled_v1';
-  const BUFFER_AUTO_NEXT_DUE_KEY = 'ns_bufferAutoNextDue_v1';
-  const BUFFER_AUTO_INTERVAL_KEY = 'ns_bufferAutoIntervalMinutes_v1';
-  const BUFFER_AUTO_LAST_DUE_KEY = 'ns_bufferAutoLastDue_v1';
-  // Eski 07:00/+5 dakika toplu paylaşımı kapalı kalır.
-  // v1.104 tek tek oluşturulan MP4'leri izleme/indirme/iptal kapısından geçirir.
-  const [bufferAuto5MinEnabled] = useState(false);
-  const bufferAutoNextDueAtRef = useRef(Number(SafeStorage.getItem(BUFFER_AUTO_NEXT_DUE_KEY) || 0) || 0);
-  const bufferAutoIntervalMinutesRef = useRef(0);
-  const bufferAutoLastDueAtRef = useRef(
-    Number(SafeStorage.getItem(BUFFER_AUTO_LAST_DUE_KEY) || 0) || 0
-  );
-
-
-  const togglePlatform = (platformId) => {
-    setConnectedPlatforms(prev => {
-      const next = { ...prev, [platformId]: !prev[platformId] };
-      SafeStorage.setItem('ns_connectedPlatforms', JSON.stringify(next));
-      if (!next[platformId]) setShareTargets(prev => { const n = { ...prev }; delete n[platformId]; SafeStorage.setItem('ns_shareTargets', JSON.stringify(n)); return n; });
-      return next;
-    });
-  };
-  const toggleShareTarget = (platformId) => {
-    setShareTargets(prev => { const next = { ...prev, [platformId]: !prev[platformId] }; SafeStorage.setItem('ns_shareTargets', JSON.stringify(next)); return next; });
-  };
-  const openPlatformConnect = (platform) => {
-    const popup = window.open(platform.loginUrl, platform.name, 'width=600,height=700,scrollbars=yes');
-    addSystemLog(`${platform.name} giriş sayfası açıldı. Oturum açın, otomatik olarak bağlanacaksınız.`, 'info');
-    const checker = setInterval(() => {
-      try { if (popup.closed) { clearInterval(checker); togglePlatform(platform.id); addSystemLog(`${platform.name} bağlantısı tamamlandı!`, 'success'); } } catch (e) { clearInterval(checker); }
-    }, 800);
-  };
-
+    const tick = setInterval(() => setPostingDashboardClock(Date.now()), 30_000);
+    return () => clearInterval(tick);
+  }, []);
   // Otomatik video kaydetme (dosya adı = haber başlığı)
   // v1.45: kalıcı klasör izni varsa doğrudan diske yazar; aksi halde güvenli browser-download fallback.
   const autoSaveVideo = async (videoUrl, title, videoFormat, saveOptions = {}) => {
@@ -10560,203 +10046,6 @@ export default function App() {
     catch (e) { if (e.name !== 'AbortError') addSystemLog('Paylaşım hatası: ' + e.message, 'error'); }
   };
 
-  // Bulut yükleme (Buffer için) — orijinal korunur, Firebase içermez
-  const bufferExtensionRequest = (type, payload = {}, timeoutMs = 20000) => new Promise((resolve) => {
-    const requestId = `buffer_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-    let settled = false;
-    let activeBridgeId = null;
-    let staleFailure = null;
-    let staleTimer = null;
-
-    const cleanup = () => {
-      window.removeEventListener('message', onMessage);
-      clearTimeout(timer);
-      clearTimeout(staleTimer);
-    };
-
-    const finish = (value) => {
-      if (settled) return;
-      settled = true;
-      cleanup();
-      resolve(value);
-    };
-
-    const onMessage = (event) => {
-      const data = event.data;
-      if (!data || data.source !== 'OTONOM_BUFFER_EXTENSION' || data.id !== requestId) return;
-      if (data.type === 'BUFFER_REQUEST_ACCEPTED') {
-        activeBridgeId = data.bridgeId;
-        clearTimeout(staleTimer);
-        return;
-      }
-      if (data.type !== 'BUFFER_RESULT') return;
-
-      const invalidated = bufferContextFailure(data);
-      if (invalidated) {
-        staleFailure = invalidated;
-        if (data.bridgeId && data.bridgeId === activeBridgeId) {
-          bufferExtensionAvailableRef.current = false;
-          finish(invalidated);
-        } else if (!activeBridgeId) {
-          // Eski content-script yeni betikten önce hata dönebilir; geçerli yanıtı bastırmasın.
-          clearTimeout(staleTimer);
-          staleTimer = setTimeout(() => { bufferExtensionAvailableRef.current = false; finish(invalidated); }, 600);
-        }
-        return;
-      }
-
-      bufferExtensionAvailableRef.current = true;
-      finish(data);
-    };
-
-    const timer = setTimeout(() => {
-      bufferExtensionAvailableRef.current = false;
-      finish(staleFailure || null);
-    }, timeoutMs);
-
-    window.addEventListener('message', onMessage);
-
-    const request = {
-      source: 'OTONOM_APP',
-      type,
-      id: requestId,
-      payload
-    };
-
-    // v1.42 KRİTİK:
-    // Buffer Bridge content-script'i uygulamanın bu frame'inde all_frames ile çalışıyor.
-    // Aynı isteği parent/top frame'lere de yollamak createPost mutation'ını iki kez
-    // çalıştırıp her sosyal ağda çift gönderi oluşturuyordu.
-    // Buffer isteği artık TAM 1 kez ve yalnız bu frame'e gönderilir.
-    try {
-      window.postMessage(/^BUFFER_UPLOAD_(BEGIN|CHUNK|FINISH|ABORT)$/.test(type) ? JSON.stringify(request) : request, '*');
-    } catch (e) {
-      ErrorHandler.silent(e);
-      finish(null);
-    }
-  });
-
-  const bufferContextFailure = data => {
-    if (data?.code !== 'BUFFER_CONTEXT_INVALIDATED' && !/extension context invalidated|BUFFER_CONTEXT_INVALIDATED/i.test(String(data?.error || ''))) return null;
-    return { ...data, ok: false, code: 'BUFFER_CONTEXT_INVALIDATED', error:
-      'Tarayıcı uzantısı yenilendiği için Canvas bağlantısı koptu. Uzantı seçeneklerinde CANVAS BAĞLANTISINI ONAR düğmesine basın. Video bu sekmede korunur; sayfayı yenilemeyin.' };
-  };
-
-  const probeBufferExtension = async () => {
-    let reply = await bufferExtensionRequest('BUFFER_PING', { appVersion: APP_VERSION.short() }, 5000);
-    if (bufferContextFailure(reply)) {
-      addSystemLog('Uzantı yenilenmiş; Canvas bağlantısı yeniden kontrol ediliyor...', 'info');
-      // Yalnız bağlantı testi tekrarlanır. CreatePost veya medya yüklemesi tekrarlanmaz.
-      reply = await bufferExtensionRequest('BUFFER_PING', { appVersion: APP_VERSION.short() }, 5000);
-    }
-
-    if (!reply) {
-      throw new Error(
-        'Tarayıcı uzantısı yanıt vermedi. OTONOM uzantısını v1.105 sürümüne güncelleyin; seçeneklerinden CANVAS BAĞLANTISINI ONAR düğmesine basın. Hazır videoyu korumak için Canvas sekmesini yenilemeyin.'
-      );
-    }
-
-    if (!reply.ok) {
-      throw new Error(reply.error || 'OTONOM Buffer Bridge bağlantı testi başarısız.');
-    }
-
-    const compatible = version => {
-      const [major, minor] = String(version || '').split('.').map(Number);
-      return Number.isFinite(major) && Number.isFinite(minor) && (major > 1 || (major === 1 && minor >= 105));
-    };
-    if (!compatible(reply.version) || !compatible(reply.contentVersion) || reply.mediaProtocol !== 2) {
-      throw new Error(`BUFFER_VERSION_MISMATCH: Canvas v${APP_VERSION.short()}; uzantı v${reply.version || '?'}, bağlantı betiği v${reply.contentVersion || '?'}. Uzantıyı v1.105 olarak güncelleyin ve CANVAS BAĞLANTISINI ONAR düğmesine basın. Uyumsuz sürümle işleme devam edilmedi; paylaşım başlamadı.`);
-    }
-
-    if (!reply.configured) {
-      throw new Error(
-        'Buffer API anahtarı bu tarayıcının uzantısına kaydedilmemiş. OTONOM Gazete, Müzik ve Buffer > Uzantı seçenekleri bölümünden anahtarı kaydedin.'
-      );
-    }
-
-    bufferExtensionAvailableRef.current = true;
-    addSystemLog(`✓ Buffer sürüm eşleşmesi: Canvas v${APP_VERSION.short()} / Bridge v${reply.version} / bağlantı v${reply.contentVersion} / metin aktarımı v2.`, 'success');
-    return reply;
-  };
-
-  const probeBufferMediaHost = async (requireDurable = true) => {
-    const reply = await bufferExtensionRequest(
-      'BUFFER_UPLOAD_PREFLIGHT',
-      { requireDurable: !!requireDurable },
-      7000
-    );
-
-    if (!reply) {
-      throw new Error('Buffer Bridge medya hostu ön kontrolüne yanıt vermedi.');
-    }
-
-    if (!reply.ok) {
-      throw new Error(reply.error || 'Buffer Bridge medya hostu hazır değil.');
-    }
-
-    if (requireDurable && !reply.durableConfigured) {
-      throw new Error(
-        'Planlı/video paylaşımı için kalıcı public medya hostu ayarlı değil. ' +
-        'OTONOM Gazete, Müzik ve Buffer > Uzantı seçenekleri içinde Cloudinary Cloud Name + Unsigned Upload Preset ' +
-        'veya Catbox Userhash ayarlayın; sonra "Medya Hostunu Test Et" düğmesine basın.'
-      );
-    }
-
-    addSystemLog(
-      `✓ Buffer medya hostu ayarı: ${reply.provider || 'hazır'}${reply.durableConfigured ? ' (kalıcı)' : ''}; gerçek yükleme henüz doğrulanmadı.`,
-      'success'
-    );
-
-    return reply;
-  };
-
-  const bufferGraphQLViaExtension = async (query, variables = {}) => {
-    const cooling = BufferBudget.cooldown();
-    if (cooling) throw BufferBudget.limitedError(cooling);
-    BufferBudget.record();
-    const reply = await bufferExtensionRequest(
-      'BUFFER_GRAPHQL',
-      { query, variables },
-      30000
-    );
-
-    if (!reply || bufferContextFailure(reply) || reply.code === 'BUFFER_EXTENSION_UNAVAILABLE' || /BUFFER_EXTENSION_UNAVAILABLE|message port closed/i.test(String(reply.error || ''))) {
-      bufferExtensionAvailableRef.current = false;
-      const error = new Error(bufferContextFailure(reply)?.error || 'OTONOM Buffer Bridge yanıtı alınamadı. Uzantı seçeneklerinden CANVAS BAĞLANTISINI ONAR düğmesini kullanın.');
-      error.code = 'BUFFER_BRIDGE_CONNECTION_LOST';
-      error.deliveryUnknown = /^\s*mutation\s+CreatePost\b/.test(query);
-      throw error;
-    }
-
-    if (!reply.ok) {
-      if (Number(reply.status) === 429) {
-        const cool = BufferBudget.trip(reply.retryAfter, reply.window);
-        bufferAccountCacheRef.current = null;
-        const usage = BufferBudget.usage();
-        BufferBudget.noteRateLimit(reply.rateLimit);
-        addSystemLog(`Buffer 429 • dolan pencere: ${BufferBudget.windowLabel(reply.window) || 'bilinmiyor (uzantı v1.106 gerekli)'} • bekleme: ${cool.fromHeader ? BufferBudget.formatWait(cool.until - Date.now()) + ' (Buffer bildirdi)' : 'bilinmiyor, tahmini ' + BufferBudget.formatWait(cool.until - Date.now())}. Bu tarayıcı son 15 dk ${usage.last15m}, son 24 saat ${usage.last24h} istek saydı; yani sınır büyük olasılıkla başka kullanımlardan (eski otomatik koşular, MCP/başka uygulamalar aynı Buffer anahtarını paylaşır) doldu. Limitler: 15 dk = 100; 24 sa = 250 (Free/Essentials) / 500 (Team); 30 gün = 3.000 / 7.500 / 15.000.`, 'warn');
-        throw BufferBudget.limitedError(cool);
-      }
-      const suffix = reply.status ? ` (HTTP ${reply.status})` : '';
-      throw new Error(`${reply.error || 'Buffer API isteği başarısız'}${suffix}`);
-    }
-
-    BufferBudget.noteRateLimit(reply.rateLimit);
-    const json = reply.response || {};
-
-    if (Array.isArray(json.errors) && json.errors.length) {
-      const err = json.errors[0] || {};
-      const code = err?.extensions?.code ? ` (${err.extensions.code})` : '';
-      // v1.129: GraphQL "kısmi hata": mutation çalışmış ve veri dönmüşken errors listesi de gelebilir (örn. isteğe bağlı bir alan).
-      // Gönderi oluştuğu halde "Hata" göstermemek için veri varsa başarı sayılır; yalnız veri YOKSA hata fırlatılır.
-      const hasData = !!json.data && typeof json.data === 'object' && Object.values(json.data).some(value => value !== null && value !== undefined);
-      if (!hasData) throw new Error(`${err?.message || 'Buffer API hatası'}${code}`);
-      addSystemLog(`Buffer yanıtı kısmi uyarı verdi ama veri geldi; işlem başarılı sayıldı: ${err?.message || 'ayrıntı yok'}${code}`, 'warn');
-    }
-
-    return json.data || {};
-  };
-
   const formatGazeteDuration = (ms) => {
     const totalSec = Math.max(0, Math.round(Number(ms || 0) / 1000));
     const min = Math.floor(totalSec / 60);
@@ -10764,1207 +10053,6 @@ export default function App() {
     return `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
   };
 
-  const reserveNextBufferAutoSlot = () => {
-    const intervalMinutes = 0;
-    const now = Date.now();
-    const nextDue = now;
-    bufferAutoLastDueAtRef.current = now;
-    bufferAutoNextDueAtRef.current = now;
-    SafeStorage.setItem(BUFFER_AUTO_LAST_DUE_KEY, '0');
-    SafeStorage.setItem(BUFFER_AUTO_NEXT_DUE_KEY, '0');
-    SafeStorage.setItem(BUFFER_AUTO_INTERVAL_KEY, '0');
-    return { dueAt: new Date(nextDue).toISOString(), intervalMinutes };
-  };
-
-  const bufferExtensionUploadMedia = async (blob, fileName, uploadOptions = {}, timeoutMs = 240000) => {
-    if (!(blob instanceof Blob) || !blob.size || blob.size > 100 * 1024 * 1024) {
-      throw new Error('BUFFER_MEDIA_SOURCE_INVALID: Medya boş, okunamıyor veya 100 MB sınırını aşıyor.');
-    }
-    const uploadId = `buffer_upload_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-    const deadline = Date.now() + timeoutMs;
-    const chunkBytes = 256 * 1024;
-    const total = Math.ceil(blob.size / chunkBytes);
-    const request = async (action, payload = {}, waitMs = 30000) => {
-      const remaining = deadline - Date.now();
-      if (remaining <= 0) throw new Error(`${action}: Medya aktarımı zaman aşımına uğradı.`);
-      const reply = await bufferExtensionRequest(action, { ...payload, uploadId }, Math.min(remaining, waitMs));
-      if (!reply) throw new Error(`${action}: Uzantı yanıt vermedi. Uzantının v1.105 veya üzeri olduğundan emin olun ve CANVAS BAĞLANTISINI ONAR düğmesini kullanın.`);
-      const invalidated = bufferContextFailure(reply);
-      if (invalidated || !reply.ok) throw new Error(`${action}: ${invalidated?.error || reply.error || 'Uzantı işlemi başarısız.'}`);
-      return reply;
-    };
-    try {
-      await request('BUFFER_UPLOAD_BEGIN', {
-        size: blob.size, total, fileName, mimeType: blob.type || 'application/octet-stream',
-        requireDurable: !!uploadOptions.requireDurable
-      });
-      let lastMark = 0;
-      for (let index = 0; index < total; index++) {
-        let timer, bytes;
-        try {
-          bytes = new Uint8Array(await Promise.race([
-            blob.slice(index * chunkBytes, (index + 1) * chunkBytes).arrayBuffer(),
-            new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('Parça okuma zaman aşımı.')), Math.max(1, Math.min(30000, deadline - Date.now()))); })
-          ]));
-        } catch (error) {
-          throw new Error(`BUFFER_MEDIA_READ: Parça ${index + 1}/${total}: ${error.message || error}`);
-        } finally { clearTimeout(timer); }
-        let binary = '';
-        for (let offset = 0; offset < bytes.length; offset += 16384) {
-          binary += String.fromCharCode(...bytes.subarray(offset, offset + 16384));
-        }
-        // Blob sayfada okunur. Uzantı sınırından yalnız JSON/base64 metni geçer.
-        await request('BUFFER_UPLOAD_CHUNK', { index, data: btoa(binary) });
-        const percent = Math.floor((index + 1) * 100 / total);
-        for (const mark of [25, 50, 75]) if (percent >= mark && lastMark < mark) {
-          lastMark = mark;
-          uploadOptions.onProgress?.(mark);
-          addSystemLog(`Buffer medya eklenti aktarımı: %${mark}`, 'info');
-        }
-      }
-      const uploaded = await request('BUFFER_UPLOAD_FINISH', {}, 190000);
-      if (typeof uploaded.url !== 'string' || !/^https:\/\//i.test(uploaded.url)) {
-        throw new Error('BUFFER_UPLOAD_PUBLIC_URL_INVALID: Medya hostu geçerli HTTPS adresi döndürmedi.');
-      }
-      uploadOptions.onProgress?.(100);
-      return { url: uploaded.url, provider: uploaded.provider || 'Buffer Bridge', size: uploaded.size || blob.size };
-    } catch (error) {
-      // Yalnız geçici medya oturumu temizlenir; yükleme/gönderi otomatik tekrarlanmaz.
-      try { await bufferExtensionRequest('BUFFER_UPLOAD_ABORT', { uploadId }, 5000); } catch (_) {}
-      throw error;
-    }
-  };
-
-  const uploadMediaToCloud = async (blobOrUrl, fileName = 'video.mp4', uploadOptions = {}) => {
-    try {
-      const sourceString = typeof blobOrUrl === 'string' ? blobOrUrl : '';
-      const intendedVideo =
-        (blobOrUrl instanceof Blob && String(blobOrUrl.type || '').startsWith('video/')) ||
-        /\.(mp4|webm|mov)(?:[?#].*)?$/i.test(sourceString) ||
-        sourceString.startsWith('blob:') ||
-        sourceString.startsWith('data:video/') ||
-        /\.(mp4|webm|mov)$/i.test(fileName) ||
-        /video/i.test(fileName);
-
-      if (intendedVideo) {
-        bufferCfrGuardRef.current = {
-          verified: false,
-          fps: 0,
-          sourceType: sourceString.startsWith('http')
-            ? 'http'
-            : sourceString.startsWith('blob:')
-              ? 'blob-url'
-              : sourceString.startsWith('data:')
-                ? 'data-url'
-                : (blobOrUrl instanceof Blob ? 'blob' : typeof blobOrUrl),
-          checkedAt: Date.now()
-        };
-      }
-
-      let blob = blobOrUrl;
-
-      if (typeof blobOrUrl === 'string' && blobOrUrl.startsWith('blob:')) {
-        blob = await _resolveManagedBlobUrl(blobOrUrl, { throwOnFail: true });
-        if (!(blob instanceof Blob) || !blob.size) throw new Error('Blob video okunamadı: yerel Blob bulunamadı.');
-      }
-      else if (typeof blobOrUrl === 'string' && blobOrUrl.startsWith('data:')) {
-        const parts = blobOrUrl.split(',');
-        const mime = parts[0].match(/:(.*?);/)?.[1] || (intendedVideo ? 'video/mp4' : 'application/octet-stream');
-        const bstr = atob(parts[1]); let n = bstr.length; const u8arr = new Uint8Array(n);
-        while (n--) u8arr[n] = bstr.charCodeAt(n);
-        blob = new Blob([u8arr], { type: mime });
-      }
-      else if (typeof blobOrUrl === 'string' && /^https?:\/\//i.test(blobOrUrl)) {
-        if (!intendedVideo) {
-          // Görseller için mevcut public URL davranışı korunur.
-          uploadOptions.onProgress?.('upload', 1);
-          return blobOrUrl;
-        }
-
-        // v1.34 KRİTİK: public HTTPS video artık CFR'ı BYPASS EDEMEZ.
-        addSystemLog('Instagram CFR guard: public video URL önce indiriliyor; doğrudan URL geçişi yasak.', 'info');
-
-        let remoteResponse;
-        try {
-          remoteResponse = await fetch(blobOrUrl, {
-            method: 'GET',
-            cache: 'no-store',
-            credentials: 'omit',
-            mode: 'cors'
-          });
-        } catch (remoteFetchErr) {
-          throw new Error(`Public video CFR için indirilemedi; doğrulanmadan paylaşım yasak: ${remoteFetchErr.message}`);
-        }
-
-        if (!remoteResponse.ok) {
-          throw new Error(`Public video CFR için indirilemedi: HTTP ${remoteResponse.status}`);
-        }
-
-        blob = await remoteResponse.blob();
-        if (!blob.size) throw new Error('Public video CFR için indirildi fakat dosya boş.');
-      }
-
-      if (!(blob instanceof Blob) || !blob.size) throw new Error('BUFFER_MEDIA_SOURCE_INVALID: Seçilen medya okunamadı veya boş. Hazır videoyu indirin ve medya kaynağını kontrol edin.');
-
-      // KRİTİK: Instagram/Meta Graph API (Buffer üzerinden paylaşılırken) videonun
-      // SABİT (constant) kare hızının 23-60 fps aralığında olmasını zorunlu kılar.
-      // Tarayıcı MediaRecorder çıktısı platforma göre VFR/oynak zaman damgaları üretebilir;
-      // ana renderer v1.82 ile captureStream(FPS) kullansa da konteyner
-      // meta verisi bu aralığın dışında kalabilir — Instagram videoyu bu yüzden
-      // reddediyordu. Bu yüzden Instagram/Buffer'a giden HER video, yüklenmeden
-      // önce mutlaka sabit 30 fps'e (23-60 aralığının ortası, güvenli) yeniden kodlanır.
-      const isVideoFile = intendedVideo;
-      if (isVideoFile) {
-        try {
-          addSystemLog('Instagram/Buffer uyumluluğu: Sabit 30 FPS (CFR) MP4 kodlanıyor...', 'info');
-          let firstFrameCoverBlob = null;
-          try {
-            const renderedCover = workflowRef.current?.state?.assets?._renderedClickbaitFrame;
-            if (typeof renderedCover === 'string' && renderedCover.startsWith('data:image/')) {
-              const coverResponse = await fetch(renderedCover);
-              firstFrameCoverBlob = await coverResponse.blob();
-            }
-          } catch (coverErr) {
-            ErrorHandler.silent(coverErr);
-          }
-
-          let lastCfrProgressBucket = 0;
-          blob = await convertWebMtoMP4(
-            blob,
-            (pct) => {
-              const bucket =
-                pct >= 100 ? 100 :
-                pct >= 75 ? 75 :
-                pct >= 50 ? 50 :
-                pct >= 25 ? 25 : 0;
-
-              if (bucket > lastCfrProgressBucket) {
-                lastCfrProgressBucket = bucket;
-                addSystemLog(`Instagram CFR kodlama: %${bucket}`, 'info');
-              }
-              uploadOptions.onProgress?.('cfr', Math.max(0, Math.min(1, Number(pct || 0) / 100)));
-            },
-            firstFrameCoverBlob
-          );
-
-          fileName = fileName.replace(/\.[^.]+$/, '') + '.mp4';
-
-          // convertWebMtoMP4 zaten doğruluyor; burada Buffer kapısından hemen önce
-          // ikinci bağımsız doğrulama yapılır. Bu guard false ise post oluşturulamaz.
-          const finalCfrCheck = await _verifyInstagramCfrMp4(blob);
-          if (
-            !finalCfrCheck?.ok ||
-            Math.abs(Number(finalCfrCheck.fps || 0) - 30) > 0.02
-          ) {
-            throw new Error(`Final Buffer CFR guard başarısız: ${Number(finalCfrCheck?.fps || 0).toFixed(3)} FPS`);
-          }
-
-          bufferCfrGuardRef.current = {
-            verified: true,
-            fps: Number(finalCfrCheck.fps),
-            sourceType: bufferCfrGuardRef.current.sourceType || 'unknown',
-            checkedAt: Date.now()
-          };
-
-          addSystemLog(
-            firstFrameCoverBlob
-              ? `✓ FIX CHECKLIST v1.34: Buffer video ${finalCfrCheck.fps.toFixed(3)} FPS CFR iki kez doğrulandı + ilk 0.80sn clickbait frame kilidi aktif.`
-              : `✓ FIX CHECKLIST v1.34: Buffer video ${finalCfrCheck.fps.toFixed(3)} FPS CFR iki kez doğrulandı; CFR bypass kapalı.`,
-            'success'
-          );
-          uploadOptions.onProgress?.('cfr', 1);
-        } catch (convErr) {
-          addSystemLog(`Instagram CFR kodlama başarısız — ham/VFR video GÖNDERİLMEYECEK: ${convErr.message}`, 'error');
-          throw new Error(`Instagram 23-60 FPS güvenlik kontrolü başarısız: ${convErr.message}`);
-        }
-      }
-      addSystemLog('Video/Medya public HTTPS adrese Buffer eklentisi üzerinden yükleniyor...', 'info');
-      uploadOptions.onProgress?.('upload', 0);
-
-      // v1.39: upload işlemi sayfa/iframe içinden DEĞİL extension background worker'dan yapılır.
-      // Böylece CORS / localhost / Gemini iframe kısıtları medya hosting yolunu etkileyemez.
-      await probeBufferExtension();
-
-      const uploadResult = await bufferExtensionUploadMedia(
-        blob,
-        fileName,
-        { requireDurable: !!uploadOptions.requireDurable, onProgress: pct => uploadOptions.onProgress?.('upload', pct / 100) }
-      );
-      uploadOptions.onProgress?.('upload', 1);
-
-      addSystemLog(
-        `✓ Video/Medya public HTTPS adrese yüklendi (${uploadResult.provider}): ${uploadResult.url}`,
-        'success'
-      );
-
-      return uploadResult.url;
-    } catch (e) {
-      addSystemLog('Buffer public medya yükleme hatası: ' + e.message, 'error');
-      throw new Error(`Medya yüklenemedi: ${e.message || e}. Hazır video korunuyor; paylaşım başlatılmadı.`);
-    }
-  };
-
-  // Buffer API ile paylaşım — güncel GraphQL API; createPost kabul yanıtından sonra yayın durumu sorgulanmaz.
-  // Resmî endpoint: https://api.buffer.com . API anahtarı hiçbir üçüncü taraf CORS proxy'sine gönderilmez.
-  // Buffer paylaşımı — v1.37 Chrome Extension bridge.
-  // localhost/BAT/CORS yok. API key TSX'e hiç girmez.
-  const shareToBufferAPI = async (text, mediaUrl = null, shareOptions = {}) => {
-    const reportRun = ++bufferShareRunRef.current;
-    const progress = (stage, fraction) => shareOptions.onProgress?.(stage, fraction);
-    progress('channels', 0);
-    bufferCfrGuardRef.current = { verified: false, fps: 0, sourceType: '', checkedAt: 0 };
-
-    const scheduleAt = shareOptions?.scheduleAt
-      ? new Date(shareOptions.scheduleAt).toISOString()
-      : null;
-    const isScheduled = !!scheduleAt;
-
-    if (isScheduled && new Date(scheduleAt).getTime() <= Date.now() + 15_000) {
-      throw new Error('Buffer planlama zamanı gelecekte olmalı.');
-    }
-
-    const coolingNow = BufferBudget.cooldown();
-    if (coolingNow) throw BufferBudget.limitedError(coolingNow);
-    const budget = BufferBudget.usage();
-    const remainingNow = BufferBudget.remainingSummary();
-    addSystemLog(`Buffer istek sayacı (bu tarayıcı): son 15 dk ${budget.last15m}/100, son 24 saat ${budget.last24h}.${remainingNow ? ` Buffer'ın bildirdiği kalan hak → ${remainingNow}.` : ''}`, 'info');
-    const lowNow = BufferBudget.lowWindow(8);
-    if (lowNow) {
-      const lowError = new Error(`Buffer ${BufferBudget.windowLabel(lowNow.name) || lowNow.name} pencerede yalnız ${lowNow.r} istek kaldı; yaklaşık ${BufferBudget.formatWait(lowNow.waitMs)} sonra yeniden denenecek. Video indirildi, Buffer'a istek gönderilmedi.`);
-      lowError.code = 'BUFFER_RATE_LIMITED';
-      throw lowError;
-    }
-    if (budget.last15m >= BUFFER_15M_SOFT_LIMIT) {
-      const guardError = new Error(`Buffer 15 dakikalık istek penceresi dolmak üzere (${budget.last15m}/100). Yaklaşık ${BufferBudget.formatWait(budget.freesIn15mMs)} sonra tekrar paylaşın; video indirildi, Buffer'a istek gönderilmedi.`);
-      guardError.code = 'BUFFER_RATE_LIMITED';
-      throw guardError;
-    }
-
-    addSystemLog('OTONOM Buffer Bridge kontrol ediliyor...', 'info');
-    await probeBufferExtension();
-
-    const bufferGraphQL = bufferGraphQLViaExtension;
-
-    let org;
-    let allChannels;
-    const accountCache = bufferAccountCacheRef.current;
-    if (accountCache && Date.now() - accountCache.at < BUFFER_ACCOUNT_CACHE_MS && accountCache.org?.id && accountCache.channels?.length) {
-      org = accountCache.org;
-      allChannels = accountCache.channels;
-      addSystemLog('Buffer hesap/kanal bilgisi son 10 dakikadan kullanıldı; 2 API isteği harcanmadı.', 'info');
-    } else {
-      const accountQuery = `query BufferAccount { account { organizations { id name } } }`;
-      addSystemLog('Buffer hesabı eklenti üzerinden doğrulanıyor...', 'info');
-      const accountData = await bufferGraphQL(accountQuery);
-      org = accountData?.account?.organizations?.[0];
-      if (!org?.id) throw new Error('Buffer organizasyonu bulunamadı veya eklenti API anahtarı yetkisiz.');
-
-      const channelsQuery = `query GetChannels($input: ChannelsInput!) {
-      channels(input: $input) { id name displayName service isQueuePaused isDisconnected isLocked }
-    }`;
-      const channelsData = await bufferGraphQL(channelsQuery, { input: { organizationId: org.id } });
-      allChannels = Array.isArray(channelsData?.channels) ? channelsData.channels : [];
-      if (!allChannels.length) throw new Error('Buffer hesabında bağlı sosyal medya kanalı bulunamadı.');
-      bufferAccountCacheRef.current = { at: Date.now(), org, channels: allChannels };
-    }
-
-    // v1.130: Scheduler bir işi tek kanala yönlendirir; eski manuel çağrılarda mevcut çoklu kanal seçimi korunur.
-    let finalChannels = [];
-    if (shareOptions?.targetChannelId) {
-      finalChannels = allChannels.filter(ch => String(ch.id) === String(shareOptions.targetChannelId)).slice(0, 1);
-      if (!finalChannels.length) throw new Error(`Buffer hedef kanalı bulunamadı veya bağlantısı değişti: ${shareOptions.targetChannelId}`);
-    } else if (shareOptions?.targetService) {
-      const wanted = bufferSocialService(shareOptions.targetService);
-      finalChannels = allChannels.filter(ch => bufferSocialService(ch.service) === wanted).slice(0, 1);
-    } else {
-      const priority = ['twitter', 'instagram', 'tiktok'];
-      const targetChannels = [];
-      for (const service of priority) {
-        const found = allChannels.find(ch => String(ch.service || '').toLowerCase() === service && !targetChannels.some(t => t.id === ch.id));
-        if (found) targetChannels.push(found);
-      }
-      for (const ch of allChannels) { if (targetChannels.length >= 3) break; if (!targetChannels.some(t => t.id === ch.id)) targetChannels.push(ch); }
-      finalChannels = targetChannels.slice(0, 3);
-    }
-    if (!finalChannels.length) throw new Error('Buffer hedef kanalı bulunamadı.');
-
-    const blocked = new Map();
-    const dailyLimits = new Map();
-    for (const ch of finalChannels) {
-      if (ch.isDisconnected) blocked.set(ch.id, 'Buffer kanal bağlantısı kopmuş. Buffer > Ayarlar > Kanallar bölümünden bağlantıyı yeniden yetkilendirin.');
-      else if (ch.isLocked) blocked.set(ch.id, 'Buffer bu kanalı kilitlemiş. Buffer kanal/plan ayarlarını kontrol edin.');
-    }
-
-    // Tek sorgu, üç kanal. Ağ/API ön kontrolü çalışmazsa eski gönderim akışı
-    // korunur; asıl createPost sonucu yine kesin hata/başarı kaynağıdır.
-    try {
-      const limitsQuery = `query DailyPostingLimits($input: DailyPostingLimitsInput!) {
-        dailyPostingLimits(input: $input) { channelId isAtLimit limit scheduled sent }
-      }`;
-      const limitsData = await bufferGraphQL(limitsQuery, {
-        input: { channelIds: finalChannels.map(ch => ch.id), ...(isScheduled ? { date: scheduleAt } : {}) }
-      });
-      for (const limit of (limitsData?.dailyPostingLimits || [])) {
-        dailyLimits.set(limit.channelId, limit);
-        if (limit.isAtLimit && !blocked.has(limit.channelId)) {
-          blocked.set(limit.channelId, 'Buffer günlük gönderi sınırı dolmuş. Son 24 saatlik sınır yenilenince tekrar deneyin.');
-        }
-      }
-      try {
-        const previous = BufferBudget._read(POSTING_QUOTA_SNAPSHOT_KEY, null);
-        const quotaByChannel = new Map((previous?.channels || []).map(item => [item.channelId, item]));
-        for (const ch of finalChannels) {
-          const item = dailyLimits.get(ch.id);
-          quotaByChannel.set(ch.id, { channelId: ch.id, name: ch.displayName || ch.name || ch.service, service: bufferSocialService(ch.service), limit: item?.limit ?? null, sent: item?.sent ?? null, scheduled: item?.scheduled ?? null, remaining: item?.limit == null || item?.sent == null ? null : Math.max(0, Number(item.limit) - Number(item.sent) - Number(item.scheduled || 0)), isAtLimit: !!item?.isAtLimit, checkedAt: Date.now() });
-        }
-        const snapshot = { at: Date.now(), channels: [...quotaByChannel.values()] };
-        bufferQuotaSnapshotRef.current = snapshot;
-        SafeStorage.setItem(POSTING_QUOTA_SNAPSHOT_KEY, JSON.stringify(snapshot));
-      } catch (_) {}
-    } catch (limitError) {
-      if (limitError?.code === 'BUFFER_RATE_LIMITED') throw limitError;
-      addSystemLog(`Buffer günlük limit ön kontrolü alınamadı; yayın sonucu ayrıca doğrulanacak: ${limitError.message}`, 'warn');
-    }
-
-    const postableChannels = finalChannels.filter(ch => !blocked.has(ch.id));
-    progress('channels', 1);
-    const skippedResults = finalChannels.filter(ch => blocked.has(ch.id)).map(ch => ({
-      channelId: ch.id,
-      name: ch.displayName || ch.name || ch.service,
-      service: ch.service,
-      state: 'error',
-      detail: blocked.get(ch.id)
-    }));
-    for (const skipped of skippedResults) addSystemLog(
-      `✗ ${bufferChannelLogName(skipped.service, skipped.name)}: ${skipped.detail}`, 'error', skipped.service
-    );
-    if (postableChannels.length) {
-      addSystemLog(
-        `✓ Buffer ön kontrolünden geçen hedefler (yayın sonucu henüz kesin değil): ${postableChannels.map(ch => bufferChannelLogName(ch.service, ch.displayName || ch.name || ch.service)).join(', ')}`,
-        'success'
-      );
-    }
-
-    setBufferShareReport({
-      status: postableChannels.length ? 'sharing' : 'error',
-      message: !postableChannels.length
-        ? 'Uygun Buffer kanalı yok; video yeniden yüklenmedi. Kanal hatalarını düzeltin.'
-        : isScheduled
-        ? `Video hazırlanıyor; ${new Date(scheduleAt).toLocaleString('tr-TR')} için planlanacak...`
-        : 'Video hazırlanıyor ve Buffer hedef kanalları belirleniyor...',
-      results: finalChannels.map(ch => ({
-        channelId: ch.id,
-        name: ch.displayName || ch.name || ch.service,
-        service: ch.service,
-        state: blocked.has(ch.id) ? 'error' : 'waiting',
-        detail: blocked.get(ch.id) || 'Bekliyor'
-      }))
-    });
-
-    if (!postableChannels.length) {
-      return { sentCount: 0, scheduledCount: 0, errorCount: skippedResults.length, pendingCount: 0, results: skippedResults };
-    }
-
-    const scriptObj = shareOptions?.contentData || workflowRef.current?.state?.script || {};
-    const headline = shareOptions?.postText || text || scriptObj.thumbnailText || textInput || 'OTONOM Haber';
-    const desc = scriptObj.tiktokDescription ? `\n\n${scriptObj.tiktokDescription}` : '';
-    const tags = Array.isArray(scriptObj.tiktokHashtags) && scriptObj.tiktokHashtags.length > 0
-      ? `\n\n${scriptObj.tiktokHashtags.join(' ')}`
-      : '';
-
-    const normalText =
-      makeTikTokSafeText(`${headline}${desc}${tags}`.replace(/blob:https?:[^\s]+/gi, '').trim()) ||
-      'OTONOM Haber';
-
-    const tiktokText =
-      `${makeTikTokSafeText(headline)}${desc ? `\n\n${makeTikTokSafeText(scriptObj.tiktokDescription || '')}` : ''}${tags}\n\nAI destekli içerik.`.trim();
-
-    const targetMedia =
-      mediaUrl ||
-      uiState.videoUrl ||
-      (studioMedia.customSceneImages && studioMedia.customSceneImages[0]);
-
-    if (!targetMedia) throw new Error('Paylaşılacak video/görsel bulunamadı.');
-
-    const isVideo =
-      config.outputType === 'video' ||
-      (typeof targetMedia === 'string' && (
-        targetMedia.includes('.mp4') ||
-        targetMedia.includes('.webm') ||
-        targetMedia.startsWith('blob:')
-      ));
-
-    // v1.139: Her video için CFR dönüşümü ve public medya yüklemesi yalnızca bir kez yapılır.
-    // Aynı video X/Instagram/LinkedIn gibi birden çok kanala giderken kalıcı URL + CFR kanıtı paylaşılır.
-    const requireDurableMediaHost = isVideo || isScheduled;
-    const mediaCacheKey = isVideo ? String(shareOptions?.mediaCacheKey || shareOptions?.videoId || '') : '';
-    const mediaCacheTtlMs = 72 * 60 * 60 * 1000;
-    let cachedPrepared = mediaCacheKey ? bufferPreparedMediaCacheRef.current.get(mediaCacheKey) || null : null;
-
-    // Bellek önbelleği yoksa (ör. sayfa yenilendi) aynı video kaydından kalıcı cache'i geri yükle.
-    if (mediaCacheKey && (!cachedPrepared || Date.now() - Number(cachedPrepared.at || 0) > mediaCacheTtlMs)) {
-      try {
-        const durableVideo = await DurablePostingQueue.getVideo(mediaCacheKey);
-        const preparedAt = Number(durableVideo?.bufferPreparedMediaAt || 0);
-        const preparedUrl = String(durableVideo?.bufferPreparedMediaUrl || '');
-        const preparedFps = Number(durableVideo?.bufferPreparedMediaFps || 0);
-        if (preparedUrl.startsWith('https://') && preparedAt > 0 && Date.now() - preparedAt <= mediaCacheTtlMs && Math.abs(preparedFps - 30) <= 0.02) {
-          cachedPrepared = { url: preparedUrl, at: preparedAt, guard: { verified: true, fps: preparedFps, sourceType: 'durable-cache', checkedAt: preparedAt } };
-          bufferPreparedMediaCacheRef.current.set(mediaCacheKey, cachedPrepared);
-        }
-      } catch (cacheReadError) { ErrorHandler.silent(cacheReadError); }
-    }
-
-    let directCloudUrl = '';
-    if (isVideo && cachedPrepared && cachedPrepared.url?.startsWith('https://') && Date.now() - Number(cachedPrepared.at || 0) <= mediaCacheTtlMs && cachedPrepared.guard?.verified && Math.abs(Number(cachedPrepared.guard.fps || 0) - 30) <= 0.02) {
-      directCloudUrl = cachedPrepared.url;
-      bufferCfrGuardRef.current = { ...cachedPrepared.guard, checkedAt: Number(cachedPrepared.guard.checkedAt || cachedPrepared.at || Date.now()) };
-      progress('media', 1); progress('cfr', 1); progress('upload', 1);
-      addSystemLog(`✓ v1.139: Bu videonun doğrulanmış 30 FPS medyası yeniden kullanılıyor; CFR dönüştürme ve Cloudinary yüklemesi atlandı (${mediaCacheKey}).`, 'success');
-    } else {
-      // v1.44: İlk medya yüklemesinden önce kalıcı host doğrulanır.
-      progress('media', 0);
-      await probeBufferMediaHost(requireDurableMediaHost);
-      progress('media', 1);
-      progress('cfr', isVideo ? 0 : 1);
-      directCloudUrl = await uploadMediaToCloud(
-        targetMedia,
-        `gundem_notlari_${mediaCacheKey ? mediaCacheKey.replace(/[^a-zA-Z0-9_-]/g, '_') : Date.now()}.${isVideo ? 'mp4' : 'jpg'}`,
-        { requireDurable: requireDurableMediaHost, onProgress: progress }
-      );
-      if (isVideo && mediaCacheKey && bufferCfrGuardRef.current?.verified && Math.abs(Number(bufferCfrGuardRef.current.fps || 0) - 30) <= 0.02 && /^https:\/\//i.test(directCloudUrl || '')) {
-        const preparedAt = Date.now();
-        const prepared = { url: directCloudUrl, at: preparedAt, guard: { ...bufferCfrGuardRef.current, checkedAt: preparedAt } };
-        bufferPreparedMediaCacheRef.current.set(mediaCacheKey, prepared);
-        // Persist across reloads; this only stores metadata, not another copy of the video.
-        await DurablePostingQueue.updateVideo(mediaCacheKey, { bufferPreparedMediaUrl: directCloudUrl, bufferPreparedMediaAt: preparedAt, bufferPreparedMediaFps: Number(bufferCfrGuardRef.current.fps || 0) });
-        if (bufferPreparedMediaCacheRef.current.size > 40) {
-          const oldestKey = [...bufferPreparedMediaCacheRef.current.entries()].sort((a,b) => Number(a[1]?.at || 0) - Number(b[1]?.at || 0))[0]?.[0];
-          if (oldestKey && oldestKey !== mediaCacheKey) bufferPreparedMediaCacheRef.current.delete(oldestKey);
-        }
-      }
-    }
-
-    if (!directCloudUrl || !/^https:\/\//i.test(directCloudUrl)) {
-      throw new Error(
-        'BUFFER_PUBLIC_URL_MISSING: Medya yükleyici geçerli HTTPS adresi döndürmedi. Uzantının v1.105 veya üzeri olduğundan emin olun. Paylaşım başlatılmadı.'
-      );
-    }
-
-    addSystemLog('✓ Buffer için herkese açık medya URL’si hazır.', 'success');
-
-    // v1.34 HARD GATE korunuyor.
-    if (isVideo) {
-      const guard = bufferCfrGuardRef.current;
-      if (
-        !guard?.verified ||
-        !(Number(guard.fps) >= 23 && Number(guard.fps) <= 60) ||
-        Math.abs(Number(guard.fps) - 30) > 0.02
-      ) {
-        throw new Error(
-          `Buffer paylaşımı durduruldu: 30 FPS CFR doğrulama guard'ı geçilmedi ` +
-          `(verified=${!!guard?.verified}, fps=${Number(guard?.fps || 0).toFixed(3)}, source=${guard?.sourceType || 'unknown'}).`
-        );
-      }
-
-      addSystemLog(
-        `✓ Buffer HARD GATE: ${guard.fps.toFixed(3)} FPS CFR doğrulandı.`,
-        'success'
-      );
-    }
-
-    const createMutation = `mutation CreatePost($input: CreatePostInput!) {
-      createPost(input: $input) {
-        __typename
-        ... on PostActionSuccess {
-          post {
-            id
-            status
-            dueAt
-            channelId
-            channelService
-            externalLink
-            error { message supportUrl }
-          }
-        }
-        ... on MutationError { message }
-      }
-    }`;
-
-    const results = [...skippedResults];
-    progress('posts', skippedResults.length / finalChannels.length);
-
-    for (let index = 0; index < postableChannels.length; index++) {
-      const ch = postableChannels[index];
-      const name = ch.displayName || ch.name || ch.service || `Kanal ${index + 1}`;
-      const service = String(ch.service || '').toLowerCase();
-
-      setBufferShareReport(prev => ({
-        ...prev,
-        message: isScheduled
-          ? `${bufferChannelLogName(service, name)} ${new Date(scheduleAt).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })} için planlanıyor...`
-          : `${bufferChannelLogName(service, name)} Buffer'a gönderiliyor...`,
-        results: prev.results.map(r =>
-          r.channelId === ch.id
-            ? {
-                ...r,
-                state: 'creating',
-                detail: isScheduled ? 'Buffer’a planlanıyor' : 'Buffer’a gönderiliyor'
-              }
-            : r
-        )
-      }));
-
-      try {
-        const coverOffsetMs = 1000;
-        const supportsVideoCoverOffset = ['instagram', 'tiktok', 'pinterest'].includes(service);
-
-        const assetObj = isVideo
-          ? {
-              video: {
-                url: directCloudUrl,
-                ...(supportsVideoCoverOffset
-                  ? { metadata: { thumbnailOffset: coverOffsetMs } }
-                  : {})
-              }
-            }
-          : { image: { url: directCloudUrl } };
-
-        const input = {
-          channelId: ch.id,
-          text: service === 'tiktok' ? tiktokText : normalText,
-          mode: isScheduled ? 'customScheduled' : 'shareNow',
-          ...(isScheduled ? { dueAt: scheduleAt } : {}),
-          schedulingType: 'automatic',
-          needsApproval: false,
-          saveToDraft: false,
-          aiAssisted: true,
-          assets: [assetObj]
-        };
-
-        if (service === 'instagram') {
-          input.metadata = {
-            instagram: {
-              type: isVideo ? 'reel' : 'post',
-              shouldShareToFeed: true,
-              isAiGenerated: true
-            }
-          };
-        } else if (service === 'tiktok') {
-          input.metadata = { tiktok: { isAiGenerated: true } };
-        } else if (service === 'twitter') {
-          input.metadata = { twitter: { isAiGenerated: true } };
-        }
-
-        const createData = await bufferGraphQL(createMutation, { input });
-        const payload = createData?.createPost;
-
-        if (!payload?.post?.id) {
-          const msg = payload?.message || 'Buffer post oluşturmadı.';
-          results.push({
-            channelId: ch.id,
-            name,
-            service,
-            state: 'error',
-            detail: msg
-          });
-          addSystemLog(`✗ ${bufferChannelLogName(service, name)}: ${msg}`, 'error', service);
-          continue;
-        }
-
-        const createdStatus = payload.post.status || (isScheduled ? 'scheduled' : 'sending');
-
-        if (createdStatus === 'error') {
-          const rawError = payload.post.error?.message || 'Buffer kanalı yayını reddetti.';
-          const dailyLimit = dailyLimits.get(ch.id);
-          const todayUsage = dailyLimit?.isAtLimit === false
-            ? ` Ön kontrol bugün gönderilen ${dailyLimit.sent}, bugün planlanan ${dailyLimit.scheduled}, günlük sınır ${dailyLimit.limit ?? 'sınırsız'} gösterdi; bu değer kayan 24 saatin tamamını açıklamayabilir.`
-            : '';
-          const guidance = /reauthoriz|reconnect|connection/i.test(rawError)
-            ? 'Buffer > Ayarlar > Kanallar bölümünden bağlantıyı yeniden yetkilendirin.'
-            : /daily posting limit|posting limit/i.test(rawError)
-              ? `Buffer bu isteği 24 saatlik yayın sınırı gerekçesiyle reddetti.${todayUsage} Sosyal ağın kendi uygulamasından yapılan paylaşımlar Buffer sayımına girmez; uzantı seçeneklerinde son 24 saatlik Buffer yayınlarını kontrol edin.`
-              : rawError;
-          const failed = {
-            channelId: ch.id, name, service, postId: payload.post.id,
-            state: 'error', detail: guidance,
-            supportUrl: payload.post.error?.supportUrl || null
-          };
-          results.push(failed);
-          addSystemLog(`✗ ${bufferChannelLogName(service, name)}: Buffer yayını reddetti — ${rawError} ${guidance === rawError ? '' : guidance}`, 'error', service);
-          setBufferShareReport(prev => ({
-            ...prev,
-            results: prev.results.map(r => r.channelId === ch.id ? failed : r)
-          }));
-          continue;
-        }
-
-        if (isScheduled) {
-          const scheduledResult = {
-            channelId: ch.id,
-            name,
-            service,
-            postId: payload.post.id,
-            state: 'scheduled',
-            detail: `Planlandı: ${new Date(scheduleAt).toLocaleString('tr-TR')}`,
-            dueAt: payload.post.dueAt || scheduleAt,
-            externalLink: payload.post.externalLink || null
-          };
-          results.push(scheduledResult);
-
-          addSystemLog(
-            `✓ ${bufferChannelLogName(service, name)}: Buffer planladı — ${new Date(scheduleAt).toLocaleString('tr-TR')}.`,
-            'success', service
-          );
-
-          setBufferShareReport(prev => ({
-            ...prev,
-            results: prev.results.map(r =>
-              r.channelId === ch.id ? scheduledResult : r
-            )
-          }));
-        } else {
-          const createdResult = {
-            channelId: ch.id,
-            name,
-            service,
-            postId: payload.post.id,
-            state: createdStatus === 'sent' ? 'sent' : 'pending',
-            detail: createdStatus === 'sent' ? 'Buffer API sent yanıtı döndürdü; sonradan doğrulama yapılmadı.' : `Buffer kabul etti (${createdStatus}); yayın durumu ayrıca sorgulanmıyor.`,
-            externalLink: payload.post.externalLink || null
-          };
-          results.push(createdResult);
-
-          addSystemLog(`✓ ${bufferChannelLogName(service, name)}: Buffer gönderimi kabul etti (${createdStatus}).`, 'success', service);
-          setBufferShareReport(prev => ({
-            ...prev,
-            results: prev.results.map(r =>
-              r.channelId === ch.id
-                ? {
-                    ...r,
-                    postId: payload.post.id,
-                    state: 'verifying',
-                    detail: `Doğrulanıyor: ${createdStatus}`
-                  }
-                : r
-            )
-          }));
-        }
-      } catch (e) {
-        const uncertain = !!e.deliveryUnknown;
-        const detail = uncertain
-          ? 'Gönderim sırasında uzantı bağlantısı koptu; Buffer isteği kabul etmiş olabilir. Durum sorgulaması kapalı; çift paylaşımı önlemek için otomatik tekrar yapılmayacak.'
-          : e.message;
-        results.push({
-          channelId: ch.id,
-          name,
-          service,
-          state: uncertain ? 'pending' : 'error',
-          needsManualCheck: uncertain,
-          detail
-        });
-        addSystemLog(`${uncertain ? '⏳' : '✗'} ${bufferChannelLogName(service, name)}: ${detail}`, uncertain ? 'warn' : 'error', service);
-        if (uncertain) {
-          for (const next of postableChannels.slice(index + 1)) {
-            const stopped = { channelId: next.id, name: next.displayName || next.name || next.service,
-              service: next.service, state: 'error', detail: 'Uzantı bağlantısı koptu; bu kanala gönderim başlatılmadı.' };
-            results.push(stopped);
-            addSystemLog(`✗ ${bufferChannelLogName(stopped.service, stopped.name)}: ${stopped.detail}`, 'error', stopped.service);
-          }
-          break;
-        }
-      } finally {
-        progress('posts', (skippedResults.length + index + 1) / finalChannels.length);
-      }
-    }
-
-    // Planlı gönderiler "sent" olana kadar beklenmez; Buffer kuyruğuna girmesi başarıdır.
-    if (isScheduled) {
-      const scheduledCount = results.filter(r => r.state === 'scheduled').length;
-      const errorCount = results.filter(r => r.state === 'error').length;
-      const pendingCount = results.filter(r => r.state === 'pending').length;
-      const finalMessage = `${scheduledCount} kanal planlandı, ${errorCount} hata.${pendingCount ? ` ${pendingCount} kanalı Buffer hesabında kontrol edin.` : ''}`;
-
-      setBufferShareReport({
-        status: errorCount > 0
-          ? (scheduledCount > 0 ? 'partial' : 'error')
-          : pendingCount ? 'pending' : 'success',
-        results,
-        message: finalMessage
-      });
-
-      return {
-        sentCount: 0,
-        scheduledCount,
-        errorCount,
-        pendingCount,
-        results,
-        scheduleAt
-      };
-    }
-
-    // v1.135: Kullanıcı tercihi — createPost yanıtından sonra Buffer gönderi durumu
-    // GetPost ile tekrar sorgulanmaz. Kabul yanıtı gönderim işinin tamamlandığı anlamına
-    // gelir; sosyal ağda yayınlandığına dair ayrıca doğrulama iddiası yoktur.
-    let currentResults = results;
-    const makeReport = () => {
-      const sentCount = currentResults.filter(r => r.state === 'sent').length;
-      const errorCount = currentResults.filter(r => r.state === 'error').length;
-      const pendingCount = currentResults.filter(r => r.state === 'pending' || r.state === 'scheduled').length;
-      return { runId: reportRun, sentCount, scheduledCount: currentResults.filter(r => r.state === 'scheduled').length,
-        errorCount, pendingCount, results: currentResults,
-        status: errorCount ? (sentCount || pendingCount ? 'partial' : 'error') : pendingCount ? 'pending' : 'success',
-        message: `${sentCount + pendingCount} gönderim Buffer'a iletildi/kabul edildi, ${errorCount} hata. Yayın durumu ayrıca sorgulanmadı.` };
-    };
-    const acceptedReport = makeReport();
-    if (bufferShareRunRef.current === reportRun) setBufferShareReport(acceptedReport);
-    shareOptions.onReport?.(acceptedReport);
-    for (const result of currentResults.filter(r => ['pending','scheduled'].includes(r.state) && r.postId)) {
-      addSystemLog(`✓ ${bufferChannelLogName(result.service, result.name)}: Buffer kabul yanıtı alındı; yayın durumu tekrar sorgulanmayacak.`, 'success', result.service);
-    }
-    progress('verify', 1); // Sadece kuyruğa teslim; Buffer status sorgusu yok.
-    shareOptions.onPendingComplete?.(acceptedReport);
-    return acceptedReport;
-  };
-
-  // v1.130: Üretim tarafı yalnız videoyu/metadata'yı kalıcı depoya teslim eder; Buffer çağrısı burada yapılmaz.
-  const enqueueMediaForPosting = async ({ mediaUrl, title = '', fileName = '', job = null, videoId = '', source = 'auto-production' } = {}) => {
-    if (!AUTO_BUFFER_SHARING_ENABLED && source === 'auto-production') {
-      addSystemLog(`v1.154: otomatik Buffer paylaşımı kapalı; '${title || fileName || 'Video'}' yalnızca yerel MP4 olarak kaydedilecek.`, 'info');
-      return { queued: false, status: 'AUTO_POSTING_DISABLED', title: String(title || fileName || 'Video'), message: 'Otomatik Buffer paylaşımı devre dışı.' };
-    }
-    if (!mediaUrl) throw new Error('Gönderim kuyruğu için video adresi eksik.');
-    const blob = await _resolveManagedBlobUrl(mediaUrl, { throwOnFail: true });
-    if (!(blob instanceof Blob) || !blob.size) throw new Error('Video Blob’u alınamadı; kuyruk kaydı yapılmadı.');
-    const saveJob = job || workflowRef.current?.state || {};
-    const jobKey = String(videoId || saveJob.jobId || `${fileName || title}_${saveJob.createdAt || Date.now()}`);
-    const id = jobKey.startsWith('otonom_video_') ? jobKey : `otonom_video_${jobKey.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
-    const script = saveJob.script || {};
-    const safeTitle = String(title || script.thumbnailText || saveJob.config?.sourceName || fileName || 'OTONOM Haber').trim();
-    const video = {
-      id, title: safeTitle, fileName: String(fileName || `${safeTitle}.mp4`), createdAt: Date.now(), updatedAt: Date.now(),
-      jobId: saveJob.jobId || '', sourceName: saveJob.config?._gazeteSourceLock || saveJob.config?.sourceName || '', source,
-      // Only a direct newspaper-card job whose rendered thumbnail is still the exact selected page is trusted.
-      coverSourceVerified: !!(saveJob.config?._gazeteDirectClick && saveJob.config?._gazeteImageLock && saveJob.assets?.thumbnail === saveJob.config._gazeteImageLock),
-      coverSourceName: saveJob.config?._gazeteSourceLock || saveJob.config?.sourceName || '',
-      coverSourceVerifiedAt: (saveJob.config?._gazeteDirectClick && saveJob.config?._gazeteImageLock && saveJob.assets?.thumbnail === saveJob.config._gazeteImageLock) ? Date.now() : null,
-      coverSourceLockVersion: (saveJob.config?._gazeteDirectClick && saveJob.config?._gazeteImageLock && saveJob.assets?.thumbnail === saveJob.config._gazeteImageLock) ? APP_VERSION.short() : null,
-      status: 'QUEUED', targetResolutionPending: true, targetChannels: [],
-      postText: String(script.thumbnailText || safeTitle),
-      contentData: { thumbnailText: script.thumbnailText || safeTitle, tiktokDescription: script.tiktokDescription || '', tiktokHashtags: Array.isArray(script.tiktokHashtags) ? script.tiktokHashtags : [] },
-      size: blob.size, mimeType: blob.type || 'video/mp4', publishedAt: null, lastError: '', nextRetryTime: null,
-      bufferDeferredCount: 0, retryCount: 0
-    };
-    await DurablePostingQueue.saveVideo(video, blob);
-    // Mümkünse kalıcı depolama izni al; izin reddedilse bile IndexedDB kaydı saklanır.
-    try { if (navigator.storage?.persist) void navigator.storage.persist().catch(() => false); } catch (_) {}
-    try { sysEventBus.emit('POSTING_QUEUE_CHANGED', { videoId: id }); } catch (_) {}
-    addSystemLog(`✓ Video kalıcı gönderim kuyruğuna kaydedildi: ${safeTitle} (${(blob.size / 1024 / 1024).toFixed(1)} MB). Buffer gönderim denemeleri kuyruktan yürütülecek; ek video arası bekleme yok.`, 'success');
-    void refreshPostingDashboard();
-    return { queued: true, status: 'QUEUED', videoId: id, title: safeTitle, message: 'Video kalıcı gönderim kuyruğuna eklendi.' };
-  };
-
-  const refreshPostingDashboard = async () => {
-    try {
-      const [videos, tasks] = await Promise.all([DurablePostingQueue.listVideos(), DurablePostingQueue.listTasks()]);
-      const taskMap = new Map();
-      for (const task of tasks) { if (!taskMap.has(task.videoId)) taskMap.set(task.videoId, []); taskMap.get(task.videoId).push(task); }
-      const decorated = videos.map(video => {
-        const own = taskMap.get(video.id) || [];
-        const success = own.filter(t => t.status === 'POSTED').length;
-        const failures = own.filter(t => t.status === 'FAILED').length;
-        const retrying = own.filter(t => t.status === 'RETRY_WAITING').length;
-        const posting = own.some(t => t.status === 'POSTING');
-        const due = own.filter(t => ['QUEUED','RETRY_WAITING','SCHEDULED'].includes(t.status) && Number(t.nextRetryTime || 0) > 0).map(t => Number(t.nextRetryTime));
-        const nextRetryTime = due.length ? Math.min(...due) : (video.nextRetryTime || null);
-        let status = video.status || 'QUEUED';
-        if (video.sourceReviewRequired) status = 'SCHEDULED';
-        else if (success === own.length && own.length) status = 'POSTED';
-        else if (posting) status = 'POSTING';
-        else if (retrying || (video.targetResolutionPending && Number(video.nextRetryTime || 0) > Date.now())) status = 'RETRY_WAITING';
-        else if (own.some(t => t.status === 'SCHEDULED')) status = 'SCHEDULED';
-        else if (own.some(t => t.status === 'QUEUED')) status = 'QUEUED';
-        else if (own.length && own.every(t => t.status === 'FAILED')) status = 'FAILED';
-        else if (!own.length && video.targetResolutionPending === false) status = 'QUEUED';
-        else if (own.length) status = 'FAILED';
-        return { ...video, status, successCount: success, pendingCount: own.filter(t => ['QUEUED','POSTING','SCHEDULED','RETRY_WAITING'].includes(t.status)).length, failedCount: failures, retryCount: retrying, tasks: own, nextRetryTime };
-      }).sort((a,b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
-      setPostingDashboard({ videos: decorated, tasks: [...tasks].sort((a,b) => Number(a.createdAt || 0) - Number(b.createdAt || 0)) });
-      return { videos: decorated, tasks };
-    } catch (e) {
-      setPostingSchedulerState(prev => ({ ...prev, state: 'storage-error', message: `IndexedDB kuyruk okunamadı: ${e.message}` }));
-      return { videos: [], tasks: [] };
-    }
-  };
-
-  const getPostingBufferChannels = async () => {
-    const cached = bufferAccountCacheRef.current;
-    if (cached?.channels?.length && Date.now() - cached.at < BUFFER_ACCOUNT_CACHE_MS && cached.org?.id) return cached;
-    await probeBufferExtension();
-    const accountData = await bufferGraphQLViaExtension('query BufferAccount { account { organizations { id name } } }');
-    const org = accountData?.account?.organizations?.[0];
-    if (!org?.id) throw new Error('Buffer organizasyonu bulunamadı; eklenti/API bağlantısını kontrol edin.');
-    const channelsData = await bufferGraphQLViaExtension('query GetChannels($input: ChannelsInput!) { channels(input: $input) { id name displayName service isQueuePaused isDisconnected isLocked } }', { input: { organizationId: org.id } });
-    const channels = Array.isArray(channelsData?.channels) ? channelsData.channels : [];
-    if (!channels.length) throw new Error('Buffer hesabında bağlı kanal bulunamadı.');
-    const value = { at: Date.now(), org, channels };
-    bufferAccountCacheRef.current = value;
-    return value;
-  };
-
-  const postingRetryPlan = (error, task = null) => {
-    const message = String(error?.message || error || 'Bilinmeyen gönderim hatası');
-    const lower = message.toLocaleLowerCase('tr-TR');
-    const now = Date.now();
-    const daily = /daily posting limit|24 hour limit|publishing limit|günlük paylaşım limit|günlük gönderi sınırı|24 saatlik yayın sınırı|publishing.*limit|daily.*limit/.test(lower);
-    const explicitRejected = /buffer request rejected|buffer.*request.*rejected/.test(lower);
-    const globalRate = Number(error?.status) === 429 || Number(error?.httpStatus) === 429 || error?.code === 'BUFFER_RATE_LIMITED' || explicitRejected || /rate limit exceeded|http\s*429|\b429\b|istek sınırı doldu/.test(lower);
-    const retryHeader = Number(error?.retryAfter || error?.retryAfterSeconds || 0);
-    if (daily) return { status: 'RETRY_WAITING', nextRetryTime: retryHeader > 0 ? now + retryHeader * 1000 : now + 24 * 60 * 60 * 1000, limitDeferred: true, message, globalRate: false };
-    if (globalRate) {
-      const cool = BufferBudget.cooldown();
-      const until = cool?.until > now ? cool.until : (retryHeader > 0 ? now + retryHeader * 1000 : now + 15 * 60 * 1000);
-      return { status: 'RETRY_WAITING', nextRetryTime: until, limitDeferred: true, message, globalRate: true };
-    }
-    // Sonuç belirsizse asla aynı createPost isteğini körlemesine tekrarlama.
-    if (error?.deliveryUnknown || /may have been accepted|kabul etmiş olabilir|çift paylaşımı önlemek/.test(lower)) {
-      return { status: 'SCHEDULED', nextRetryTime: null, limitDeferred: false, message: `${message} Sonuç belirsiz; Buffer durum sorgulaması kapalı ve çift paylaşımı önlemek için otomatik tekrar yapılmayacak.`, verifyOnly: false, needsManualCheck: true };
-    }
-    const tries = Number(task?.attemptCount || 0) + 1;
-    const wait = [60_000, 5*60_000, 15*60_000, 60*60_000, 6*60*60_000][Math.min(tries - 1, 4)];
-    if (tries > POSTING_MAX_RETRIES) return { status: 'FAILED', nextRetryTime: null, limitDeferred: false, message, retryable: false };
-    return { status: 'RETRY_WAITING', nextRetryTime: now + wait, limitDeferred: false, message, retryable: true };
-  };
-
-  const syncVideoAggregate = async (videoId) => {
-    const [video, tasks] = await Promise.all([DurablePostingQueue.getVideo(videoId), DurablePostingQueue.listTasks()]);
-    if (!video) return;
-    const own = tasks.filter(task => task.videoId === videoId);
-    if (!own.length) return;
-    const posted = own.filter(task => task.status === 'POSTED').length;
-    const posting = own.some(task => task.status === 'POSTING');
-    const scheduled = own.some(task => task.status === 'SCHEDULED');
-    const retrying = own.some(task => task.status === 'RETRY_WAITING');
-    const due = own.filter(task => ['QUEUED','RETRY_WAITING','SCHEDULED'].includes(task.status) && task.nextRetryTime).map(task => Number(task.nextRetryTime));
-    const errors = own.filter(task => task.lastError).sort((a,b) => Number(b.lastErrorAt || 0) - Number(a.lastErrorAt || 0));
-    let status = posted === own.length ? 'POSTED' : posting ? 'POSTING' : scheduled ? 'SCHEDULED' : retrying ? 'RETRY_WAITING' : own.some(t => t.status === 'QUEUED') ? 'QUEUED' : 'FAILED';
-    await DurablePostingQueue.updateVideo(videoId, { status, publishedAt: posted ? Math.max(...own.filter(t => t.postedAt).map(t => Number(t.postedAt)), 0) || null : video.publishedAt, lastError: errors[0]?.lastError || '', lastErrorAt: errors[0]?.lastErrorAt || video.lastErrorAt || null, nextRetryTime: due.length ? Math.min(...due) : null, bufferDeferredCount: own.filter(t => t.limitDeferred).length });
-  };
-
-  const updateQueueTaskFailure = async (task, error) => {
-    const plan = postingRetryPlan(error, task);
-    const tries = Number(task.attemptCount || 0) + 1;
-    await DurablePostingQueue.updateTask(task.id, { ...plan, attemptCount: tries, lastError: plan.message, lastErrorAt: Date.now(), detail: plan.message, updatedAt: Date.now() });
-    if (plan.limitDeferred) {
-      const video = await DurablePostingQueue.getVideo(task.videoId);
-      if (video) await DurablePostingQueue.updateVideo(video.id, { status: 'RETRY_WAITING', nextRetryTime: plan.nextRetryTime, lastError: plan.message, lastErrorAt: Date.now(), bufferDeferredCount: Number(video.bufferDeferredCount || 0) + 1 });
-      addSystemLog(`[GÖNDERİM KUYRUĞU] ${task.channelName}: limit/hız kısıtı; video silinmedi. Yeniden deneme: ${new Date(plan.nextRetryTime).toLocaleString('tr-TR')}.`, 'warn', task.service);
-    } else {
-      addSystemLog(`[GÖNDERİM KUYRUĞU] ${task.channelName}: ${plan.status === 'FAILED' ? 'kalıcı hata' : 'yeniden deneme planlandı'} — ${plan.message}${plan.nextRetryTime ? `; ${new Date(plan.nextRetryTime).toLocaleString('tr-TR')}` : ''}`, plan.status === 'FAILED' ? 'error' : 'warn', task.service);
-    }
-    await syncVideoAggregate(task.videoId);
-    setPostingSchedulerState(prev => ({ ...prev, lastErrorAt: Date.now(), lastError: plan.message, message: plan.limitDeferred ? 'Limit nedeniyle görev ertelendi; üretim etkilenmedi.' : plan.message }));
-  };
-
-  const runPostingSchedulerTick = async () => {
-    if (postingSchedulerRef.current.inFlight) return;
-    postingSchedulerRef.current.inFlight = true;
-    try {
-      await refreshPostingDashboard();
-      let videos = await DurablePostingQueue.listVideos();
-      let tasks = await DurablePostingQueue.listTasks();
-      // v1.154: önceki sürümlerde otomatik üretimden kuyruğa girmiş görevler otomatik gönderilmez.
-      // Kullanıcının açıkça başlattığı manuel gönderimlerde video.source farklıdır ve devam edebilir.
-      let autoProductionVideoIds = new Set(videos.filter(video => video?.source === 'auto-production').map(video => String(video.id)));
-      const isAutoProductionTask = task => autoProductionVideoIds.has(String(task?.videoId));
-      const now = Date.now();
-      // Her tick başka sekmenin yaptığı son gönderimi de okur; beş dakikalık aralık sekmeler arasında da geçerlidir.
-      postingSchedulerRef.current.lastDispatchAt = Math.max(Number(postingSchedulerRef.current.lastDispatchAt || 0), Number(SafeStorage.getItem(POSTING_LAST_DISPATCH_KEY) || 0));
-      const activeDispatch = BufferBudget._read(POSTING_ACTIVE_DISPATCH_KEY, null);
-      if (activeDispatch?.until > now && activeDispatch.owner !== postingSchedulerRef.current.leaderId) {
-        setPostingSchedulerState(prev => ({ ...prev, state: 'posting', nextDispatchAt: activeDispatch.until,
-          message: `Başka bir sekme gönderim yapıyor (${activeDispatch.taskId || 'kanal görevi'}); ikinci gönderim başlatılmadı.` }));
-        return;
-      }
-
-      // v1.147 SAFETY HOLD: Previously queued newspaper videos have no proof that the opening cover
-      // matches the selected newspaper. Never send them silently after this fix; require manual review.
-      const normalizeGazeteKey = value => String(value || '').toLocaleLowerCase('tr-TR').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
-      const knownGazeteKeys = new Set((typeof GAZETE_TAKIP_LIST_ALL !== 'undefined' ? GAZETE_TAKIP_LIST_ALL : []).map(normalizeGazeteKey));
-      const isGazeteSourceVideo = video => {
-        const source = normalizeGazeteKey(video?.sourceName || video?.coverSourceName || '');
-        return !!source && knownGazeteKeys.has(source);
-      };
-      let legacySourceHolds = 0;
-      for (const video of videos) {
-        if (video.coverSourceVerified || !isGazeteSourceVideo(video) || video.sourceReviewRequired) continue;
-        // Only old or unproven newspaper-source jobs are held; normal news posts are unaffected.
-        const owns = tasks.filter(task => String(task.videoId) === String(video.id));
-        const pendingOwn = owns.filter(task => ['QUEUED','RETRY_WAITING','POSTING'].includes(task.status));
-        if (!pendingOwn.length && !video.targetResolutionPending) continue;
-        for (const task of pendingOwn) {
-          await DurablePostingQueue.updateTask(task.id, {
-            status: 'SCHEDULED', needsManualCheck: true, nextRetryTime: null,
-            lastError: 'Eski sürüm gazete videosunda açılış kapağı-kaynak eşleşmesi doğrulanamıyor; yanlış gazete adına otomatik paylaşım engellendi.',
-            detail: 'v1.147 güvenlik bekletmesi: gerçek kaynak kapağını kontrol edin, doğru değilse bu görevi yeniden kullanmayın.'
-          });
-        }
-        await DurablePostingQueue.updateVideo(video.id, {
-          status: 'SCHEDULED', targetResolutionPending: false, sourceReviewRequired: true,
-          nextRetryTime: null,
-          lastError: 'Eski sürüm gazete videosu otomatik gönderimden alındı: kapak kaynağı doğrulaması yok.',
-          sourceReviewHoldAt: now
-        });
-        legacySourceHolds++;
-      }
-      if (legacySourceHolds) {
-        addSystemLog(`v1.147 GÜVENLİK: ${legacySourceHolds} eski/kanıtsız gazete videosu Buffer gönderiminden beklemeye alındı. Önce kapakları gözden geçirin; otomatik yanlış-kaynak paylaşımı yapılmayacak.`, 'warn');
-        videos = await DurablePostingQueue.listVideos();
-        tasks = await DurablePostingQueue.listTasks();
-      }
-
-      // Hedef kanallar belirlenmemiş videolar gönderim hata/limitinden bağımsız olarak kalıcı kuyrukta kalır.
-      const unresolved = videos.filter(v => v.source !== 'auto-production' && !v.sourceReviewRequired && v.targetResolutionPending && Number(v.nextRetryTime || 0) <= now).sort((a,b) => Number(a.createdAt || 0)-Number(b.createdAt || 0))[0];
-      if (unresolved) {
-        try {
-          const account = await getPostingBufferChannels();
-          await DurablePostingQueue.ensureTasks(unresolved.id, account.channels);
-          await refreshPostingDashboard();
-          videos = await DurablePostingQueue.listVideos();
-          tasks = await DurablePostingQueue.listTasks();
-          autoProductionVideoIds = new Set(videos.filter(video => video?.source === 'auto-production').map(video => String(video.id)));
-        } catch (e) {
-          const plan = postingRetryPlan(e, { attemptCount: Number(unresolved.retryCount || 0) });
-          await DurablePostingQueue.updateVideo(unresolved.id, { status: 'RETRY_WAITING', targetResolutionPending: true, retryCount: Number(unresolved.retryCount || 0)+1, nextRetryTime: plan.nextRetryTime || now + 15*60_000, lastError: e.message, lastErrorAt: now });
-          setPostingSchedulerState(prev => ({ ...prev, state: 'waiting-for-buffer', message: `Video kalıcı kuyrukta. Buffer kanalları alınamadı: ${e.message}` }));
-          await refreshPostingDashboard();
-          return;
-        }
-      }
-
-      // Recovery: Buffer gönderi durumu sorgulanmaz. postId varsa önceki sürümde
-      // Buffer kabul yanıtı alınmış; yerel iş POSTED kabul edilir. postId yoksa olası
-      // çift gönderimi önlemek için otomatik olarak yeniden yollama yapılmaz.
-      for (const task of tasks.filter(t => t.status === 'POSTING' && now - Number(t.updatedAt || t.createdAt || 0) > 10*60_000)) {
-        if (task.postId) await DurablePostingQueue.updateTask(task.id, { status: 'POSTED', postedAt: task.postedAt || now, nextRetryTime: null, verifyOnly: false, needsManualCheck: false, detail: 'Önceki gönderim Buffer tarafından kabul edilmişti; ayrıca doğrulama yapılmadı.' });
-        else await DurablePostingQueue.updateTask(task.id, { status: 'SCHEDULED', verifyOnly: false, needsManualCheck: true, nextRetryTime: null, lastError: 'Gönderim ortasında uygulama kapandı; sonuç bilinmiyor ve Buffer sorgusu kapalı.', detail: 'Belirsiz sonuç; çift paylaşımı önlemek için otomatik yeniden gönderim yapılmadı.' });
-      }
-      // Eski sürümden kalan SCHEDULED görevlerde postId varsa Buffer'a teslim edilmiştir;
-      // bu sürüm onları yalnızca yerelde tamamlar, yayın durumunu sorgulamaz.
-      for (const task of tasks.filter(t => t.status === 'SCHEDULED' && t.postId && !t.needsManualCheck)) {
-        await DurablePostingQueue.updateTask(task.id, { status: 'POSTED', postedAt: task.postedAt || now, nextRetryTime: null, verifyOnly: false, detail: task.detail || 'Buffer kabul yanıtı kaydedildi; yayın durumu sorgulanmadı.' });
-      }
-      tasks = await DurablePostingQueue.listTasks();
-
-      const cooldown = BufferBudget.cooldown();
-      if (cooldown) {
-        // API penceresi açıkken hazır görevleri de görünür bir erteleme durumuna al.
-        // Yeni üretim/kuyruk ekleme etkilenmez; hepsi cooldown zamanı geldiğinde tekrar seçilir.
-        const dueForCooldown = tasks.filter(t => ['QUEUED','RETRY_WAITING'].includes(t.status) && !t.needsManualCheck && Number(t.nextRetryTime || 0) <= cooldown.until);
-        for (const task of dueForCooldown) {
-          await DurablePostingQueue.updateTask(task.id, { status: 'RETRY_WAITING', nextRetryTime: cooldown.until, limitDeferred: true,
-            lastError: task.lastError || 'Buffer genel API rate limit beklemesi.', lastErrorAt: task.lastErrorAt || now,
-            detail: `Buffer genel API limiti nedeniyle ${new Date(cooldown.until).toLocaleString('tr-TR')} saatine ertelendi.` });
-          const video = await DurablePostingQueue.getVideo(task.videoId);
-          if (video) await DurablePostingQueue.updateVideo(video.id, { status: 'RETRY_WAITING', nextRetryTime: cooldown.until,
-            lastError: task.lastError || 'Buffer genel API rate limit beklemesi.', lastErrorAt: task.lastErrorAt || now });
-        }
-        setPostingSchedulerState(prev => ({ ...prev, state: 'rate-limited', message: `Buffer genel API limiti. Hazır görevler kuyrukta tutuldu; scheduler ${new Date(cooldown.until).toLocaleString('tr-TR')} saatine kadar gönderim yapmayacak.`, nextDispatchAt: cooldown.until }));
-        await refreshPostingDashboard();
-        return;
-      }
-
-      // Buffer gönderi durumu kontrolü kapalıdır; scheduler yalnız createPost yanıtlarını işler.
-
-      const dueTasks = tasks.filter(t => !isAutoProductionTask(t) && ['QUEUED','RETRY_WAITING'].includes(t.status) && Number(t.nextRetryTime || 0) <= now && !t.needsManualCheck).sort((a,b) => Number(a.createdAt||0)-Number(b.createdAt||0));
-      if (!dueTasks.length) {
-        const nextTimes = tasks.filter(t => !isAutoProductionTask(t) && ['QUEUED','RETRY_WAITING','SCHEDULED'].includes(t.status) && Number(t.nextRetryTime || 0) > now).map(t => Number(t.nextRetryTime));
-        const nextAt = nextTimes.length ? Math.min(...nextTimes) : Infinity;
-        setPostingSchedulerState(prev => ({ ...prev, state: 'idle', nextDispatchAt: Number.isFinite(nextAt) ? nextAt : null, message: Number.isFinite(nextAt) ? `Manuel gönderim için sıradaki uygun zaman: ${new Date(nextAt).toLocaleString('tr-TR')}` : 'Otomatik üretim paylaşımı kapalı. Yalnız kullanıcı tarafından başlatılan manuel gönderimler işlenir.' }));
-        return;
-      }
-
-      // v1.143: farklı platformlar ve aynı kanal arasında sabit 5 dk bekleme yok.
-      // Tek scheduler gönderimleri seri yürütür; yalnız Buffer rate-limit/retry zamanları erteleyebilir.
-      const channelClocks = BufferBudget._read(POSTING_CHANNEL_CLOCKS_KEY, {});
-      const selectable = dueTasks.find(task => Number(channelClocks[task.channelId] || 0) + POSTING_MIN_INTERVAL_MS <= now);
-      if (!selectable) {
-        const soonest = Math.min(...dueTasks.map(task => Number(channelClocks[task.channelId] || 0) + POSTING_MIN_INTERVAL_MS));
-        postingSchedulerRef.current.nextDispatchAt = soonest;
-        setPostingSchedulerState(prev => ({ ...prev, state: 'throttled', nextDispatchAt: soonest, message: `Sıradaki uygun gönderim zamanı: ${new Date(soonest).toLocaleString('tr-TR')}.` }));
-        return;
-      }
-
-      const video = await DurablePostingQueue.getVideo(selectable.videoId);
-      if (!video) { await DurablePostingQueue.updateTask(selectable.id, { status: 'FAILED', lastError: 'Video metadata kaydı bulunamadı.', nextRetryTime: null }); await refreshPostingDashboard(); return; }
-      const blob = await DurablePostingQueue.getMedia(video.id);
-      if (!(blob instanceof Blob) || !blob.size) {
-        await updateQueueTaskFailure(selectable, new Error('Kalıcı MP4 Blob’u bulunamadı; görev kuyrukta tutuldu.'));
-        await refreshPostingDashboard(); return;
-      }
-
-      await DurablePostingQueue.updateTask(selectable.id, { status: 'POSTING', attemptCount: Number(selectable.attemptCount || 0) + 1, updatedAt: now, lastError: '', detail: 'Buffer gönderimi başlatılıyor.' });
-      await DurablePostingQueue.updateVideo(video.id, { status: 'POSTING' });
-      setPostingSchedulerState(prev => ({ ...prev, state: 'posting', message: `${video.title} → ${selectable.channelName}` }));
-      const dispatchStartedAt = Date.now();
-      const dispatchOwner = postingSchedulerRef.current.leaderId;
-      const dispatchClaim = { owner: dispatchOwner, taskId: selectable.id, videoId: video.id, until: dispatchStartedAt + POSTING_ACTIVE_DISPATCH_TTL_MS };
-      SafeStorage.setItem(POSTING_ACTIVE_DISPATCH_KEY, JSON.stringify(dispatchClaim));
-      // İstek başlamadan zaman damgasını diske yaz; başka sekme paralel gönderim başlatmasın.
-      postingSchedulerRef.current.lastDispatchAt = dispatchStartedAt;
-      postingSchedulerRef.current.nextDispatchAt = dispatchStartedAt + POSTING_SCHEDULER_GAP_MS;
-      SafeStorage.setItem(POSTING_LAST_DISPATCH_KEY, String(dispatchStartedAt));
-      SafeStorage.setItem(POSTING_CHANNEL_CLOCKS_KEY, JSON.stringify({ ...BufferBudget._read(POSTING_CHANNEL_CLOCKS_KEY, {}), [selectable.channelId]: dispatchStartedAt }));
-      const dispatchHeartbeat = setInterval(() => {
-        const latest = BufferBudget._read(POSTING_ACTIVE_DISPATCH_KEY, null);
-        if (latest?.owner === dispatchOwner && latest?.taskId === selectable.id) {
-          SafeStorage.setItem(POSTING_ACTIVE_DISPATCH_KEY, JSON.stringify({ ...latest, until: Date.now() + POSTING_ACTIVE_DISPATCH_TTL_MS }));
-        }
-      }, 10_000);
-      const objectUrl = ObjectURLManager.create(blob);
-      try {
-        const report = await shareToBufferAPI(video.postText || video.title, objectUrl, {
-          targetChannelId: selectable.channelId,
-          videoId: video.id,
-          mediaCacheKey: video.id,
-          postText: video.postText || video.title,
-          contentData: video.contentData || {},
-          source: 'durable-posting-scheduler'
-        });
-        const result = (report?.results || []).find(r => String(r.channelId) === String(selectable.channelId));
-        if (!result || report?.error) {
-          await updateQueueTaskFailure(selectable, new Error(report?.error || report?.message || 'Buffer sonucu boş döndü.'));
-        } else if (result.state === 'sent' || (['pending','scheduled'].includes(result.state) && result.postId)) {
-          const acceptedAt = Date.now();
-          await DurablePostingQueue.updateTask(selectable.id, { status: 'POSTED', postedAt: acceptedAt, nextRetryTime: null, postId: result.postId || null, verifyOnly: false, detail: result.state === 'sent' ? 'Buffer API sent yanıtı döndürdü; ayrıca doğrulama yapılmadı.' : `Buffer gönderiyi kabul etti (${result.state}); yayın durumu sorgulanmadı.`, lastError: '', needsManualCheck: false });
-          await DurablePostingQueue.updateVideo(video.id, { lastBufferAcceptedAt: acceptedAt });
-          setPostingSchedulerState(prev => ({ ...prev, lastSuccessAt: acceptedAt, state: 'running', message: `${selectable.channelName}: Buffer kabul yanıtı alındı; status doğrulaması kapalı.` }));
-        } else {
-          const err = new Error(result.detail || 'Buffer gönderimi reddetti.');
-          if (result.needsManualCheck) err.deliveryUnknown = true;
-          await updateQueueTaskFailure(selectable, err);
-        }
-        const finishedAt = Date.now();
-        postingSchedulerRef.current.lastDispatchAt = finishedAt;
-        postingSchedulerRef.current.nextDispatchAt = finishedAt + POSTING_SCHEDULER_GAP_MS;
-        SafeStorage.setItem(POSTING_LAST_DISPATCH_KEY, String(finishedAt));
-        const updatedClocks = { ...BufferBudget._read(POSTING_CHANNEL_CLOCKS_KEY, {}), [selectable.channelId]: finishedAt };
-        SafeStorage.setItem(POSTING_CHANNEL_CLOCKS_KEY, JSON.stringify(updatedClocks));
-        await syncVideoAggregate(video.id);
-      } catch (e) {
-        await updateQueueTaskFailure(selectable, e);
-        const finishedAt = Date.now();
-        postingSchedulerRef.current.lastDispatchAt = finishedAt;
-        SafeStorage.setItem(POSTING_LAST_DISPATCH_KEY, String(finishedAt));
-        const updatedClocks = { ...BufferBudget._read(POSTING_CHANNEL_CLOCKS_KEY, {}), [selectable.channelId]: finishedAt };
-        SafeStorage.setItem(POSTING_CHANNEL_CLOCKS_KEY, JSON.stringify(updatedClocks));
-      } finally {
-        clearInterval(dispatchHeartbeat);
-        const latestClaim = BufferBudget._read(POSTING_ACTIVE_DISPATCH_KEY, null);
-        if (latestClaim?.owner === dispatchOwner && latestClaim?.taskId === selectable.id) SafeStorage.removeItem(POSTING_ACTIVE_DISPATCH_KEY);
-        try { ObjectURLManager.revoke(objectUrl); } catch (_) {}
-      }
-      await refreshPostingDashboard();
-    } catch (e) {
-      setPostingSchedulerState(prev => ({ ...prev, state: 'error', lastErrorAt: Date.now(), lastError: e.message, message: `Scheduler hatası; video kuyruğu korunuyor: ${e.message}` }));
-      addSystemLog(`[GÖNDERİM SCHEDULER] ${e.message}; kalıcı kuyruk korunuyor.`, 'warn');
-    } finally {
-      postingSchedulerRef.current.inFlight = false;
-    }
-  };
-
-  const updateTaskFromBufferReport = async (task, report) => {
-    const result = (report?.results || []).find(r => String(r.channelId) === String(task.channelId));
-    if (!result) return;
-    if (result.state === 'sent' || (['pending','scheduled'].includes(result.state) && result.postId)) await DurablePostingQueue.updateTask(task.id, { status: 'POSTED', postedAt: Date.now(), nextRetryTime: null, postId: result.postId || task.postId, verifyOnly: false, detail: result.state === 'sent' ? 'Buffer API sent yanıtı döndürdü; ayrıca doğrulama yapılmadı.' : `Buffer kabul etti (${result.state}); yayın durumu sorgulanmadı.`, lastError: '', needsManualCheck: false });
-    else if (['pending','scheduled'].includes(result.state) && !result.postId) await DurablePostingQueue.updateTask(task.id, { status: 'SCHEDULED', postedAt: null, nextRetryTime: null, verifyOnly: false, detail: 'Buffer sonucu belirsiz ve gönderi kimliği yok; GetPost sorgusu kapalı olduğundan çift paylaşımı önlemek için otomatik tekrar yapılmayacak.', lastError: result.detail || 'Buffer sonucu belirsiz; gönderi kimliği alınamadı.', needsManualCheck: true });
-    else if (result.state === 'error') await updateQueueTaskFailure(task, new Error(result.detail || 'Buffer paylaşım hatası'));
-    await syncVideoAggregate(task.videoId);
-    void refreshPostingDashboard();
-  };
-
-  const enqueueCurrentVideoForPosting = async (shareRequest = {}) => {
-    const mediaUrl = shareRequest.mediaUrl || uiState.videoUrl;
-    const currentJob = workflowRef.current?.state || {};
-    const title = shareRequest.title || currentJob.script?.thumbnailText || textInput || 'OTONOM Haber';
-    try {
-      const queued = await enqueueMediaForPosting({ mediaUrl, title, fileName: shareRequest.fileName || `${title}.mp4`, job: shareRequest.job || currentJob,
-        videoId: shareRequest.videoId || '', source: shareRequest.source || 'manual-enqueue' });
-      setBufferShareReport({ status: 'pending', results: [], message: `${title}: kalıcı gönderim kuyruğuna eklendi. Scheduler uygun zamanda her kanala ayrı gönderim yapacak.` });
-      if (typeof shareRequest.onReport === 'function') shareRequest.onReport({ status: 'pending', message: 'Kalıcı kuyruğa eklendi.', queued: true, videoId: queued.videoId });
-      return queued;
-    } catch (e) {
-      setBufferShareReport({ status: 'error', results: [], message: `Gönderim kuyruğuna kaydedilemedi: ${e.message}` });
-      addSystemLog(`[GÖNDERİM KUYRUĞU] Kalıcı kayıt başarısız: ${e.message}`, 'error');
-      return { error: e.message };
-    }
-  };
-
-  // Timer callback'leri her render'da güncel scheduler closure'ını kullanır.
-  const postingSchedulerHandlersRef = useRef({});
-  postingSchedulerHandlersRef.current = { refreshPostingDashboard, runPostingSchedulerTick };
-
-  // Scheduler tek işçidir; tablar arası çakışma için Web Locks, desteklenmiyorsa kısa localStorage lease kullanır.
-  useEffect(() => {
-    let disposed = false;
-    let timer = null;
-    const refresh = () => { setPostingDashboardClock(Date.now()); void postingSchedulerHandlersRef.current.refreshPostingDashboard?.(); };
-    const tickWithLease = async () => {
-      if (disposed || postingSchedulerRef.current.inFlight) return;
-      if (navigator.locks?.request) {
-        try {
-          await navigator.locks.request('otonom-durable-posting-scheduler-v130', { ifAvailable: true }, async lock => {
-            if (!lock || disposed) return;
-            await postingSchedulerHandlersRef.current.runPostingSchedulerTick?.();
-          });
-        } catch (e) { setPostingSchedulerState(prev => ({ ...prev, state: 'error', message: e.message })); }
-      } else {
-        const key = 'otonom_posting_scheduler_lease_v130';
-        const now = Date.now();
-        let lease = null;
-        try { lease = JSON.parse(localStorage.getItem(key) || 'null'); } catch (_) {}
-        if (lease?.until > now && lease.owner !== postingSchedulerRef.current.leaderId) return;
-        try { localStorage.setItem(key, JSON.stringify({ owner: postingSchedulerRef.current.leaderId, until: now + 25_000 })); } catch (_) {}
-        try { await postingSchedulerHandlersRef.current.runPostingSchedulerTick?.(); }
-        finally { try { const latest = JSON.parse(localStorage.getItem(key) || 'null'); if (latest?.owner === postingSchedulerRef.current.leaderId) localStorage.removeItem(key); } catch (_) {} }
-      }
-    };
-    const onQueueChanged = () => { refresh(); void tickWithLease(); };
-    const unsubscribe = sysEventBus.on('POSTING_QUEUE_CHANGED', onQueueChanged);
-    refresh();
-    void tickWithLease();
-    timer = setInterval(() => { refresh(); void tickWithLease(); }, POSTING_SCHEDULER_TICK_MS);
-    return () => { disposed = true; if (timer) clearInterval(timer); if (unsubscribe) unsubscribe(); };
-    // Component lifetime owns this single scheduler subscription; internal functions read live React closures.
-  }, []);
-
-  const shareToSelectedPlatforms = async (shareRequest = {}) => {
-    const mediaUrl = shareRequest.mediaUrl || uiState.videoUrl;
-    if (!mediaUrl) {
-      const result = { error: 'Önce bir video oluşturun veya video seçin.' };
-      setBufferShareReport({ status: 'error', results: [], message: result.error });
-      return result;
-    }
-    // Bu UI eylemi artık ağ çağrısı yapmaz; kalıcı kayıt sonrası hemen döner.
-    if (!shareRequest.automatic) reviewFlowRef.current.cancel('Manuel gönderim seçildi; video yalnız kalıcı kuyruğa eklenecek.');
-    return enqueueCurrentVideoForPosting({ ...shareRequest, mediaUrl });
-  };
-  reviewedShareRef.current = ({ title, mediaUrl }) => {
-    if (!AUTO_BUFFER_SHARING_ENABLED) {
-      addSystemLog(`v1.154: otomatik paylaşım engellendi: ${title || 'Video'}. MP4 yerel olarak korunuyor.`, 'info');
-      return Promise.resolve({ disabled: true, message: 'Otomatik Buffer paylaşımı kapalı; video MP4 olarak kaydedildi.' });
-    }
-    const queue = gazeteQueueRef.current.getState();
-    const key = queue.active ? queue.items[queue.index]?.key : '';
-    return enqueueCurrentVideoForPosting({ automatic: true, title, mediaUrl,
-      onReport: key ? report => gazeteQueueRef.current.updateReport(queue.id, key, report) : undefined });
-  };
-
-  const shareToPlatform = async (platform, title, videoUrl) => {
-    // Platform seçimi kuyruk görevine dönüşür; bu handler hiçbir Buffer ağ çağrısı yapmaz.
-    return enqueueCurrentVideoForPosting({ title: title || textInput || 'OTONOM Haber', mediaUrl: videoUrl || uiState.videoUrl,
-      source: `manual-platform-${bufferSocialService(platform)}` });
-  };
 
   // === AYARLAR YEREL'E KAYDEDİLİR (Firestore yerine SafeStorage) ===
   useEffect(() => { SafeStorage.setItem('ns_activeTab', activeTab); }, [activeTab]);
@@ -11983,9 +10071,6 @@ export default function App() {
   useEffect(() => { SafeStorage.setItem('ns_config', JSON.stringify(config)); }, [config]);
   useEffect(() => { SafeStorage.setItem('ns_prefs', JSON.stringify(prefs)); }, [prefs]);
   useEffect(() => { SafeStorage.setItem('ns_voiceFilters', JSON.stringify(voiceFilters)); }, [voiceFilters]);
-  useEffect(() => {
-    SafeStorage.setItem(BUFFER_AUTO_5MIN_ENABLED_KEY, bufferAuto5MinEnabled ? '1' : '0');
-  }, [bufferAuto5MinEnabled]);
 
   useEffect(() => {
     let interval;
@@ -12084,8 +10169,6 @@ export default function App() {
         const shouldFinalizeMp4 = data.job?.config?.outputType !== 'image' && data.job?.config?.videoFormat === 'mp4';
         const isComparisonJob = data.job?.config?.tip === 'karsilastirma' || !!data.job?.config?._cmpMode ||
           (Array.isArray(data.job?.config?._karsilastirma?.names) && data.job.config._karsilastirma.names.length === 2);
-        // v1.154: üretim hiçbir koşulda otomatik Buffer kuyruğuna teslim etmez. MP4 yerel olarak hazırlanır/indirilir.
-        const shouldQueuePosting = AUTO_BUFFER_SHARING_ENABLED && shouldFinalizeMp4;
         if (shouldFinalizeMp4) {
           pendingOutputAutoplayRef.current = shouldFinalizeMp4 ? { jobId: data.job?.jobId || '', mediaUrl: '', title: data.job?.script?.thumbnailText || gazeteJobName || 'OTONOM Video' } : null;
           setFinalMp4Error('');
@@ -12110,17 +10193,7 @@ export default function App() {
               data.job.videoUrl,
               data.job.script?.thumbnailText || 'video',
               data.job.config?.videoFormat,
-              { job: data.job, trackCompletion: false,
-                onPrepared: shouldQueuePosting ? async (mediaUrl, fileName) => {
-                  try {
-                    await enqueueMediaForPosting({ mediaUrl, title: data.job.script?.thumbnailText || gazeteJobName || 'OTONOM Haber', fileName, job: data.job, videoId: `otonom_video_${String(autoSaveKey).replace(/[^a-zA-Z0-9_-]/g, '_')}`, source: 'auto-production' });
-                    addSystemLog('✓ Video kalıcı kuyruğa teslim edildi; yayın scheduler tarafından arka planda yapılacak.', 'success');
-                  } catch (queueError) {
-                    // Queue storage failure is surfaced, but it must not cancel MP4 creation/local save.
-                    addSystemLog(`[GÖNDERİM KUYRUĞU] Kalıcı kaydetme başarısız; video üretimi/yerel kayıt kesilmedi: ${queueError.message}`, 'error');
-                    setPostingSchedulerState(prev => ({ ...prev, state: 'storage-error', lastErrorAt: Date.now(), lastError: queueError.message, message: `Kuyruğa kalıcı kayıt yapılamadı: ${queueError.message}` }));
-                  }
-                } : undefined }
+              { job: data.job, trackCompletion: false }
             );
             if (!saveResult?.ok) {
               autoDownloadedJobKeysRef.current.delete(autoSaveKey);
@@ -12156,9 +10229,9 @@ export default function App() {
             gazeteGridRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
           }, 100);
 
-          addSystemLog(`✓ ${gazeteJobName} videosu tamamlandı; MP4 yerel kayda/indirmeye teslim edildi. Otomatik Buffer paylaşımı kapalı.`, 'success');
+          addSystemLog(`✓ ${gazeteJobName} videosu tamamlandı; MP4 yerel kayda/indirmeye teslim edildi.`, 'success');
         } else if (shouldFinalizeMp4) {
-          addSystemLog('✓ Video tamamlandı; MP4 yerel kayda/indirmeye hazırlandı. Otomatik Buffer paylaşımı kapalı.', 'success');
+          addSystemLog('✓ Video tamamlandı; MP4 yerel kayda/indirmeye hazırlandı.', 'success');
         }
       }
     }));
@@ -12167,13 +10240,13 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!logEndRef.current || autoReviewActive) return;
+    if (!logEndRef.current) return;
     const id = setTimeout(() => {
       try { logEndRef.current?.scrollIntoView({ behavior: uiState.isProcessing ? 'auto' : 'smooth', block: 'nearest' }); }
       catch (e) { ErrorHandler.silent(e); }
     }, uiState.isProcessing ? 180 : 0);
     return () => clearTimeout(id);
-  }, [sysLogs, uiState.isProcessing, autoReviewActive]);
+  }, [sysLogs, uiState.isProcessing]);
 
   // === YEREL MÜZİK YÜKLEME — klasör bir kez seçildikten sonra her açılışta otomatik yükle/senkronla ===
   useEffect(() => {
@@ -12678,9 +10751,7 @@ export default function App() {
   const handleDragLeave = useCallback((e) => { e.preventDefault(); e.stopPropagation(); setIsDragging(false); }, []);
   const handleDrop = useCallback((e) => { e.preventDefault(); e.stopPropagation(); setIsDragging(false); processSelectedFiles(Array.from(e.dataTransfer.files)); }, [processSelectedFiles]);
 
-  // Ortak üretim kapısı: yalnız gazete toplu sırası değil, Metin/Haber, Karşılaştırma,
-  // Medya Analizi ve Güzel Söz videoları da bir önceki videonun Buffer gönderim denemesinden
-  // Buffer gönderim girişimleri işlendiğinde sıradaki render hemen başlayabilir; sabit aralık yok. Yayın durumu sorgulanmaz.
+// Ortak üretim kontrol kapısı: API geçici hata koruması (cooldown) sonrası bir sonraki videoya izin verir.
   const waitForPreviousVideoPostingWindow = async (activeQueueId = null) => {
     const isCooldownGateActive = () => !cancelRequestedRef.current && (!activeQueueId || gazeteQueueRef.current.isCurrent(activeQueueId));
     let lastCooldownLoggedUntil = 0;
@@ -12714,70 +10785,10 @@ export default function App() {
       await _sleep(Math.min(1000, remainingMs));
     }
     if (!isCooldownGateActive()) return false;
-    let existingVideos = await DurablePostingQueue.listVideos();
-    if (!existingVideos.length) return true; // İlk videoda önceki video kuyruğu kontrolü uygulanmaz; API cooldown yukarıda yine denetlenir.
-    existingVideos.sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
-    const previousVideoId = existingVideos[0].id;
-    const startedAt = Date.now();
-    // Buffer gönderimi üretimi bloklamaz. Önceki görevleri yalnızca kısa süre gözle;
-    // denenmemiş/askıdaki görevler kalıcı kuyruğa bırakılır.
-    const dispatchDeadline = startedAt + 20_000;
-    let lastDispatchHeartbeatAt = 0;
-    let previousVideo = await DurablePostingQueue.getVideo(previousVideoId);
-    let previousTasks = (await DurablePostingQueue.listTasks()).filter(task => String(task.videoId) === String(previousVideoId));
-    const isActive = () => !cancelRequestedRef.current && (!activeQueueId || gazeteQueueRef.current.isCurrent(activeQueueId));
-    const terminalDispatchStates = new Set(['POSTED', 'RETRY_WAITING', 'FAILED', 'SCHEDULED']);
-    const dispatchesSettled = () => !!previousVideo && !previousVideo.targetResolutionPending && previousTasks.length > 0 && previousTasks.every(task => terminalDispatchStates.has(task.status));
-
-    // Gönderim kuyruğunda bu önceki videonun en az bir Buffer denemesi görülene kadar
-    // yalnız yerel IndexedDB izlenir; burada Buffer post/status sorgusu yapılmaz.
-    while (isActive()) {
-      previousVideo = await DurablePostingQueue.getVideo(previousVideoId);
-      previousTasks = (await DurablePostingQueue.listTasks()).filter(task => String(task.videoId) === String(previousVideoId));
-      if (dispatchesSettled()) break;
-      const now = Date.now();
-      if (!previousTasks.length && !previousVideo?.targetResolutionPending && now - startedAt > 2 * 60_000) break;
-      if (previousVideo?.targetResolutionPending && previousVideo?.nextRetryTime && Number(previousVideo.nextRetryTime) > now + 2 * 60_000 && now - startedAt > 2 * 60_000) break;
-      if (now >= dispatchDeadline) break;
-      setUiState(prev => ({ ...prev, statusText: `Önceki video için Buffer kuyruğu gözleniyor (${Math.max(0, Math.ceil((dispatchDeadline - now) / 1000))} sn sınır); görevler kalıcı kuyrukta korunuyor...` }));
-      if (now - lastDispatchHeartbeatAt >= 10000) {
-        addSystemLog(`BUFFER KUYRUK GÖZLEMİ: ${previousVideo?.title || previousVideoId}; görev=${previousTasks.length}; tamamlandı=${dispatchesSettled()}; kalan gözlem süresi=${Math.max(0, Math.ceil((dispatchDeadline - now) / 1000))} sn.`, 'info');
-        lastDispatchHeartbeatAt = now;
-      }
-      await _sleep(1500);
-    }
-    if (!isActive()) return false;
-    if (!dispatchSettled) addSystemLog(`BUFFER KUYRUK GÖZLEM SINIRI: ${previousVideo?.title || previousVideoId}; 20 sn içinde tüm görevler terminal duruma gelmedi. Video üretimi bloke edilmiyor; kalan görevler kalıcı kuyrukta devam edecek.`, 'warn');
-
-    // Buffer hatası, önceki görev gözlemi sırasında ortaya çıkmış olabilir. Bu durumda
-    // v1.149'daki 3 dakikalık API cooldown'u yeni üretim başlamadan önce de uygulanır.
-    while (isCooldownGateActive()) {
-      const cooldownUntil = Number(SafeStorage.getItem(OTONOM_NEXT_VIDEO_API_COOLDOWN_UNTIL_KEY)) || 0;
-      const remainingMs = cooldownUntil - Date.now();
-      if (remainingMs <= 0) break;
-      const remainSec = Math.ceil(remainingMs / 1000);
-      const mm = Math.floor(remainSec / 60);
-      const ss = remainSec % 60;
-      setUiState(prev => ({ ...prev, statusText: `API hatası sonrası bekleme: ${mm}:${String(ss).padStart(2, '0')} — sonraki video ${new Date(cooldownUntil).toLocaleTimeString('tr-TR')} saatinde başlayacak.` }));
-      if (Date.now() - lastCooldownHeartbeatAt >= 15000) {
-        addSystemLog(`API HATA KORUMASI BEKLİYOR (gönderim sırası sırasında hata alındı): ${mm}:${String(ss).padStart(2, '0')} kaldı; neden=${SafeStorage.getItem(OTONOM_NEXT_VIDEO_API_COOLDOWN_REASON_KEY) || 'API hatası'}.`, 'info');
-        lastCooldownHeartbeatAt = Date.now();
-      }
-      await _sleep(Math.min(1000, remainingMs));
-    }
-    if (!isCooldownGateActive()) return false;
 
     // v1.143: gönderim denemeleri kuyrukta işlendiğinde sabit video arası bekleme yok.
     // Eski sürümlerde kaydedilmiş bir sonraki üretim zamanı da temizlenir.
     SafeStorage.removeItem('OTONOM_NEXT_VIDEO_PRODUCTION_AT');
-    await DurablePostingQueue.updateVideo(previousVideoId, { interVideoCooldownCompletedAt: Date.now() });
-    setPostingSchedulerState(prev => ({
-      ...prev,
-      state: dispatchesSettled() ? 'idle' : (prev.state || 'running'),
-      nextDispatchAt: null,
-      message: 'Normal videolar arasında sabit bekleme yok; geçici API 429/5xx/ağ hatası sonrası sonraki video için 3 dk koruma uygulanır.'
-    }));
-    addSystemLog(`✓ ${previousVideo?.title || previousVideoId}: Buffer gönderim denemeleri işlendi veya kalıcı kuyruğa alındı. Normal aralık yok; yalnız API hatasında 3 dk koruma uygulanır. Yeni video üretimi başlıyor.`, 'success');
     return true;
   };
 
@@ -12793,7 +10804,6 @@ export default function App() {
       addSystemLog('Mevcut MP4 yerel hazırlığı henüz tamamlanmadı; gönderim kuyruğundaki görevler üretimi bloke etmez.', 'warn');
       return false;
     }
-    reviewFlowRef.current.cancel('Yeni iş başlatıldı; önceki videonun otomatik paylaşımı iptal edildi.');
     const outType = forceOutputType || config.outputType;
     const intendedTip = configOverrides?.tip || config.tip;
 
@@ -12826,9 +10836,6 @@ export default function App() {
     addSystemLog('İş akışı başlatıldı.', 'info');
     try {
       if (outType === 'video') {
-        // v1.154: otomatik Buffer paylaşımı kapalı; eski gönderim kuyruğu veya Buffer cooldown'u
-        // seslendirme/render/indirme üretimini bekletemez. Üretim sonrası sıra final MP4 hazır olunca ilerler.
-        addSystemLog('v1.154: yalnız üretim + seslendirme + MP4 indirme modu aktif; Buffer bekleme kapısı atlandı.', 'info');
         setUiState(prev => ({ ...prev, statusText: 'Workflow Başlatılıyor...' }));
       }
       let inputData = textInput; let inputType = activeTab;
@@ -12867,7 +10874,6 @@ export default function App() {
     setTimeout(() => { try { window.location.reload(); } catch (e) { ErrorHandler.silent(e); } }, 4000);
     gazeteQueueRef.current.cancel();
     settleGazetePreviewGate({ phase: 'cancelled', reason: 'DURDUR/yeniden başlat' });
-    reviewFlowRef.current.cancel('İşlem durduruldu; otomatik paylaşım iptal edildi.');
     setUiState(prev => ({ ...prev, statusText: 'İşlem durduruluyor...' }));
 
     // 07:00 serisi iptal edildiğinde sayfa açılır açılmaz aynı seriyi başlatma.
@@ -12960,7 +10966,6 @@ export default function App() {
 
   const handleExecuteResume = async () => {
     if (finalMp4BusyRef.current) return;
-    reviewFlowRef.current.cancel('İş sürdürülüyor; önceki otomatik paylaşım iptal edildi.');
     const aCtx = _getAudioCtx(); if (aCtx.state === 'suspended') aCtx.resume().catch((e) => { ErrorHandler.silent(e); });
     setUiState({ isProcessing: true, percent: workflowRef.current.state.progress || 0, statusText: 'Sürdürülüyor...', error: '', videoUrl: null, showDevMenu: uiState.showDevMenu });
     addSystemLog('Workflow sürdürülüyor...', 'warn');
@@ -12969,7 +10974,6 @@ export default function App() {
 
   const handleQuickReRender = async () => {
     if (finalMp4BusyRef.current) return;
-    reviewFlowRef.current.cancel('Video yeniden hazırlanıyor; önceki otomatik paylaşım iptal edildi.');
     const activeJob = workflowRef.current.state;
     if (!activeJob || !activeJob.script || activeJob.status !== 'COMPLETED') { setUiState(prev => ({ ...prev, error: "Önce video oluşturun." })); return; }
     setUiState(prev => ({ ...prev, isProcessing: true, percent: 10, statusText: 'Yeniden Paketleniyor...' }));
@@ -14916,7 +12920,6 @@ export default function App() {
       addSystemLog('Mevcut MP4 yerel hazırlığı henüz tamamlanmadı; gönderim kuyruğu üretimi bloke etmez.', 'warn');
       return false;
     }
-    reviewFlowRef.current.cancel('Başka gazete seçildi; önceki videonun otomatik paylaşımı iptal edildi.');
 
     if (gazeteStartLockRef.current.locked || gazeteAutoVideoRef.current.active || uiProcessingRef.current) {
       const runningName = gazeteStartLockRef.current.name || gazeteAutoVideoRef.current.name || 'başka bir gazete';
@@ -15088,7 +13091,7 @@ export default function App() {
 
     const previewResult = await waitForGazetePreviewToFinish(localSaveResult.videoUrl, title, queueId);
     if (!gazeteQueueRef.current.isCurrent(queueId) || previewResult?.phase === 'cancelled') return { phase: 'cancelled' };
-    addSystemLog(`✓ ${title}: MP4 indirildi ve önizlemenin sonuna kadar izlendi. Şimdi sıradaki gazete başlayabilir. Otomatik Buffer paylaşımı kapalı.`, 'success');
+    addSystemLog(`✓ ${title}: MP4 indirildi ve önizlemenin sonuna kadar izlendi. Şimdi sıradaki gazete başlayabilir.`, 'success');
     if (entry.loopStepKey) _markPairLoopStepDone(entry.loopDate, entry.loopStepKey);
     return { phase: 'done', message: 'MP4 indirildi ve önizleme sona erdi. Sıradaki gazete başlıyor.' };
   };
@@ -15122,7 +13125,6 @@ export default function App() {
     if (!allSelected) {
       addSystemLog(`YORUMLA için bugünün doğrulanmış gazetelerinin tamamını seçmelisiniz (${gazeteSelectedNames.length}/${selectedToday.length}).`, 'warn'); return false;
     }
-    reviewFlowRef.current.cancel('Günün bütün gazete ilk sayfaları için YORUMLA analizi başlatıldı.');
     setActiveTab('gazete'); setGazeteSelectMode(false); setGazeteGalleryView('grid');
     setUiState(prev => ({ ...prev, selectedMediaFiles: [], error: '', isProcessing: true, statusText: 'Bugünün tüm gazete ilk sayfaları araştırmaya hazırlanıyor...' }));
     const files = [];
@@ -15266,12 +13268,11 @@ export default function App() {
         visibleSrc: image?.currentSrc || image?.src || _gazeteAutoVisibleSource(item) } : null;
     }).filter(Boolean);
     if (!entries.length) return;
-    reviewFlowRef.current.cancel('Seçilen gazete sırası başlatıldı.');
     setGazeteSelectMode(false); setGazeteSelectedNames([]); setGazeteGalleryView('grid');
     addSystemLog(`Gazete sırası başladı: ${entries.map(entry => entry.key).join(' → ')}.`, 'info');
     const finished = await gazeteQueueRef.current.start(entries);
     if (finished) {
-      addSystemLog('Seçilen gazetelerin işlemleri bitti; sıra durdu. Buffer yayın durumu sorgulanmıyor; ertelenen görevler kalıcı kuyrukta tutuluyor.', 'info');
+      addSystemLog('Seçilen gazetelerin işlemleri bitti; sıra durdu.', 'info');
       setActiveTab('gazete');
       setTimeout(() => gazeteGridRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
     }
@@ -15364,7 +13365,6 @@ export default function App() {
     }
     const loopSkipped = loopTotal - runEntries.length;
     if (loopSkipped > 0) addSystemLog(`KALDIĞI YERDEN DEVAM: ${loopSkipped}/${loopTotal} adım daha önce tamamlanmıştı, atlanıyor. İlk adım: ${runEntries[0].label}.`, 'info');
-    reviewFlowRef.current.cancel('Çift döngüsü başlatıldı.');
     setActiveTab('gazete'); setGazeteSelectMode(false); setGazeteSelectedNames([]); setGazeteGalleryView('grid');
     addSystemLog(`ÇİFT DÖNGÜSÜ başladı: ${GAZETE_PAIR_LOOP_PLAN.length} çift (${GAZETE_PAIR_LOOP_PLAN.length * 3} video) + ${loopTotal - GAZETE_PAIR_LOOP_PLAN.length * 3} kalan gazete = ${loopTotal} video; bu koşuda ${runEntries.length} adım çalışacak. Sıra: ${runEntries.map(entry => entry.label).join(' → ')}.`, 'info');
     const finished = await gazeteQueueRef.current.start(runEntries);
@@ -15405,7 +13405,6 @@ export default function App() {
     const names = entries.map(entry => matchOrFormatGazeteName(entry.item.name) || entry.item.name || 'Gazete');
     gazeteStartLockRef.current = { locked: true, token, name: `${names[0]} × ${names[1]}` };
     uiProcessingRef.current = true;
-    reviewFlowRef.current.cancel('Karşılaştırma başlatıldı; önceki videonun otomatik paylaşımı iptal edildi.');
     let comparisonOk = false;
     try {
       setActiveTab('gazete'); setGazeteSelectMode(false); setGazeteSelectedNames([]); setGazeteGalleryView('grid');
@@ -15479,10 +13478,7 @@ export default function App() {
       queue: batch.queue,
       completed: batch.completed,
       failed: batch.failed,
-      bufferScheduled: batch.bufferScheduled || [],
-      bufferFailed: batch.bufferFailed || [],
       timings: batch.timings || [],
-      bufferIntervalMinutes: 0,
       current: batch.current,
       updatedAt: Date.now()
     });
@@ -15526,8 +13522,6 @@ export default function App() {
           ? [...saved.completed]
           : [],
       failed: [],
-      bufferScheduled: [],
-      bufferFailed: [],
       timings:
         !forceRestart && saved?.date === todayTR && Array.isArray(saved?.timings)
           ? [...saved.timings]
@@ -15536,19 +13530,7 @@ export default function App() {
       trigger
     };
 
-    // v1.143: Sabit paylaşım aralıkları kaldırıldı; Buffer rate-limit zamanları dışında planlı gecikme yok.
-    if (forceRestart || saved?.date !== todayTR) {
-      bufferAutoIntervalMinutesRef.current = 0;
-      bufferAutoLastDueAtRef.current = 0;
-      bufferAutoNextDueAtRef.current = 0;
-
-      SafeStorage.setItem(BUFFER_AUTO_INTERVAL_KEY, '0');
-      SafeStorage.setItem(BUFFER_AUTO_LAST_DUE_KEY, '0');
-      SafeStorage.setItem(BUFFER_AUTO_NEXT_DUE_KEY, '0');
-    } else {
-      bufferAutoIntervalMinutesRef.current = 0;
-      SafeStorage.setItem(BUFFER_AUTO_INTERVAL_KEY, '0');
-    }
+    // v1.173: sabit paylaşım aralıkları ve otomatik Buffer planlaması tamamen kaldırıldı.
     gazeteAuto0700Ref.current = batch;
 
     setGazeteAuto0700Ui({
@@ -15641,8 +13623,6 @@ export default function App() {
         const gazeteStartedAt = Date.now();
         const videoStartedAt = gazeteStartedAt;
         let videoFinishedAt = 0;
-        let bufferStartedAt = 0;
-        let bufferFinishedAt = 0;
         let scheduledDueAt = null;
         let intervalMinutesUsed = 0;
 
@@ -15664,7 +13644,7 @@ export default function App() {
         if (!videoFinishedAt) videoFinishedAt = Date.now();
 
         if (ok) {
-          // MP4 finalizasyonu ve indirme tamamlanır; önizleme bittikten sonra sıradaki gazete başlar. Buffer kuyruğu aranmaz.
+          // MP4 finalizasyonu ve indirme tamamlanır; önizleme bittikten sonra sıradaki gazete başlar.
           const activeJobId = workflowRef.current?.state?.jobId || '';
           const finalization = finalMp4TaskRef.current;
           let localSaveResult = null;
@@ -15680,7 +13660,7 @@ export default function App() {
             if (previewResult?.phase === 'cancelled' || !gazeteAuto0700Ref.current.active) break;
           } else {
             if (!batch.completed.includes(name)) batch.completed.push(name);
-            addSystemLog(`✓ 07:00 Otonom: ${name} videosu üretildi, seslendirildi ve MP4 indirme adımı tamamlandı. Otomatik Buffer paylaşımı kapalı. Önizleme sonuna kadar sonraki gazete bekleyecek.`, 'success');
+            addSystemLog(`✓ 07:00 Otonom: ${name} videosu üretildi, seslendirildi ve MP4 indirme adımı tamamlandı. Önizleme sonuna kadar sonraki gazete bekleyecek.`, 'success');
             const previewResult = await waitForGazetePreviewToFinish(localSaveResult.videoUrl, name, null);
             if (previewResult?.phase === 'cancelled' || !gazeteAuto0700Ref.current.active) break;
             addSystemLog(`07:00 Otonom: ${name} önizlemesi tamamlandı; sıradaki gazete başlatılıyor.`, 'success');
@@ -15689,10 +13669,6 @@ export default function App() {
 
         const gazeteFinishedAt = Date.now();
         const videoMs = Math.max(0, videoFinishedAt - videoStartedAt);
-        const bufferMs =
-          bufferStartedAt > 0
-            ? Math.max(0, (bufferFinishedAt || gazeteFinishedAt) - bufferStartedAt)
-            : 0;
         const totalMs = Math.max(0, gazeteFinishedAt - gazeteStartedAt);
 
         const timingRecord = {
@@ -15700,18 +13676,16 @@ export default function App() {
           startedAt: gazeteStartedAt,
           finishedAt: gazeteFinishedAt,
           videoMs,
-          bufferMs,
           totalMs,
           intervalMinutesUsed,
           dueAt: scheduledDueAt,
           videoOk: !!ok,
-          bufferOk: batch.bufferScheduled.some(x => x.name === name)
         };
 
         batch.timings.push(timingRecord);
 
         addSystemLog(
-          `⏱ ${name}: toplam ${formatGazeteDuration(totalMs)} | video ${formatGazeteDuration(videoMs)} | otomatik Buffer paylaşımı=kapalı | ek bekleme ${intervalMinutesUsed}dk.`,
+          `⏱ ${name}: toplam ${formatGazeteDuration(totalMs)} | video ${formatGazeteDuration(videoMs)} | ek bekleme ${intervalMinutesUsed}dk.`,
           'info'
         );
 
@@ -15755,18 +13729,17 @@ export default function App() {
 
       addSystemLog(
         `☀️ 07:00 GAZETE OTONOMU TAMAMLANDI — video başarılı=${batch.completed.length}, video hata=${batch.failed.length}` +
-        ` | otomatik Buffer paylaşımı=kapalı` +
+        `` +
         ` | ortalama uçtan uca=${formatGazeteDuration(avgTotalMs)}` +
         ` | en uzun=${maxTiming ? `${maxTiming.name} ${formatGazeteDuration(maxTiming.totalMs)}` : 'yok'}` +
         ` | sabit paylaşım aralığı=0dk` +
         (batch.failed.length ? ` | Video hatalı: ${batch.failed.map(x => x.name).join(', ')}` : '') +
-        (batch.bufferFailed.length ? ` | Buffer hatalı: ${batch.bufferFailed.map(x => x.name).join(', ')}` : ''),
-        (batch.failed.length || batch.bufferFailed.length) ? 'warn' : 'success'
+(batch.failed.length) ? 'warn' : 'success'
       );
 
       for (const row of timingRows) {
         addSystemLog(
-          `⏱ SÜRE RAPORU | ${row.name} | toplam=${formatGazeteDuration(row.totalMs)} | video=${formatGazeteDuration(row.videoMs)} | otomatik_Buffer=kapalı | ek_bekleme=${row.intervalMinutesUsed}dk`,
+          `⏱ SÜRE RAPORU | ${row.name} | toplam=${formatGazeteDuration(row.totalMs)} | video=${formatGazeteDuration(row.videoMs)} | ek_bekleme=${row.intervalMinutesUsed}dk`,
           'info'
         );
       }
@@ -15782,10 +13755,7 @@ export default function App() {
         queue: batch.queue,
         completed: batch.completed,
         failed: [...batch.failed, { name: 'OTONOM', reason: e.message }],
-        bufferScheduled: batch.bufferScheduled || [],
-        bufferFailed: batch.bufferFailed || [],
         timings: batch.timings || [],
-        bufferIntervalMinutes: 0,
         current: '',
         updatedAt: Date.now()
       });
@@ -15857,22 +13827,11 @@ export default function App() {
   const [gazeteGalleryView, setGazeteGalleryView] = useState('grid');
   const [gazeteCurrentIdx, setGazeteCurrentIdx] = useState(0);
 
-  // Floating live monitor data is derived from the same live log stream and durable queue dashboard.
-  const liveMonitorVideos = postingDashboard.videos || [];
-  const liveMonitorTasks = postingDashboard.tasks || [];
-  const liveMonitorPendingTasks = liveMonitorTasks.filter(t => ['QUEUED', 'POSTING', 'SCHEDULED'].includes(t.status));
-  const liveMonitorRetryTasks = liveMonitorTasks.filter(t => t.status === 'RETRY_WAITING');
-  const liveMonitorPostedTasks = liveMonitorTasks.filter(t => t.status === 'POSTED');
-  const liveMonitorDeferredVideos = new Set(liveMonitorTasks.filter(t => t.limitDeferred && ['QUEUED', 'POSTING', 'SCHEDULED', 'RETRY_WAITING'].includes(t.status)).map(t => t.videoId)).size;
-  const liveMonitorLastPosted = liveMonitorPostedTasks.reduce((max, t) => Math.max(max, Number(t.postedAt || 0)), 0);
-  const performanceApiCalls = livePerformanceMetrics.apiCalls || [];
+    const performanceApiCalls = livePerformanceMetrics.apiCalls || [];
   const performanceSteps = livePerformanceMetrics.steps || [];
   const performanceRuns = livePerformanceMetrics.runs || [];
   const performanceCompletedRuns = performanceRuns.filter(r => Number.isFinite(Number(r.productionMs)) && r.productionMs >= 0);
   const performanceAverageProductionMs = performanceCompletedRuns.length ? Math.round(performanceCompletedRuns.reduce((sum, r) => sum + r.productionMs, 0) / performanceCompletedRuns.length) : null;
-  const performanceCompletedDeliveries = performanceRuns.filter(r => Number.isFinite(Number(r.bufferMs)) && r.bufferMs >= 0);
-  const performanceAverageDeliveryMs = performanceCompletedDeliveries.length ? Math.round(performanceCompletedDeliveries.reduce((sum, r) => sum + r.bufferMs, 0) / performanceCompletedDeliveries.length) : null;
-  const performanceAverageCadenceMs = performanceAverageDeliveryMs; // Sabit ara kaldırıldı; yalnız ölçülen başlangıç → Buffer süresi.
   const performanceApiUsageCalls = performanceApiCalls.filter(c => c.tokenSource === 'API kullanım üstverisi');
   const performanceActualPromptTokens = performanceApiUsageCalls.reduce((sum, c) => sum + (Number(c.promptTokens) || 0), 0);
   const performanceActualOutputTokens = performanceApiUsageCalls.reduce((sum, c) => sum + (Number(c.outputTokens) || 0), 0);
@@ -15908,10 +13867,7 @@ export default function App() {
     acc[key].count += 1; acc[key].totalMs += Number(step.durationMs) || 0; acc[key].lastMs = Number(step.durationMs) || 0;
     return acc;
   }, {})).map(x => ({ ...x, averageMs: x.count ? Math.round(x.totalMs / x.count) : 0 })).sort((a, b) => b.totalMs - a.totalMs);
-  const liveMonitorNextRetry = liveMonitorTasks.filter(t => ['QUEUED', 'SCHEDULED', 'RETRY_WAITING'].includes(t.status) && t.nextRetryTime).reduce((min, t) => Math.min(min, Number(t.nextRetryTime)), Infinity);
   const liveMonitorLogs = (sysLogs || []).filter(log => {
-    const line = `${log.text || ''} ${log.socialService || ''}`;
-    if (liveMonitorFilter === 'posting') return /(buffer|gönderim|gonderim|kuyruk|scheduler|yayın|yayin|paylaş|paylas|instagram|linkedin|facebook|threads|rate.limit|limit nedeniyle)/i.test(line);
     if (liveMonitorFilter === 'errors') return log.type === 'warn' || log.type === 'error' || /(hata|error|failed|redded|limit|rate.limit|başarısız|basarisiz)/i.test(line);
     return true;
   }).slice(-140);
@@ -16071,51 +14027,8 @@ export default function App() {
               <button onClick={() => setActiveTab('media')} className={`flex-1 min-w-[120px] py-2.5 rounded-lg text-xs md:text-sm font-bold transition-all ${activeTab === 'media' ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:text-slate-300'}`}>Medya Analizi</button>
               <button onClick={() => setActiveTab('prompt')} className={`flex-1 min-w-[120px] py-2.5 rounded-lg text-xs md:text-sm font-bold transition-all ${activeTab === 'prompt' ? 'bg-fuchsia-600 text-white' : 'text-slate-500 hover:text-slate-300'}`}>Serbest Prompt</button>
               <button onClick={() => { setActiveTab('gazete'); if (gazeteItems.length === 0) fetchGazeteManşetleri(); }} className={`flex-1 min-w-[120px] py-2.5 rounded-lg text-xs md:text-sm font-bold transition-all flex items-center justify-center gap-1.5 ${activeTab === 'gazete' ? 'bg-emerald-600 text-white' : 'text-slate-500 hover:text-slate-300'}`}><Newspaper size={14} /> Gazete Takip</button>
-              <button onClick={() => { setActiveTab('posting'); void refreshPostingDashboard(); }} className={`flex-1 min-w-[150px] py-2.5 rounded-lg text-xs md:text-sm font-bold transition-all flex items-center justify-center gap-1.5 ${activeTab === 'posting' ? 'bg-cyan-600 text-white' : 'text-slate-500 hover:text-slate-300'}`}><Activity size={14} /> Gönderim Kuyruğu</button>
             </div>
 
-            {activeTab === 'posting' && (() => {
-              const videos = postingDashboard.videos || [];
-              const tasks = postingDashboard.tasks || [];
-              const todayStart = new Date(); todayStart.setHours(0,0,0,0);
-              const isPending = t => ['QUEUED','POSTING','SCHEDULED','RETRY_WAITING'].includes(t.status);
-              const produced = videos.length;
-              const posted = tasks.filter(t => t.status === 'POSTED').length;
-              const postedVideos = videos.filter(v => v.status === 'POSTED').length;
-              const pending = tasks.filter(t => ['QUEUED','POSTING','SCHEDULED'].includes(t.status)).length + videos.filter(v => v.targetResolutionPending && !(v.tasks || []).length && v.status !== 'RETRY_WAITING').length;
-              const retries = tasks.filter(t => t.status === 'RETRY_WAITING').length + videos.filter(v => v.targetResolutionPending && v.status === 'RETRY_WAITING' && !(v.tasks || []).length).length;
-              const deferredVideoCount = new Set(tasks.filter(t => t.limitDeferred && isPending(t)).map(t => t.videoId)).size;
-              const quota = BufferBudget._read(POSTING_QUOTA_SNAPSHOT_KEY, null);
-              const lastPosted = tasks.filter(t => t.status === 'POSTED' && t.postedAt).reduce((max,t) => Math.max(max, Number(t.postedAt || 0)), 0);
-              const lastErrorTask = [...tasks].filter(t => t.lastErrorAt && t.lastError).sort((a,b) => Number(b.lastErrorAt)-Number(a.lastErrorAt))[0];
-              const platformList = [{id:'x',name:'X'},{id:'facebook',name:'Facebook'},{id:'linkedin',name:'LinkedIn'},{id:'instagram',name:'Instagram'},{id:'threads',name:'Threads'}];
-              const fmt = value => value && Number.isFinite(Number(value)) ? new Date(Number(value)).toLocaleString('tr-TR') : '—';
-              return <div className="mb-5 rounded-2xl border border-cyan-500/30 bg-slate-950/80 p-4 space-y-4">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div><h2 className="text-lg font-black text-white flex items-center gap-2"><Activity size={18} className="text-cyan-400"/> Kalıcı Gönderim Scheduler’ı</h2><p className="text-xs text-slate-400 mt-1">Otomatik Buffer paylaşımı kapalıdır. Üretim akışı videoyu oluşturur, seslendirir, MP4 olarak kaydeder/indirir ve oynatıcıda otomatik başlatır; seçili gazete sırası video bitene kadar bekler, sonra sıradaki videoya geçer. İsteğe bağlı manuel Buffer gönderimleri ayrı çalışır; eski otomatik üretim kuyruğu gönderilmez.</p></div>
-                  <div className="flex items-center gap-2"><span className={`rounded-full px-2.5 py-1 text-[10px] font-black ${postingSchedulerState.state === 'error' || postingSchedulerState.state === 'storage-error' ? 'bg-rose-500/15 text-rose-300' : postingSchedulerState.state === 'rate-limited' ? 'bg-amber-500/15 text-amber-300' : 'bg-emerald-500/15 text-emerald-300'}`}>{postingSchedulerState.state || 'running'}</span><button onClick={() => { setPostingDashboardClock(Date.now()); void refreshPostingDashboard(); void runPostingSchedulerTick(); }} className="rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xs px-3 py-2">Şimdi yenile</button></div>
-                </div>
-                <p className="text-xs text-slate-300">{postingSchedulerState.message || 'Kuyruk izleniyor.'} <span className="text-slate-500">· Son kontrol {fmt(postingDashboardClock)}</span></p>
-                <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-2">
-                  {[['Üretilen / kuyruğa alınan video',produced],['Buffer’a teslim edilen video',postedVideos],['Buffer kabul yanıtı alınan kanal',posted],['Kuyrukta bekleyen',pending],['Yeniden deneme kuyruğu',retries],['Limit nedeniyle ertelenen video',deferredVideoCount]].map(([label,value]) => <div key={label} className="rounded-xl border border-slate-800 bg-slate-900 p-3"><div className="text-[10px] text-slate-400">{label}</div><div className="text-2xl font-black text-white mt-1">{value}</div></div>)}
-                </div>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-                  <section className="rounded-xl border border-slate-800 bg-slate-900/80 p-3"><h3 className="text-sm font-bold text-white mb-2">Buffer durumu ve limitler</h3><div className="grid grid-cols-2 gap-2 text-xs"><div><span className="text-slate-500">API bağlantısı</span><div className="text-slate-200 font-bold">{bufferExtensionAvailableRef.current === false ? 'Bağlantı yok' : bufferExtensionAvailableRef.current === true ? 'Erişilebilir' : 'Henüz doğrulanmadı'}</div></div><div><span className="text-slate-500">Genel API beklemesi</span><div className="text-slate-200 font-bold">{BufferBudget.cooldown() ? fmt(BufferBudget.cooldown().until) : 'Aktif bekleme yok'}</div></div><div className="col-span-2"><span className="text-slate-500">Rate-limit pencerelerinde kalan hak (Buffer bildirimi)</span><div className="text-slate-200 font-bold break-words">{BufferBudget.remainingSummary() || 'Henüz API yanıtı alınmadı'}</div></div><div className="col-span-2"><span className="text-slate-500">Günlük kanal kotası</span><div className="text-slate-200">{quota?.channels?.length ? quota.channels.map(q => `${q.name}: ${q.sent ?? '—'} gönderildi${q.scheduled == null ? '' : `, ${q.scheduled} planlandı`} / ${q.limit ?? '—'} limit${q.remaining == null ? '' : `, ${q.remaining} kullanılabilir`}`).join(' · ') : 'Buffer dailyPostingLimits verisi henüz alınmadı.'}</div><div className="text-[10px] text-slate-500 mt-1">Kota son sorgu zamanı: {fmt(quota?.at)}</div></div></div></section>
-                  <section className="rounded-xl border border-slate-800 bg-slate-900/80 p-3"><h3 className="text-sm font-bold text-white mb-2">Sistem izleme</h3><div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs"><div><span className="text-slate-500">Son Buffer kabul yanıtı</span><div className="text-emerald-300 font-bold">{fmt(postingSchedulerState.lastSuccessAt || lastPosted)}</div></div><div><span className="text-slate-500">Son hata zamanı</span><div className="text-rose-300 font-bold">{fmt(postingSchedulerState.lastErrorAt || lastErrorTask?.lastErrorAt)}</div></div><div className="sm:col-span-2"><span className="text-slate-500">Son hata</span><div className="text-slate-200 break-words">{postingSchedulerState.lastError || lastErrorTask?.lastError || 'Hata kaydı yok'}</div></div><div className="sm:col-span-2"><span className="text-slate-500">Bir sonraki scheduler işlemi</span><div className="text-cyan-200 font-bold">{fmt(postingSchedulerState.nextDispatchAt || tasks.filter(t => isPending(t) && t.nextRetryTime).reduce((min,t) => Math.min(min,Number(t.nextRetryTime)), Infinity))}</div></div></div></section>
-                </div>
-                <section><h3 className="text-sm font-bold text-white mb-2">Platform bazlı durum</h3><div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-2">{platformList.map(platform => {
-                  const own = tasks.filter(t => t.service === platform.id);
-                  const sentToday = own.filter(t => t.status === 'POSTED' && Number(t.postedAt || 0) >= todayStart.getTime()).length;
-                  const waiting = own.filter(isPending).length;
-                  const last = own.filter(t => t.postedAt).reduce((max,t) => Math.max(max,Number(t.postedAt||0)),0);
-                  const err = own.filter(t => t.lastError).sort((a,b) => Number(b.lastErrorAt||0)-Number(a.lastErrorAt||0))[0];
-                  const next = own.filter(t => isPending(t) && t.nextRetryTime).reduce((min,t) => Math.min(min,Number(t.nextRetryTime)),Infinity);
-                  return <div key={platform.id} className="rounded-xl border border-slate-800 bg-slate-900 p-3"><div className="flex items-center gap-2 text-white font-bold text-sm"><BufferSocialIcon service={platform.id} size={16}/>{platform.name}</div><div className="grid grid-cols-2 gap-1 mt-3 text-[10px]"><div><span className="text-slate-500">Bugün Buffer’a gönderim</span><div className="text-white font-black text-base">{sentToday}</div></div><div><span className="text-slate-500">Bekleyen</span><div className="text-white font-black text-base">{waiting}</div></div><div className="col-span-2 mt-1"><span className="text-slate-500">Son Buffer kabulü</span><div className="text-slate-300">{fmt(last)}</div></div><div className="col-span-2 mt-1"><span className="text-slate-500">Son hata</span><div className="text-rose-300 break-words">{err?.lastError || '—'}</div></div><div className="col-span-2 mt-1"><span className="text-slate-500">Sonraki görev</span><div className="text-cyan-200">{Number.isFinite(next) ? fmt(next) : '—'}</div></div></div></div>;
-                })}</div></section>
-                <section><h3 className="text-sm font-bold text-white mb-2">Video ve kanal görevleri</h3><div className="overflow-auto rounded-xl border border-slate-800"><table className="w-full min-w-[980px] text-xs text-left"><thead className="bg-slate-900 text-slate-400"><tr><th className="p-2">Video / Oluşturulma</th><th className="p-2">Durum</th><th className="p-2">Hedef platformlar</th><th className="p-2">Buffer’a teslim edilen platformlar</th><th className="p-2">Bekleyen platformlar</th><th className="p-2">Hatalı platformlar</th><th className="p-2">Son hata</th><th className="p-2">Sonraki deneme</th></tr></thead><tbody>{videos.map(video => <tr key={video.id} className="border-t border-slate-800 align-top"><td className="p-2"><div className="text-white font-bold max-w-[240px] break-words">{video.title}</div><div className="text-[10px] text-slate-500 mt-1">{fmt(video.createdAt)} · Buffer kabul: {fmt(video.publishedAt)} · {video.fileName} · {(Number(video.size||0)/1024/1024).toFixed(1)} MB</div></td><td className="p-2"><span className="rounded bg-slate-800 px-2 py-1 text-cyan-200 font-bold">{video.status}</span></td><td className="p-2"><div className="flex flex-wrap gap-1">{(video.targetChannels||[]).map(c => <span key={c.id} className="rounded bg-slate-800 px-1.5 py-1">{c.name || c.service}</span>)}{video.targetResolutionPending && <span className="text-amber-300">Kanallar aranıyor</span>}</div></td><td className="p-2 text-emerald-300">{(video.tasks || []).filter(t => t.status === 'POSTED').map(t => <div key={t.id}>{t.channelName}</div>)}{!(video.tasks || []).some(t => t.status === 'POSTED') && '—'}</td><td className="p-2 text-amber-200">{(video.tasks || []).filter(t => ['QUEUED','POSTING','SCHEDULED','RETRY_WAITING'].includes(t.status)).map(t => <div key={t.id}>{t.channelName}{t.status === 'RETRY_WAITING' ? ' · tekrar deneme' : ''}</div>)}{!(video.tasks || []).some(t => ['QUEUED','POSTING','SCHEDULED','RETRY_WAITING'].includes(t.status)) && '—'}</td><td className="p-2 text-rose-300">{(video.tasks || []).filter(t => t.status === 'FAILED').map(t => <div key={t.id}>{t.channelName}</div>)}{!(video.tasks || []).some(t => t.status === 'FAILED') && '—'}</td><td className="p-2 text-rose-200 max-w-[220px] break-words">{video.lastError || video.tasks?.find(t => t.lastError)?.lastError || '—'}</td><td className="p-2 text-cyan-200">{fmt(video.nextRetryTime)}</td></tr>)}{videos.length === 0 && <tr><td colSpan={8} className="p-6 text-center text-slate-500">Henüz kuyrukta video yok. MP4 üretildiğinde burada kalıcı olarak listelenir.</td></tr>}</tbody></table></div></section>
-                <div className="text-[10px] text-slate-500">Durumlar: CREATED · QUEUED · SCHEDULED · POSTING · POSTED · RETRY_WAITING · FAILED. Tarayıcı kapalıyken JavaScript scheduler çalışamaz; kayıtlar kalıcı kalır ve uygulama yeniden açıldığında devam eder.</div>
-              </div>;
-            })()}
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3 font-bold">
               <div className="bg-black/30 p-2.5 rounded-xl border border-slate-800 flex items-center">
@@ -16176,13 +14089,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* BUFFER UZANTI AYARLARI */}
-            <div className="bg-black/30 p-2.5 rounded-xl border border-slate-800 flex items-center gap-2 mb-3">
-              <div className="flex items-center gap-2 w-full">
-                <span className="text-xs text-slate-300 flex-1">Buffer anahtarı ve medya hostu bu tarayıcının uzantısında ayarlanır.</span>
-                <button type="button" onClick={async () => { const reply = await bufferExtensionRequest('BUFFER_OPEN_OPTIONS', {}, 5000); if (!reply?.ok) addSystemLog('Buffer ayarları açılamadı; Chrome’da uzantının Ayrıntılar > Uzantı seçenekleri, Firefox’ta Eklentiler > OTONOM > Seçenekler bölümünü açın.', 'warn'); }} className="text-indigo-400 hover:text-indigo-300 text-[10px] font-bold uppercase tracking-wider shrink-0">BUFFER AYARLARI</button>
-              </div>
-            </div>
 
             {/* KAYNAK ADI + SABİT GÖRSEL + YORUM */}
             <div className="grid grid-cols-3 gap-3 mb-3">
@@ -16287,7 +14193,7 @@ export default function App() {
                     >
                       ☀ 07:00 {GAZETE_AUTO_0700_SCHEDULER_ENABLED ? (gazeteAuto0700Enabled ? 'AÇIK' : 'KAPALI') : 'İPTAL • MANUEL'}
                     </button>
-                    <span className="px-3 py-1.5 rounded-lg text-[10px] font-black border bg-slate-900 text-indigo-300 border-slate-700" title="Video üretilir, seslendirilir ve MP4 olarak indirilir; otomatik Buffer paylaşımı kapalı">ÜRET → SESLENDİR → İNDİR</span>
+                    <span className="px-3 py-1.5 rounded-lg text-[10px] font-black border bg-slate-900 text-indigo-300 border-slate-700" title="Video üretilir, seslendirilir ve MP4 olarak indirilir">ÜRET → SESLENDİR → İNDİR</span>
                     <button
                       onClick={() => startGazeteMorningBatch('manual', true)}
                       disabled={gazeteAuto0700Ui.active || uiState.isProcessing || gazeteQueueActive}
@@ -16357,7 +14263,7 @@ export default function App() {
                     </div>
                     {gazeteSelectMode && (
                       <div className="mb-3 rounded-xl border border-indigo-500/40 bg-indigo-950/40 p-3">
-                        <p className="text-xs text-indigo-100 mb-2">{config.tip === 'karsilastirma' ? 'Karşılaştırmak için TAM 2 gazete işaretleyin. Kaynaklı karşılaştırma tek video olarak dikey 9:16 hazırlanır.' : config.tip === 'yorumla' ? 'Yalnız Türkiye saatine göre BUGÜNÜN doğrulanmış ilk sayfaları kullanılır. Tüm seçili gazeteler tek araştırmada incelenir; 16:9 yatay, en az 7 dakika, Türkçe kadın spiker ve kaynaklı analiz ile TEK video hazırlanır.' : 'Gazeteleri işaretleyin. Numaralar işleme sırasını gösterir: video → izle → indir → Buffer.'}</p>
+                        <p className="text-xs text-indigo-100 mb-2">{config.tip === 'karsilastirma' ? 'Karşılaştırmak için TAM 2 gazete işaretleyin. Kaynaklı karşılaştırma tek video olarak dikey 9:16 hazırlanır.' : config.tip === 'yorumla' ? 'Yalnız Türkiye saatine göre BUGÜNÜN doğrulanmış ilk sayfaları kullanılır. Tüm seçili gazeteler tek araştırmada incelenir; 16:9 yatay, en az 7 dakika, Türkçe kadın spiker ve kaynaklı analiz ile TEK video hazırlanır.' : 'Gazeteleri işaretleyin. Numaralar işleme sırasını gösterir: video → izle → indir.'}</p>
                         <div className="flex flex-wrap gap-2">
                           {config.tip === 'karsilastirma' ? (
                             <>
@@ -16391,9 +14297,7 @@ export default function App() {
                         {gazeteQueueUi.items.map((entry, index) => <div key={entry.key} className="mt-2 text-slate-300">
                           <span>{index + 1}. {entry.label || gazeteDisplayName(entry.key)} — {entry.phase === 'running' ? 'İşleniyor' : entry.phase === 'waiting' ? 'Sırada' : entry.phase === 'cancelled' ? 'İptal' : entry.phase === 'error' ? entry.message : 'İşlemler bitti'}</span>
                           {entry.mediaUrl && <a href={entry.mediaUrl} target="_blank" rel="noopener noreferrer" className="ml-2 text-indigo-300 underline">Videoyu aç</a>}
-                          {entry.report?.results?.map(result => <span key={result.channelId} title={result.detail} className={`inline-flex items-center gap-1 ml-2 ${result.state === 'error' ? 'text-rose-300' : result.state === 'sent' ? 'text-emerald-300' : 'text-amber-200'}`}><BufferSocialIcon service={result.service} size={12} />{result.state === 'sent' ? 'Yayında' : result.state === 'error' ? `Hata${result.detail ? ': ' + String(result.detail).slice(0, 60) : ''}` : 'Onay bekliyor'}</span>)}
                         </div>)}
-                        {gazeteQueueActive && autoReviewActive && <button onClick={cancelReviewedShare} className="mt-3 rounded-lg bg-rose-700 hover:bg-rose-600 px-4 py-2 font-black text-white">İPTAL ET — TÜM SÜRECİ DURDUR</button>}
                       </div>
                     )}
                     {gazeteGalleryView === 'grid' ? (
@@ -16516,7 +14420,6 @@ export default function App() {
                   onLoadedData={() => { setVideoPreviewReady(true); setVideoPreviewError(false); }}
                   onCanPlay={() => { setVideoPreviewReady(true); setVideoPreviewError(false); }}
                   onPlaying={() => {
-                    reviewFlowRef.current.playing(autoReview.id);
                     const gate = gazetePreviewGateRef.current;
                     if (gate && outputVideoRef.current?.getAttribute('src') === gate.mediaUrl) {
                       gate.started = true;
@@ -16524,7 +14427,6 @@ export default function App() {
                     }
                   }}
                   onEnded={() => {
-                    reviewFlowRef.current.ended(autoReview.id);
                     const gate = gazetePreviewGateRef.current;
                     if (gate && gate.mediaUrl && outputVideoRef.current?.getAttribute('src') === gate.mediaUrl && outputVideoRef.current?.ended === true) {
                       gate.started = true;
@@ -16534,7 +14436,6 @@ export default function App() {
                   }}
                   onError={() => {
                     setVideoPreviewError(true);
-                    reviewFlowRef.current.block(autoReview.id, 'Önizleme oynatılamadı; MP4 dosyası korunuyor.');
                     const gate = gazetePreviewGateRef.current;
                     if (gate && outputVideoRef.current?.getAttribute('src') === gate.mediaUrl) {
                       gate.started = false;
@@ -16556,87 +14457,17 @@ export default function App() {
                   </div>
                 </div>
               )}
-              {config.outputType !== 'image' && autoReview.phase !== 'idle' && (
-                <div className={`mt-4 rounded-2xl border p-4 text-left ${autoReview.phase === 'countdown' ? 'border-amber-400/60 bg-amber-500/10' : 'border-slate-700 bg-slate-950/80'}`}>
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-sm font-bold text-slate-100">Önizleme → MP4 indirme → Buffer</p>
-                    {autoReview.phase === 'countdown' && <span role="timer" className="text-2xl font-black text-amber-300">{autoReview.secondsRemaining} sn</span>}
-                  </div>
-                  <p role="status" className="mt-2 text-xs text-slate-300">{autoReview.message}</p>
-                  <p className="mt-2 text-[11px] text-slate-400">İzleme: {autoReview.previewEnded ? 'Tamamlandı' : autoReview.previewDeferred ? 'Arka planda beklenmedi' : autoReview.previewStarted ? 'Oynuyor / duraklatıldı' : 'Bekliyor'} · MP4 indirme: {autoReview.downloadComplete ? 'Doğrulandı' : 'Bekliyor'}</p>
-                  {autoReview.phase === 'countdown' && <p className="mt-2 text-[11px] text-amber-200">İptal etmezseniz süre sonunda bağlı Buffer kanallarına paylaşım başlayacak. Geri sayım arka planda da devam eder.</p>}
-                  <div className="mt-3 flex flex-wrap gap-3">
-                    {autoReview.phase === 'review' && !autoReview.previewStarted && <button onClick={playReviewedVideo} className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-3 rounded-xl text-xs font-bold">ÖNİZLEMEYİ OYNAT</button>}
-                    {autoReviewActive && <button onClick={cancelReviewedShare} className="bg-rose-600 hover:bg-rose-500 text-white px-6 py-3 rounded-xl text-sm font-black">İPTAL ET — TÜM SÜRECİ DURDUR</button>}
-                  </div>
-                </div>
-              )}
               <div className="mt-4 flex justify-center gap-3 flex-wrap">
                 <button onClick={handleDownloadVideo} disabled={finalMp4Busy} className="bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-900/50 disabled:text-emerald-300 text-white px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 transition-all active:scale-95">{finalMp4Busy ? <><Loader2 size={14} className="animate-spin" /> MP4 HAZIRLANIYOR</> : <><Download size={14} /> {finalMp4Error ? 'TEKRAR İNDİR' : 'İNDİR'}</>}</button>
-                <button onClick={shareToSelectedPlatforms} disabled={finalMp4Busy || autoReviewActive || autoReview.phase === 'sharing' || bufferShareReport.status === 'sharing'} className="bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-900/60 disabled:text-indigo-300 text-white px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shadow-lg shadow-indigo-500/20 transition-all active:scale-95">{bufferShareReport.status === 'sharing' ? <><Loader2 size={14} className="animate-spin" /> PAYLAŞILIYOR</> : <><Share2 size={14} /> PAYLAŞ</>}</button>
-                <button disabled={finalMp4Busy || autoReview.phase === 'sharing' || bufferShareReport.status === 'sharing'} onClick={async () => { cancelReviewedShare(); setUiState(prev => ({ ...prev, videoUrl: null, selectedMediaFiles: [], percent: 0, statusText: '', error: '' })); setConfig(prev => ({ ...prev, yorum: '', sourceName: '' })); for (let i = 0; i < RENDER_CONFIG.MAX_CUSTOM_SCENE_IMAGES; i++) await AssetManagerService.deleteMedia("CUSTOM_SCENE_IMG_" + i); setStudioMedia(s => ({ ...s, customSceneImages: [] })); }} className="bg-slate-700 hover:bg-slate-600 text-white px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 transition-all active:scale-95"><RotateCcw size={14} /> {(config.tip === 'guzel_soz' || config.tip === 'iddia_analizi') ? 'YENİ SÖZ' : 'YENİ HABER'}</button>
+                <button disabled={finalMp4Busy} onClick={async () => { setUiState(prev => ({ ...prev, videoUrl: null, selectedMediaFiles: [], percent: 0, statusText: '', error: '' })); setConfig(prev => ({ ...prev, yorum: '', sourceName: '' })); for (let i = 0; i < RENDER_CONFIG.MAX_CUSTOM_SCENE_IMAGES; i++) await AssetManagerService.deleteMedia("CUSTOM_SCENE_IMG_" + i); setStudioMedia(s => ({ ...s, customSceneImages: [] })); }} className="bg-slate-700 hover:bg-slate-600 text-white px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 transition-all active:scale-95"><RotateCcw size={14} /> {(config.tip === 'guzel_soz' || config.tip === 'iddia_analizi') ? 'YENİ SÖZ' : 'YENİ HABER'}</button>
               </div>
-              {bufferShareReport.status !== 'idle' && (
-                <div className="mt-4 bg-slate-950/80 border border-slate-800 rounded-2xl p-4 text-left">
-                  <div className="flex items-center gap-2 mb-3">
-                    {bufferShareReport.status === 'sharing' ? <Loader2 size={15} className="animate-spin text-indigo-400" /> : bufferShareReport.status === 'success' ? <Check size={15} className="text-emerald-400" /> : <AlertCircle size={15} className={bufferShareReport.status === 'error' ? 'text-rose-400' : 'text-amber-400'} />}
-                    <span className="text-xs font-bold text-slate-200">Buffer: {bufferShareReport.message}</span>
-                  </div>
-                  {bufferShareProgress && (
-                    <div className="mb-3 rounded-xl border border-indigo-500/25 bg-slate-900/70 p-3">
-                      <div className="flex items-center justify-between gap-2 text-[11px] font-bold text-indigo-200 mb-2">
-                        <span>Paylaşım aşamaları</span>
-                        <span>{bufferShareProgress.percent}% · {bufferDuration((bufferShareProgress.finishedAt || bufferShareClock) - bufferShareProgress.startedAt)}</span>
-                      </div>
-                      <div role="progressbar" aria-label="Buffer paylaşım aşamaları" aria-valuenow={bufferShareProgress.percent} aria-valuemin={0} aria-valuemax={100} className="h-2 rounded-full bg-slate-700 overflow-hidden">
-                        <div className={`h-full transition-all duration-300 ${bufferShareProgress.state === 'error' ? 'bg-rose-500' : 'bg-indigo-400'}`} style={{ width: `${bufferShareProgress.percent}%` }} />
-                      </div>
-                      <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5">
-                        {bufferShareProgress.steps.map(step => (
-                          <div key={step.id} className="flex justify-between gap-2 text-[10px]">
-                            <span className={step.status === 'running' ? 'text-indigo-200 font-bold' : step.status === 'done' ? 'text-emerald-300' : step.status === 'error' ? 'text-rose-300' : 'text-slate-500'}>{step.label}</span>
-                            <span className="shrink-0 text-slate-400">{step.status === 'waiting' ? 'Bekliyor' : step.status === 'skipped' ? 'Atlandı' : step.status === 'error' ? `Hata · ${bufferDuration(step.durationMs)}` : step.status === 'running' ? `${step.progress}% · ${bufferDuration(bufferShareClock - step.startedAt)}` : bufferDuration(step.durationMs)}</span>
-                          </div>
-                        ))}
-                      </div>
-                      {bufferShareProgress.finishedAt && <p className={`mt-2 text-[10px] font-semibold ${bufferShareProgress.state === 'error' ? 'text-rose-300' : 'text-slate-300'}`}>{bufferShareProgress.description}</p>}
-                    </div>
-                  )}
-                  {bufferShareReport.results?.some(r => r.state === 'error') && (
-                    <a href="https://publish.buffer.com/settings/channels" target="_blank" rel="noopener noreferrer" className="inline-block mb-3 text-[10px] font-bold text-indigo-300 underline">BUFFER KANALLARINI AÇ</a>
-                  )}
-                  {bufferShareReport.results?.length > 0 && (
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                      {bufferShareReport.results.map((r, idx) => {
-                        const sent = r.state === 'sent';
-                        const failed = r.state === 'error';
-                        const waiting = ['waiting','creating','verifying','pending','created'].includes(r.state);
-                        return (
-                          <div key={r.channelId || idx} className={`rounded-xl border p-3 ${sent ? 'bg-emerald-500/10 border-emerald-500/30' : failed ? 'bg-rose-500/10 border-rose-500/30' : 'bg-amber-500/10 border-amber-500/30'}`}>
-                            <div className="flex items-center gap-2 mb-1">
-                              <BufferSocialIcon service={r.service} size={19} />
-                              <div className="min-w-0 flex-1">
-                                <div className="text-[9px] font-bold text-slate-400">{bufferSocialLabel(r.service)}</div>
-                                <div className="text-[11px] font-black text-slate-100 truncate" title={r.name}>{r.name}</div>
-                              </div>
-                              {sent ? <Check size={13} className="shrink-0 text-emerald-400" /> : failed ? <AlertCircle size={13} className="shrink-0 text-rose-400" /> : <Loader2 size={13} className={`shrink-0 ${waiting && r.state !== 'pending' ? 'animate-spin text-amber-400' : 'text-amber-400'}`} />}
-                            </div>
-                            <div className={`text-[10px] font-bold ${sent ? 'text-emerald-400' : failed ? 'text-rose-400' : 'text-amber-400'}`}>{sent ? 'GÖNDERİLDİ' : failed ? 'HATA' : r.needsManualCheck ? 'BUFFER’DA KONTROL EDİN' : r.state === 'pending' ? 'BUFFER DOĞRULUYOR' : 'İŞLENİYOR'}</div>
-                            <div className="text-[9px] text-slate-400 mt-1 break-words">{r.detail}</div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              )}
               {sysLogs && sysLogs.length > 0 && (
                 <div className="mt-6 bg-slate-950/90 border border-slate-800 rounded-2xl p-4 text-left font-mono text-[11px] leading-relaxed max-h-64 overflow-y-auto space-y-1.5 relative">
                   <div className="flex items-center justify-between mb-2 sticky top-0 bg-slate-950/95 py-1 z-10">
                     <span className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Paylasim Loglari ({sysLogs.length})</span>
                     <button onClick={() => { const txt = buildTimestampedLogText(sysLogs); navigator.clipboard?.writeText(txt).then(() => addSystemLog('Log panoya kopyalandi', 'success')).catch(() => { const ta = document.createElement('textarea'); ta.value = txt; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); addSystemLog('Log panoya kopyalandi (fallback)', 'success'); }); }} className="bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded-lg text-[10px] font-bold border border-slate-700 transition-all active:scale-95">KOPYALA</button>
                   </div>
-                  {sysLogs.map((log, idx) => { let c = "text-slate-400"; if (log.type === "success") c = "text-emerald-400 font-bold"; if (log.type === "warn") c = "text-amber-400 font-bold"; if (log.type === "error") c = "text-rose-400 font-bold animate-pulse"; return (<div key={idx} className={`flex items-start gap-2 ${c}`}><span className="text-slate-600 shrink-0 select-none">[{formatLogTimestamp(log)}]</span>{log.socialService && <BufferSocialIcon service={log.socialService} size={14} />}<span className="break-all">{log.text}</span></div>); })}
+                  {sysLogs.map((log, idx) => { let c = "text-slate-400"; if (log.type === "success") c = "text-emerald-400 font-bold"; if (log.type === "warn") c = "text-amber-400 font-bold"; if (log.type === "error") c = "text-rose-400 font-bold animate-pulse"; return (<div key={idx} className={`flex items-start gap-2 ${c}`}><span className="text-slate-600 shrink-0 select-none">[{formatLogTimestamp(log)}]</span><span className="break-all">{log.text}</span></div>); })}
                 </div>
               )}
             </div>
@@ -16661,7 +14492,7 @@ export default function App() {
               {sysLogs && sysLogs.length > 0 && (
                 <div className="mt-4 bg-slate-950/90 border border-slate-800 rounded-2xl p-4 text-left font-mono text-[11px] leading-relaxed max-h-48 overflow-y-auto space-y-1.5 relative">
                   <button onClick={() => { const txt = buildTimestampedLogText(sysLogs); navigator.clipboard?.writeText(txt).then(() => addSystemLog('Log panoya kopyalandi', 'success')).catch(() => { const ta = document.createElement('textarea'); ta.value = txt; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); addSystemLog('Log panoya kopyalandi (fallback)', 'success'); }); }} className="absolute top-2 right-2 bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded-lg text-[10px] font-bold border border-slate-700 transition-all active:scale-95 z-10">KOPYALA</button>
-                  {sysLogs.map((log, idx) => { let c = "text-slate-400"; if (log.type === "success") c = "text-emerald-400 font-bold"; if (log.type === "warn") c = "text-amber-400 font-bold"; if (log.type === "error") c = "text-rose-400 font-bold animate-pulse"; return (<div key={idx} className={`flex items-start gap-2 ${c}`}><span className="text-slate-600 shrink-0 select-none">[{formatLogTimestamp(log)}]</span>{log.socialService && <BufferSocialIcon service={log.socialService} size={14} />}<span className="break-all">{log.text}</span></div>); })}
+                  {sysLogs.map((log, idx) => { let c = "text-slate-400"; if (log.type === "success") c = "text-emerald-400 font-bold"; if (log.type === "warn") c = "text-amber-400 font-bold"; if (log.type === "error") c = "text-rose-400 font-bold animate-pulse"; return (<div key={idx} className={`flex items-start gap-2 ${c}`}><span className="text-slate-600 shrink-0 select-none">[{formatLogTimestamp(log)}]</span><span className="break-all">{log.text}</span></div>); })}
                   <div ref={logEndRef} />
                 </div>
               )}
@@ -16684,7 +14515,6 @@ export default function App() {
           title="Canlı gönderim ve sistem loglarını aç"
         >
           <Activity size={16} className="text-cyan-300" /> CANLI İZLEME
-          <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[10px] text-amber-200">{liveMonitorPendingTasks.length + liveMonitorRetryTasks.length} bekliyor</span>
         </button>
       ) : (
         <section
@@ -16714,21 +14544,12 @@ export default function App() {
               <div className="truncate text-[11px] font-black tracking-wider text-white">OTONOM · CANLI İZLEME</div>
               <div className="truncate text-[9px] text-slate-400">Sürüklemek için başlık çubuğunu tut · SÜRE / TOKEN sekmesinde ölçüm · Son kontrol {new Date(postingDashboardClock).toLocaleTimeString('tr-TR')}</div>
             </div>
-            <span className={`shrink-0 rounded-full px-2 py-1 text-[9px] font-black ${/error|storage-error/i.test(postingSchedulerState.state || '') ? 'bg-rose-500/15 text-rose-300' : /rate-limit|waiting/i.test(postingSchedulerState.state || '') ? 'bg-amber-500/15 text-amber-200' : 'bg-emerald-500/15 text-emerald-300'}`}>{postingSchedulerState.state || 'starting'}</span>
             <button type="button" onClick={copyLiveMonitorLogs} className="rounded-md bg-slate-800 px-2 py-1 text-[9px] font-bold text-slate-200 hover:bg-slate-700" title="Görünen logları kopyala">KOPYALA</button>
-            <button type="button" onClick={() => { setActiveTab('posting'); void refreshPostingDashboard(); }} className="rounded-md bg-cyan-700/80 px-2 py-1 text-[9px] font-bold text-white hover:bg-cyan-600" title="Ayrıntılı gönderim kuyruğunu aç">KUYRUK</button>
             <button type="button" onClick={() => setLiveMonitorOpen(false)} className="rounded-md bg-slate-800 px-2 py-1 text-[12px] font-black text-slate-300 hover:bg-rose-700 hover:text-white" aria-label="Canlı izlemeyi küçült" title="Küçült">—</button>
           </header>
 
-          <div className="grid shrink-0 grid-cols-4 gap-1.5 border-b border-slate-800 bg-slate-950 px-2.5 py-2">
-            <div className="rounded-lg border border-slate-800 bg-slate-900 px-2 py-1.5"><div className="text-[8px] text-slate-500">VİDEO</div><div className="text-base font-black text-white">{liveMonitorVideos.length}</div></div>
-            <div className="rounded-lg border border-slate-800 bg-slate-900 px-2 py-1.5"><div className="text-[8px] text-slate-500">YAYINLANDI</div><div className="text-base font-black text-emerald-300">{liveMonitorPostedTasks.length}</div></div>
-            <div className="rounded-lg border border-slate-800 bg-slate-900 px-2 py-1.5"><div className="text-[8px] text-slate-500">BEKLİYOR</div><div className="text-base font-black text-amber-200">{liveMonitorPendingTasks.length}</div></div>
-            <div className="rounded-lg border border-slate-800 bg-slate-900 px-2 py-1.5"><div className="text-[8px] text-slate-500">TEKRAR / LİMİT</div><div className="text-base font-black text-orange-300">{liveMonitorRetryTasks.length} / {liveMonitorDeferredVideos}</div></div>
-          </div>
-
           <div className="flex shrink-0 items-center gap-1.5 border-b border-slate-800 bg-slate-900/60 px-2.5 py-2">
-            {[['all','TÜM LOG'],['posting','GÖNDERİM'],['errors','HATA / LİMİT'],['metrics','SÜRE / TOKEN']].map(([id, label]) => <button type="button" key={id} onClick={() => setLiveMonitorFilter(id)} className={`rounded-lg px-2.5 py-1.5 text-[9px] font-black transition ${liveMonitorFilter === id ? 'bg-cyan-500/20 text-cyan-200 ring-1 ring-cyan-400/40' : 'bg-slate-800 text-slate-400 hover:text-slate-200'}`}>{label}</button>)}
+            {[['all','TÜM LOG'],['errors','HATA / LİMİT'],['metrics','SÜRE / TOKEN']].map(([id, label]) => <button type="button" key={id} onClick={() => setLiveMonitorFilter(id)} className={`rounded-lg px-2.5 py-1.5 text-[9px] font-black transition ${liveMonitorFilter === id ? 'bg-cyan-500/20 text-cyan-200 ring-1 ring-cyan-400/40' : 'bg-slate-800 text-slate-400 hover:text-slate-200'}`}>{label}</button>)}
             <span className="ml-auto text-[9px] text-slate-500">{liveMonitorLogs.length} satır</span>
           </div>
 
@@ -16736,7 +14557,6 @@ export default function App() {
             <div className="min-h-0 flex-1 overflow-y-auto bg-[#070b12] px-3 py-2 text-[10px] leading-relaxed space-y-3">
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 <div className="rounded-lg border border-cyan-900/70 bg-slate-900 p-2"><div className="text-[9px] text-slate-400">ORT. GAZETE → MP4</div><div className="text-base font-black text-cyan-200">{livePerfDuration(performanceAverageProductionMs)}</div><div className="text-[8px] text-slate-500">{performanceCompletedRuns.length} tamamlanan üretim</div></div>
-                <div className="rounded-lg border border-indigo-900/70 bg-slate-900 p-2"><div className="text-[9px] text-slate-400">ORT. BAŞLANGIÇ → BUFFER</div><div className="text-base font-black text-indigo-200">{livePerfDuration(performanceAverageDeliveryMs)}</div><div className="text-[8px] text-slate-500">{performanceCompletedDeliveries.length} tamamlanan akış</div></div>
                 <div className="rounded-lg border border-slate-800 bg-slate-900 p-2"><div className="text-[9px] text-slate-400">KAYITLI GERÇEK TOKEN</div><div className="text-base font-black text-emerald-200">{livePerfNumber(performanceActualTotalTokens)}</div><div className="text-[8px] text-slate-500">Girdi {livePerfNumber(performanceActualPromptTokens)} · Çıktı {livePerfNumber(performanceActualOutputTokens)}</div></div>
                 <div className="rounded-lg border border-slate-800 bg-slate-900 p-2"><div className="text-[9px] text-slate-400">TAHMİNİ METİN TOKENI</div><div className="text-base font-black text-amber-200">{livePerfNumber(performanceEstimatedTextTokens)}</div><div className="text-[8px] text-slate-500">{performanceEstimatedCalls.length} çağrı · görsel/ses tokenları hariç</div></div>
                 <div className="rounded-lg border border-emerald-900/70 bg-slate-900 p-2"><div className="text-[9px] text-slate-400">ORT. GERÇEK TOKEN / GAZETE</div><div className="text-base font-black text-emerald-200">{performanceAverageActualTokensPerRun == null ? '—' : livePerfNumber(performanceAverageActualTokensPerRun)}</div><div className="text-[8px] text-slate-500">{performanceRunsWithActualTokens.length} gazetede API kullanım verisi mevcut</div></div>
@@ -16756,7 +14576,7 @@ export default function App() {
               </div>
               <div className="rounded-lg border border-slate-800 bg-slate-900/80 p-2">
                 <div className="mb-2 flex items-center justify-between"><span className="font-black text-white">SON GAZETE İŞ AKIŞLARI</span><span className="text-[8px] text-slate-500">Üretim ve Buffer zamanı</span></div>
-                {performanceRuns.length ? <div className="space-y-1.5">{performanceRuns.slice(-8).reverse().map(run => { const runCalls = performanceApiCalls.filter(c => c.runId === run.id); const runActual = runCalls.filter(c => c.tokenSource === 'API kullanım üstverisi'); const runActualTokens = runActual.reduce((sum, c) => sum + (Number(c.totalTokens) || 0), 0); const runEstimated = runCalls.filter(c => c.tokenSource !== 'API kullanım üstverisi').reduce((sum, c) => sum + (Number(c.estimatedTextTotalTokens) || 0), 0); return <div key={run.id} className="border-b border-slate-800/70 pb-1.5"><div className="truncate font-bold text-slate-200" title={run.title || run.id}>{run.title || 'Gazete / video iş akışı'}</div><div className="flex flex-wrap gap-x-3 text-[9px]"><span className="text-cyan-200">Üretim: {livePerfDuration(run.productionMs)}</span><span className="text-indigo-200">Başlangıç → Buffer: {livePerfDuration(run.bufferMs)}</span><span className="text-emerald-200">{runActual.length ? `Token: ${livePerfNumber(runActualTokens)} gerçek` : `Token: ≈${livePerfNumber(runEstimated)}`}</span><span className="text-slate-500">{run.status || 'RUNNING'}</span></div></div>; })}</div> : <div className="py-3 text-center text-slate-500">Ortalama için henüz tamamlanan gazete yok. Sayaç bu sürümden itibaren ölçer.</div>}
+                {performanceRuns.length ? <div className="space-y-1.5">{performanceRuns.slice(-8).reverse().map(run => { const runCalls = performanceApiCalls.filter(c => c.runId === run.id); const runActual = runCalls.filter(c => c.tokenSource === 'API kullanım üstverisi'); const runActualTokens = runActual.reduce((sum, c) => sum + (Number(c.totalTokens) || 0), 0); const runEstimated = runCalls.filter(c => c.tokenSource !== 'API kullanım üstverisi').reduce((sum, c) => sum + (Number(c.estimatedTextTotalTokens) || 0), 0); return <div key={run.id} className="border-b border-slate-800/70 pb-1.5"><div className="truncate font-bold text-slate-200" title={run.title || run.id}>{run.title || 'Gazete / video iş akışı'}</div><div className="flex flex-wrap gap-x-3 text-[9px]"><span className="text-cyan-200">Üretim: {livePerfDuration(run.productionMs)}</span><span className="text-emerald-200">{runActual.length ? `Token: ${livePerfNumber(runActualTokens)} gerçek` : `Token: ≈${livePerfNumber(runEstimated)}`}</span><span className="text-slate-500">{run.status || 'RUNNING'}</span></div></div>; })}</div> : <div className="py-3 text-center text-slate-500">Ortalama için henüz tamamlanan gazete yok. Sayaç bu sürümden itibaren ölçer.</div>}
               </div>
               <div className="rounded-lg border border-slate-800 bg-slate-900/80 p-2">
                 <div className="mb-2 flex items-center justify-between"><span className="font-black text-white">SON GEMINI İŞLEMLERİ</span><span className="text-[8px] text-slate-500">İşlem · süre · token</span></div>
@@ -16768,17 +14588,12 @@ export default function App() {
             <div className="min-h-0 flex-1 overflow-y-auto bg-[#070b12] px-3 py-2 font-mono text-[10px] leading-relaxed">
               {liveMonitorLogs.length ? liveMonitorLogs.map((log, idx) => {
                 const c = log.type === 'success' ? 'text-emerald-300' : log.type === 'warn' ? 'text-amber-300' : log.type === 'error' ? 'text-rose-300' : 'text-slate-300';
-                return <div key={`${log.timestamp || ''}-${idx}`} className={`mb-1 flex items-start gap-2 border-b border-slate-900/70 pb-1 ${c}`}><span className="shrink-0 select-none text-slate-600">[{log.timestamp || '—'}]</span>{log.socialService && <span className="shrink-0"><BufferSocialIcon service={log.socialService} size={12} /></span>}<span className="min-w-0 break-words">{log.text}</span></div>;
+                return <div key={`${log.timestamp || ''}-${idx}`} className={`mb-1 flex items-start gap-2 border-b border-slate-900/70 pb-1 ${c}`}><span className="shrink-0 select-none text-slate-600">[{log.timestamp || '—'}]</span><span className="min-w-0 break-words">{log.text}</span></div>;
               }) : <div className="py-6 text-center text-slate-500">Bu filtrede henüz log yok.</div>}
               <div ref={liveMonitorEndRef} />
             </div>
           )}
 
-          <footer className="grid shrink-0 grid-cols-2 gap-2 border-t border-slate-800 bg-slate-900/95 px-3 py-2 text-[9px]">
-            <div className="min-w-0"><span className="text-slate-500">Son başarılı yayın</span><div className="truncate font-bold text-emerald-300">{liveMonitorFmt(liveMonitorLastPosted || postingSchedulerState.lastSuccessAt)}</div></div>
-            <div className="min-w-0"><span className="text-slate-500">Sonraki işlem</span><div className="truncate font-bold text-cyan-200">{liveMonitorFmt(postingSchedulerState.nextDispatchAt || (Number.isFinite(liveMonitorNextRetry) ? liveMonitorNextRetry : null))}</div></div>
-            <div className="col-span-2 truncate text-slate-400" title={postingSchedulerState.message || ''}>{postingSchedulerState.message || 'Kalıcı kuyruk izleniyor.'}</div>
-          </footer>
         </section>
       )}
       </>

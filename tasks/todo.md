@@ -16,9 +16,9 @@ bağlanacak. UI menüsü ekrandan birebir korunur; Canvas render + IndexedDB tar
 ## Buffer Kaldırma (v1.173 görevi)
 
 - [x] F1: mikro servis katmanı — media buffer köprüsü+token, gateway /api/buffer alias, .env Buffer satırı, README (kanıt: health keys{gemini:true}, 404)
-- [ ] F2: App.tsx yapraklar — PAYLAŞ/İPTAL butonları, Buffer paylaşım progress paneli, autoReview countdown (Buffer paylaşım metni), Gönderim Kuyruğu tab + kartları, Canlı İzleme buffer filtresi
-- [ ] F3: App.tsx subsystemler — posting scheduler + kuyruk sabitleri, share flow + BufferBudget, createReviewedBufferFlow, sosyal helper blok (81–133)
-- [ ] F4: v1.173 sürüm bump (başlık+APP_VERSION+not), vite build, commit+push
+- [x] F2: App.tsx yapraklar — PAYLAŞ butonu, bufferShareReport panosu, autoReview panosu+video hook'ları (playing/ended/block), Gönderim Kuyruğu tab+IIFE, canlı izleme GÖNDERİM filtresi+istatistik kartları, gazete kuyruk report şeritleri, guard-cancel satırları
+- [x] F3: App.tsx subsystemler — createReviewedBufferFlow (1690+), DurablePostingQueue+POSTING_* sabitleri, BufferBudget, shareToBufferAPI+enqueue/scheduler bloğu (11011–11967), bridge fonksiyonları (probe/graphql/upload), sosyal helper blok, autoSave onPrepared kuyruk bloğu, kalıntı log metinleri + BOS if/else temizliği (tur 1–4 scriptleri: scripts/remove-buffer*.mjs)
+- [x] F4: v1.173 sürüm bump (başlık+APP_VERSION+FIX_CHECKLIST BUFFER_REMOVED), ayrıca canlı izleme saati için 30sn hafif tick eklendi; kanıt: `npx vite build` ✓ 26 modül, ~2.11 MB; kalan [Bb]uffer satırları yalnız tarihî FIX_CHECKLIST girişleri + false positive (ArrayBuffer/wavBuffer/_logBuffer/AUDIO BufferSource)
 Not: Sürüm notlarındaki tarihî Buffer kayıtları silinmez (geçmiş dökümanı).
 
 Sürüm kuralı: SÜRÜM BAŞLIĞI + APP_VERSION (1,172) + SÜRÜM NOTLARI birlikte artırılır.
