@@ -1,7 +1,8 @@
 // ============================================================================
-// OTONOM v1.172 — GATEWAY MİKRO SERVİS (port: GATEWAY_PORT / 4100)
-// Sorumluluk: CORS, /health, /api/gemini-proxy (Gemini anahtarı sunucuda kalır),
-//             /api/* isteklerini analysis (4201) ve media (4202) servislerine yönlendir.
+// OTONOM v1.176 — GATEWAY MİKRO SERVİS (port: GATEWAY_PORT / 4100)
+// Sorumluluk: CORS, /health, /proxy (+/api/proxy) sayfa proxy, /api/gemini-proxy
+//             (Gemini anahtarı sunucuda kalır), /api/* isteklerini analysis (4201)
+//             ve media (4202) servislerine yönlendir.
 // İlke: zero-dependency (node:http + node:fetch) — server.mjs stiliyle uyumlu.
 // ============================================================================
 import { createServer } from 'node:http';
@@ -79,6 +80,65 @@ const handleGeminiProxy = async request => {
   });
 };
 
+// ---- Sayfa proxy (v1.176): Haber Linki akışı sunucu tarafından HTML çeker ----
+// Tarayıcıdan CORS yüzünden çekilemeyen haber sayfaları; üçüncü parti ücretsiz
+// CORS proxy'leri ölü/yoğun. Kendi gateway'imizde sıfır bağımlılık çözüm.
+const PROXY_TIMEOUT_MS = 25000;
+const PROXY_MAX_BYTES = 10 * 1024 * 1024;
+const PROXY_BLOCKED_HOST = /^(localhost$|127\.|10\.|192\.168\.|169\.254\.|172\.(?:1[6-9]|2\d|3[01])\.|\[::1\])/i;
+
+const readUpTo = async (body, cap) => {
+  const reader = body.getReader();
+  const chunks = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    chunks.push(value);
+    if (size > cap) {
+      try { reader.cancel(); } catch (_) {}
+      const error = new Error('PROXY_RESPONSE_TOO_LARGE');
+      error.status = 413;
+      throw error;
+    }
+  }
+  return Buffer.concat(chunks);
+};
+
+const handlePageProxy = async incomingUrl => {
+  const url = new URL(`http://local${incomingUrl}`);
+  let target;
+  try { target = new URL(url.searchParams.get('url') || ''); } catch (_) { target = null; }
+  if (!target || !/^https?:$/i.test(target.protocol) || PROXY_BLOCKED_HOST.test(target.hostname)) {
+    return json(400, 'INVALID_PROXY_TARGET', 'İzin verilmeyen proxy hedefi (yalnızca http/https dış adresler).');
+  }
+  let upstream;
+  try {
+    upstream = await fetch(target, {
+      headers: {
+        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+        accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/*,*/*;q=0.8',
+        'accept-language': 'tr,en;q=0.8',
+      },
+      redirect: 'follow',
+      signal: AbortSignal.timeout(PROXY_TIMEOUT_MS),
+    });
+  } catch (error) {
+    return json(502, 'PROXY_UPSTREAM_FAILED', `Hedef siteye gateway ulaşamadı: ${String(error?.message || error)}`);
+  }
+  const contentType = upstream.headers.get('content-type') || '';
+  if (contentType && !/^(?:image|text\/html|application\/(?:xhtml\+xml|xml))/i.test(contentType) && contentType !== 'application/json') {
+    return json(415, 'PROXY_UNSUPPORTED_CONTENT', `Desteklenmeyen içerik türü: ${contentType}`);
+  }
+  const payload = await readUpTo(upstream.body, PROXY_MAX_BYTES);
+  return new Response(payload, {
+    status: upstream.status,
+    statusText: upstream.statusText,
+    headers: { 'content-type': contentType || 'text/html; charset=utf-8', 'cache-control': 'no-store', ...CORS_HEADERS },
+  });
+};
+
 // -- Alt servislere passthrough ----------------------------------------------
 const handlePassthrough = (name, port) => async request => {
   const targetPath = request.url || '/';
@@ -131,6 +191,13 @@ const server = createServer(async (request, response) => {
     }
     if (request.url.startsWith('/api/gemini-proxy')) {
       const upstream = await handleGeminiProxy(request);
+      response.writeHead(upstream.status, Object.fromEntries(upstream.headers));
+      response.end(Buffer.from(await upstream.arrayBuffer()));
+      return;
+    }
+    // v1.176: Haber Linki akışı için ham sayfa/görsel proxy (/#/api/proxy takma adı).
+    if (request.url.startsWith('/proxy') || request.url.startsWith('/api/proxy')) {
+      const upstream = await handlePageProxy(request.url);
       response.writeHead(upstream.status, Object.fromEntries(upstream.headers));
       response.end(Buffer.from(await upstream.arrayBuffer()));
       return;

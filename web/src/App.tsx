@@ -1,12 +1,13 @@
 // ============================================================================
-// OTONOM Chatgpt_1.175 — SÜRÜM BAŞLIĞI (her değişiklikte burayı, APP_VERSION'ı ve SÜRÜM NOTLARI'nı birlikte artır)
+// OTONOM Chatgpt_1.176 — SÜRÜM BAŞLIĞI (her değişiklikte burayı, APP_VERSION'ı ve SÜRÜM NOTLARI'nı birlikte artır)
 // Program menüsündeki rozet APP_VERSION.toBadge() ile bu sürümden otomatik üretilir.
-// v1.175 ÖZET: Gemini analiz zincirindeki iki kök neden giderildi: (1) emekliye ayrılmış
-// 'gemini-2.5-flash-preview-09-2025' modeli güncel 'gemini-2.5-flash' ile değiştirildi
-// (HTTP_FAIL_404 / NO_SCENES_GENERATED yapmıyor), (2) Gemini'nin google_search aracı ile
-// JSON yanıt şemasını birlikte reddetmesi (HTTP 400) tek noktadan çözüldü: araçlı isteklerde
-// şema metin talimatına gömülür, gevşek parser JSON'u kesip alır.
-// ============================================================================
+// v1.176 ÖZET: Haber Linki akışı "gerçek resim alınamadı (NetworkError/timeout)"
+// hatası giderildi. Kök neden: sayfa çekimi tarayıcıdan yapılıyordu (CORS engeli)
+// ve 6 adayın 5'i ölü üçüncü parti CORS proxy, 1'i de hiçbir kurulumda dinlenmeyen
+// localhost:3457 idi. Çözüm: kendi gateway'imiz (4100) sıfır bağımlılık /proxy+
+// /api/proxy route'una kavuştu (server-side fetch: tarayıcı UA, 25 sn timeout,
+// 10 MB üst sınır, http/https dış adres zorunluluğu — SSRF guard). Uygulamada
+// yerel aday bu route'a bağlandı ve aday sırasında öne alındı.
 // ============================================================================
 // OTONOM - Gemini Canvas Uyumlu Versiyon (Firebase KALDIRILDI — Local-First)
 // ============================================================================
@@ -86,7 +87,7 @@ const { Download, RotateCcw, UploadCloud, Music, Trash2, Volume2, Clock, Loader2
 // M1: CONSTANTS & CONFIG
 // ============================================================================
 const APP_VERSION = {
-  major: 1, minor: 175, hotfix: 'Chatgpt_1.175',
+  major: 1, minor: 176, hotfix: 'Chatgpt_1.176',
   short() { return `${this.major}.${this.minor}`; },
   toString() { return `OTONOM Chatgpt_${this.major}.${this.minor}`; },
   toBadge() { return `${this.toString()} • One-Page`; }
@@ -288,12 +289,22 @@ const _gazeteProxyEndpointsForBase = (base) => ({
 });
 const GAZETE_PROXY_ENDPOINTS = _gazeteProxyEndpointsForBase(OTONOM_BACKEND || 'http://localhost:3457');
 const _isCanvasHttps = typeof window !== 'undefined' && window.location?.protocol === 'https:';
+// v1.176: yerel sayfa proxy'si artık KENDİ gateway'imizde (root .env → GATEWAY_PORT,
+// vite define; /proxy route'unda server-side fetch → CORS orada yok). Eski
+// localhost:3457 desktop köprüsü hiçbir kurulumda dinlenmediği için adaylar hep ölüydü.
+const _otonomLocalProxy = (u) => {
+  let base = 'http://127.0.0.1:4100';
+  try { if (typeof __OTONOM_GATEWAY__ === 'string' && __OTONOM_GATEWAY__) base = __OTONOM_GATEWAY__; } catch (e) {}
+  return `${base}/proxy?url=${encodeURIComponent(u)}`;
+};
 const CORS_PROXIES = [
   { url: (u) => `https://www.whateverorigin.org/get?url=${encodeURIComponent(u)}`, json: true },
   { url: (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`, json: false },
   { url: (u) => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`, json: true },
   { url: (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`, json: false },
-  ...(_isCanvasHttps ? [] : [{ url: (u) => `http://localhost:3457/proxy?url=${encodeURIComponent(u)}`, json: false, local: true }]),
+  // Lokal proxy ARTIK ÖNCE SIRADA: kapalı/kısıtlı olduklar için üçüncü parti proxy'lere
+  // başvurmadan önce kendi servisimize gidiyoruz.
+  ...(_isCanvasHttps ? [] : [{ url: _otonomLocalProxy, json: false, local: true }]),
 ];
 
 // ============================================================================
@@ -1173,6 +1184,7 @@ const collectUltimateCoverReferences = async (jobState) => {
 const useDebounce = (value, delay = 300) => { const [debounced, setDebounced] = useState(value); useEffect(() => { const timer = setTimeout(() => setDebounced(value), delay); return () => clearTimeout(timer); }, [value, delay]); return debounced; };
 
 const FIX_CHECKLIST = Object.freeze([
+  { version: '1.176', key: 'LOCAL_GATEWAY_PAGE_PROXY', text: 'Haber Linki akışı "Haber linkinden gerçek resim alınamadı (... corsproxy.io: The operation was aborted | localhost: NetworkError...)" ile duruyordu. Kök neden: sayfa HTML tarayıcıdan çekiliyordu (CORS engeli) — allorigins/corsproxy/codetabs/whateverorigin ücretsiz proxy havuzu ölü veya sınır boğmasında; localhost:3457 yerel adayında ise hiçbir şey dinlemiyordu. Çözüm: gateway (4100) sıfır bağımlılık /proxy ve /api/proxy route\'u aldı — server-side fetch (tarayıcı UA, 25 sn timeout, 10 MB üst sınır, yalnız http/https dış adres = SSRF guard, CORS başlıkları) ham HTML/döndürür; Haber Linki kazandan bağımsız artık bütün üçüncü parti proxy\'lerden önce KENDİ servisini dener. Görsel indirme (_fetchPhotoDataUrl) de yerel gateway proxy\'sini aday gördü (hotlink korumalı gazete fotoğrafları). Kanıt: probe-gateway-proxy + probe-nefes-article gerçek linklerle (nefes.com.tr ana sayfa HTML 184 KB, makale og:image JPEG 179 KB, SSRF guard 400).' },
   { version: '1.175', key: 'GEMINI_MODEL_RETIRE_AND_SEARCH_JSON_FIX', text: 'Gazete/haber üretimi "Blok analiz hatası: HTTP_FAIL_404" + NO_SCENES_GENERATED ile duruyordu. Kök nedenler: (1) AI_CONFIG.GEMINI_MODEL "gemini-2.5-flash-preview-09-2025" Google tarafından emekliye ayrıldı → tüm analiz/doğrulama/onarım çağrıları 404; güncel "gemini-2.5-flash" ile değiştirildi (google_search aracıyla birlikte tek başına doğrulandı 200 OK). (2) Gemini artık google_search aracındaki isteklerde responseMimeType/JSON şemasını kabul etmiyor (HTTP 400). Tek noktadan _stripJsonConfigForSearch yardımcısı eklendi: araçlı isteklerde JSON mime/şema kaldırılır, şema STRICT JSON OUTPUT metin talimatı olarak gömülür; _callGeminiAndParse zaten kod çitlerini kesip {…} dilimlediği için tüm akışlar (analiz, karşılaştırma, iddia) şeffaf düzelir. Kanıt: A/B kombinasyon probu (araç tek 200, şema tek 200, ikisi birlikte 400) + build.' },
   { version: '1.174', key: 'FREE_IMAGE_WIKI_FALLBACK', text: 'Google tüm görsel modellerinde (Nano Banana ailesi) ücretsiz katman kotasını "limit: 0" yaptı: hiçbir görsel isteği artık ücretsiz verilmiyor. AI görsel üretimi tüm Gemini görsel modelleri hata verince — jenerik prosedürel yedeğe geçmeden önce — SIFIR MALIYET gerçek görsel araması yapar: (1) Türkçe Wikipedia aramasında en üst maddenin sayfa görseli, (2) Wikimedia Commons bitmap araması. Bu yol anahtar/ücret/faturalandırma gerektirmez; dönen görsel Atatürk akışındaki gibi doğrudan görsel kaynağı olarak kullanılır. Gazete Yorumla 16:9 gerçek sayfa referanslı kapak zorunluluğu aynen korunur (bu akış jenerik yedeğe sessizce düşmez, hata verir).' },
   { version: '1.173', key: 'BUFFER_REMOVED', text: 'Buffer sosyal paylaşım katmanı koddan tamamen çıkarıldı: PAYLAŞ düğmesi ve paylaşım rapor panosu, kalıcı gönderim kuyruğu + scheduler (IndexedDB store’ları da dahil), Buffer API/GraphQL akışı, Buffer Bridge Chrome/Firefox uzantı protokolü, Buffer istek bütçesi (rate-limit ledger), otomatik Buffer zamanlama anahtarları ve canlı izlemedeki gönderim filtresi/kartları kaldırıldı. Üretim artık yalnız ses/video üretir ve MP4’ü yerel ortamda saklar/indirir; gazete sırası, önizleme-ended kapısı, MP4 onarım döngüsü ve süre/token ölçümleri aynen korunur.' },
@@ -8237,7 +8249,11 @@ const NewsPhotoService = {
       `https://corsproxy.io/?${enc}`,
       `https://api.allorigins.win/raw?url=${enc}`,
       `https://api.codetabs.com/v1/proxy?quest=${enc}`,
-      ...((typeof _isCanvasHttps !== 'undefined' && _isCanvasHttps) ? [] : [`http://localhost:3457/proxy?url=${enc}`])
+      ...((_isCanvasHttps) ? [] : [
+        // v1.176: ölü localhost:3457 yerine kendi gateway'imizdeki sayfa/sw görsel proxy'si.
+        _otonomLocalProxy(imageUrl),
+        `http://localhost:3457/proxy?url=${enc}`
+      ])
     ];
     const attempt = async (src) => {
       const controller = new AbortController();
