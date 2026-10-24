@@ -1,11 +1,11 @@
 // ============================================================================
-// OTONOM Chatgpt_1.174 — SÜRÜM BAŞLIĞI (her değişiklikte burayı, APP_VERSION'ı ve SÜRÜM NOTLARI'nı birlikte artır)
+// OTONOM Chatgpt_1.175 — SÜRÜM BAŞLIĞI (her değişiklikte burayı, APP_VERSION'ı ve SÜRÜM NOTLARI'nı birlikte artır)
 // Program menüsündeki rozet APP_VERSION.toBadge() ile bu sürümden otomatik üretilir.
-// v1.174 ÖZET: Gemini görsel üretimi kotasız/ücretsiz kalınca (Google görsel modellerinin
-// ücretsiz kotası "limit: 0" oldu) AI görsel hatasında yeni sıfır maliyet yedeği devrede:
-// Wikipedia/Commons serbest lisanslı gerçek görsel araması jenerik prosedürel yedeğe
-// düşmeden önce denenir. Anahtar gerektirmez; metin (OpenRouter/Groq/NVIDIA/Gemini) ve
-// TTS (Gemini) zincirleri aynen korunur.
+// v1.175 ÖZET: Gemini analiz zincirindeki iki kök neden giderildi: (1) emekliye ayrılmış
+// 'gemini-2.5-flash-preview-09-2025' modeli güncel 'gemini-2.5-flash' ile değiştirildi
+// (HTTP_FAIL_404 / NO_SCENES_GENERATED yapmıyor), (2) Gemini'nin google_search aracı ile
+// JSON yanıt şemasını birlikte reddetmesi (HTTP 400) tek noktadan çözüldü: araçlı isteklerde
+// şema metin talimatına gömülür, gevşek parser JSON'u kesip alır.
 // ============================================================================
 // ============================================================================
 // OTONOM - Gemini Canvas Uyumlu Versiyon (Firebase KALDIRILDI — Local-First)
@@ -86,7 +86,7 @@ const { Download, RotateCcw, UploadCloud, Music, Trash2, Volume2, Clock, Loader2
 // M1: CONSTANTS & CONFIG
 // ============================================================================
 const APP_VERSION = {
-  major: 1, minor: 174, hotfix: 'Chatgpt_1.174',
+  major: 1, minor: 175, hotfix: 'Chatgpt_1.175',
   short() { return `${this.major}.${this.minor}`; },
   toString() { return `OTONOM Chatgpt_${this.major}.${this.minor}`; },
   toBadge() { return `${this.toString()} • One-Page`; }
@@ -102,7 +102,7 @@ const RENDER_CONFIG = {
 
 const AI_CONFIG = {
   TEMPERATURE: 0.8, MAX_OUTPUT_TOKENS: 150, SCENE_COUNT: 3,
-  GEMINI_MODEL: 'gemini-2.5-flash-preview-09-2025',
+  GEMINI_MODEL: 'gemini-2.5-flash', // v1.175: 'gemini-2.5-flash-preview-09-2025' Google tarafından emekliye ayrıldı (404); bugün doğrulanan sürüm.
   OCR_MODELS: ['gemini-2.5-flash-preview-09-2025', 'gemini-1.5-flash', 'gemini-1.5-pro']
 };
 
@@ -1173,6 +1173,7 @@ const collectUltimateCoverReferences = async (jobState) => {
 const useDebounce = (value, delay = 300) => { const [debounced, setDebounced] = useState(value); useEffect(() => { const timer = setTimeout(() => setDebounced(value), delay); return () => clearTimeout(timer); }, [value, delay]); return debounced; };
 
 const FIX_CHECKLIST = Object.freeze([
+  { version: '1.175', key: 'GEMINI_MODEL_RETIRE_AND_SEARCH_JSON_FIX', text: 'Gazete/haber üretimi "Blok analiz hatası: HTTP_FAIL_404" + NO_SCENES_GENERATED ile duruyordu. Kök nedenler: (1) AI_CONFIG.GEMINI_MODEL "gemini-2.5-flash-preview-09-2025" Google tarafından emekliye ayrıldı → tüm analiz/doğrulama/onarım çağrıları 404; güncel "gemini-2.5-flash" ile değiştirildi (google_search aracıyla birlikte tek başına doğrulandı 200 OK). (2) Gemini artık google_search aracındaki isteklerde responseMimeType/JSON şemasını kabul etmiyor (HTTP 400). Tek noktadan _stripJsonConfigForSearch yardımcısı eklendi: araçlı isteklerde JSON mime/şema kaldırılır, şema STRICT JSON OUTPUT metin talimatı olarak gömülür; _callGeminiAndParse zaten kod çitlerini kesip {…} dilimlediği için tüm akışlar (analiz, karşılaştırma, iddia) şeffaf düzelir. Kanıt: A/B kombinasyon probu (araç tek 200, şema tek 200, ikisi birlikte 400) + build.' },
   { version: '1.174', key: 'FREE_IMAGE_WIKI_FALLBACK', text: 'Google tüm görsel modellerinde (Nano Banana ailesi) ücretsiz katman kotasını "limit: 0" yaptı: hiçbir görsel isteği artık ücretsiz verilmiyor. AI görsel üretimi tüm Gemini görsel modelleri hata verince — jenerik prosedürel yedeğe geçmeden önce — SIFIR MALIYET gerçek görsel araması yapar: (1) Türkçe Wikipedia aramasında en üst maddenin sayfa görseli, (2) Wikimedia Commons bitmap araması. Bu yol anahtar/ücret/faturalandırma gerektirmez; dönen görsel Atatürk akışındaki gibi doğrudan görsel kaynağı olarak kullanılır. Gazete Yorumla 16:9 gerçek sayfa referanslı kapak zorunluluğu aynen korunur (bu akış jenerik yedeğe sessizce düşmez, hata verir).' },
   { version: '1.173', key: 'BUFFER_REMOVED', text: 'Buffer sosyal paylaşım katmanı koddan tamamen çıkarıldı: PAYLAŞ düğmesi ve paylaşım rapor panosu, kalıcı gönderim kuyruğu + scheduler (IndexedDB store’ları da dahil), Buffer API/GraphQL akışı, Buffer Bridge Chrome/Firefox uzantı protokolü, Buffer istek bütçesi (rate-limit ledger), otomatik Buffer zamanlama anahtarları ve canlı izlemedeki gönderim filtresi/kartları kaldırıldı. Üretim artık yalnız ses/video üretir ve MP4’ü yerel ortamda saklar/indirir; gazete sırası, önizleme-ended kapısı, MP4 onarım döngüsü ve süre/token ölçümleri aynen korunur.' },
   { version: '1.171', key: 'MP4_AUTO_REPAIR_LOOP', text: 'MP4 üretimi hata verince artık 2 denemede pes edilmez: 10 adımlık otomatik onarım döngüsü. Her başarısız denemeden sonra FFmpeg runtime sıfırlanır ve strateji sadeleşir (1: süre kilidi+fade+kapak, 2: süre kilidi yok, 3: kapak bindirme yok, 4: ses filtresi yok; 2-3-4 tekrar eder). FFmpeg’in son log satırları hata mesajına eklenir. Ayrıca çift döngüsü adımı MP4/FFmpeg hatasıyla bitiyorsa video baştan üretilerek en fazla 2 kez daha denenir; doğru MP4 çıkana kadar sıradaki adıma geçilmez.' },
@@ -2768,7 +2769,23 @@ const ocrWithFallback = async (b64Data, imgType, apiKey, logPrefix = 'Görsel') 
   return '';
 };
 
+// v1.175: Gemini, google_search aracını responseMimeType/JSON şemasıyla birlikte REDDEDİYOR
+// ("Tool use with a response mime type: 'application/json' is unsupported", HTTP 400).
+// Emekli öğe alerti: eski 'gemini-2.5-flash-preview-09-2025' modeli de 404 döndürüyordu.
+// Çözüm: araçlı isteklerde JSON mime/şeması kaldırılır; şema METİN talimatı olarak gömülür.
+// _callGeminiAndParse zaten kod çitlerini keseip {…} dilimleyerek gevşek parse ediyor.
+const _stripJsonConfigForSearch = (payload) => {
+  if (!payload?.tools?.length || !payload.generationConfig?.responseSchema) return payload;
+  const schemaText = JSON.stringify(payload.generationConfig.responseSchema);
+  delete payload.generationConfig.responseMimeType;
+  delete payload.generationConfig.responseSchema;
+  const jsonRule = `STRICT JSON OUTPUT: Dönüşün TAMAMI şu şemaya uyan TEK geçerli JSON olsun (markdown çiti, açıklama, ek metin YASAK). Şema: ${schemaText}`;
+  if (payload.systemInstruction?.parts?.[0]?.text) payload.systemInstruction.parts[0].text += `\n\n${jsonRule}`;
+  payload.contents[0].parts.push({ text: jsonRule });
+  return payload;
+};
 const _callGeminiAndParse = async (url, payload) => {
+  payload = _stripJsonConfigForSearch(payload);
   const r = await NetworkUtils.fetchWithRetry(url, { method: 'POST', body: JSON.stringify(payload) });
   if (!r) throw new Error('API yanıt döndürmedi');
   const data = await r.json();
