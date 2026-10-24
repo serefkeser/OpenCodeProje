@@ -1,6 +1,10 @@
 // ============================================================================
 // OTONOM Chatgpt_1.181 — SÜRÜM BAŞLIĞI (her değişiklikte burayı, APP_VERSION'ı ve SÜRÜM NOTLARI'nı birlikte artır)
 // Program menüsündeki rozet APP_VERSION.toBadge() ile bu sürümden otomatik üretilir.
+// v1.183 ÖZET: Kullanıcı talebi — panoya kopyalanan canlı izleme logunun
+// İLK SATIRINA sürüm eklendi ("OTONOM Chatgpt_1.183 — canlı izleme logları
+// (tarih saat)"); kullanıcı log raporları artık sürüm doğrulamasına tek satırda
+// elverişli. SÜREÇ TXT zaten başlıkta "Sürüm:" satırı taşıyordu (değişmedi).
 // v1.182 ÖZET: Üretim kanıtı (23:30 Nefes haberi): zincir devraldı, JSON sorunsuz
 // parse etti AMA videoSlides 0 sahne döndürdü → NO_SCENES_GENERATED. Tanı:
 // probe-scenes-chain.mjs (gerçek üretim sysPrompt'u App'ten birebir çıkarılıp şema
@@ -153,7 +157,7 @@ const { Download, RotateCcw, UploadCloud, Music, Trash2, Volume2, Clock, Loader2
 // M1: CONSTANTS & CONFIG
 // ============================================================================
 const APP_VERSION = {
-  major: 1, minor: 182, hotfix: 'Chatgpt_1.182',
+  major: 1, minor: 183, hotfix: 'Chatgpt_1.183',
   short() { return `${this.major}.${this.minor}`; },
   toString() { return `OTONOM Chatgpt_${this.major}.${this.minor}`; },
   toBadge() { return `${this.toString()} • One-Page`; }
@@ -1250,6 +1254,7 @@ const collectUltimateCoverReferences = async (jobState) => {
 const useDebounce = (value, delay = 300) => { const [debounced, setDebounced] = useState(value); useEffect(() => { const timer = setTimeout(() => setDebounced(value), delay); return () => clearTimeout(timer); }, [value, delay]); return debounced; };
 
 const FIX_CHECKLIST = Object.freeze([
+  { version: '1.183', key: 'LIVE_MONITOR_CLIPBOARD_VERSION_HEADER', text: 'Kullanıcı talebi: panoya kopyalanan canlı izleme logunun başına sürüm eklensin; çünkü yapıştırdığı log kayıtları hangi app sürümünden geldiği birebir görünmüyordu (SÜREÇ TXT ise başlığındaki Sürüm satırı taşıyordu). Çözüm: copyLiveMonitorLogs çıktısının İLK satırı artık "OTONOM Chatgpt_1.183 — canlı izleme logları (tr-TR tarih)" biçiminde sürüm dosyalı; kalan metin aynen zaman damgalı satırlar. Sessiz davranış değişikliği yok.' },
   { version: '1.182', key: 'ANALYSIS_ZERO_SLIDES_CHAIN_RETRY', text: 'Üretim: Haber Linki analizinde zincir (openai/gpt-oss-120b) devraldı, JSON sorunsuz parse oldu AMA videoSlides 0 sahne döndürdü ve üretim NO_SCENES_GENERATED ile durdu. Tanı: probe-scenes-chain.mjs gerçek üretim sysPrompt\'unu App.tsx\'ten birebir çıkarıp şema talimatını metin olarak gömdü, gateway zincirini ve gerçek Nefes makale metnini kullandı ve 3 tur koştu → her turda 12 sahne; zincir sistematik olarak boş döndürmüyor ([Muhtemelen] tek seferlik dalgınlık; zincir yolunda retry yoktu ve JSON güvenle parse sonlandığı için boşluk sessizce geçti). Çözüm: analyzeContent\'te videoSlides yok/boşsa anahtar-listeli WARN yazılır ve SAHNE ZORUNLULUĞU talimatı (EN AZ N sahne; ASLA BOŞ DÖNDÜRME) ile TEK yeniden istek gönderilir; yine boşsa mevcut fail-closed NO_SCENES davranışı aynen sürer. Başarıda "İçerik analizi: N sahne döndürüldü" bilgi satırı düşer.' },
   { version: '1.181', key: 'TR_TTS_THOUSAND_SEPARATOR_GROUPS', text: 'Seslendirmede "yaklaşık 3 000" ifadesi "üç" + "000" diye iki bağımsız sayı sanılıp "üç sıfır (sıfır) gazeteci" gibi okunuyordu (kullanıcı kaydında doğrulanan gerçek üretim hatası). Kök neden: Türkçe TTS normalizer\'ındaki binlik ayraçlar (boşluk / nokta / thin-space) bilinmiyordu; bağımsız-sayı kuralı her rakam kümesini tek tek sözcüğe çeviriyordu. Çözüm: bağımsız-sayı kuralından ÖNCE binlik ayraç birleştirme eklendi — "3.000" / "3 000" / "3 000 000" / "85.450 TL" tek sayıya çevrilip Türkçe sözcükte yazılır (üç bin, üç milyon, seksen beş bin dört yüz elli); tarih/saat/ondalık kuralları zaten bundan önce işlediği için korunur. Kanıt: probe-tr-number-norm.mjs simülasyonu + üretimde v1.35 normalize günlük satırı (önce/sonra metnini basar).' },
   { version: '1.181', key: 'COVER_SILHOUETTE_FALLBACK_FROM_SCENE_IMAGE', text: 'Kullanıcı talebi: kapak görseli (tImg) yüklenemeyen Haber Linki üretimlerinde arka planda gazete kapağı örneğindeki gibi silüet görsel olsun (bomboş gradyan kare bilinen kötü örnek). Çözüm: tImg boşsa render sırası öncelikli adaylar (assets.images[0] = haber fotoğrafı veya AI görsel, sonra images[1], sonra outro görseli) dener; yüklenen İLK aday drawThumbnail\'a img olarak verilir (koyu kaplama + glow + clickbait başlık ile). Siyah kare ön kontrolü (BLACK_FRAME_PREFLIGHT), recorder-start primer çizimi ve kapak sahnesi (renderScene) aynı görseli kullanır (coverImageForScene) — silüet ilk 1.2 sn mühründe korunur. Hiçbir aday yüklenemezse v1.177 gradyan şablonu aynen kullanılır; hangi kaynak kullanıldığı günlüğe yazılır.' },
@@ -14259,7 +14264,9 @@ export default function App() {
     try { SafeStorage.setItem('ns_liveMonitorPosition', JSON.stringify(liveMonitorPosition)); } catch (_) {}
   };
   const copyLiveMonitorLogs = () => {
-    const txt = buildTimestampedLogText(liveMonitorLogs);
+    // v1.183: Panoya kopyalanan logun ilk satırı sürüm taşır — kullanıcı kayıtları
+    // sürüm doğrulamasına hemen elverişli olur (SÜREÇ TXT zaten Sürüm satırı alıyordu).
+    const txt = `${APP_VERSION.toString()} — canlı izleme logları (${new Date().toLocaleString('tr-TR')})\n` + buildTimestampedLogText(liveMonitorLogs);
     const fallbackCopy = () => {
       const ta = document.createElement('textarea'); ta.value = txt; ta.style.position = 'fixed'; ta.style.opacity = '0'; document.body.appendChild(ta); ta.select();
       try { document.execCommand('copy'); addSystemLog('Canlı izleme logları panoya kopyalandı.', 'success'); }
