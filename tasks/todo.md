@@ -44,3 +44,16 @@ Not: .env anahtarlar ASLA repoya yazılmaz.
 - [x] v1.185: Firefox uzantısı bağımsızlık — müzik kütüphanesi gateway 4100 /api/music kalıcı deposuna taşındı (services/gateway/muzik/ klasörü; katalog.json + <id>.audio; fm_ id regex, 32 MB, yalnız audio mime). App müzik metodları (save/getAll/get/remove/mirror/refresh) uzantı MUSIC_* protokolünden gateway fetch'e bağlandı; musicExtensionRequest+probeMusicExtension silindi; yerel IndexedDB birincil önbellek; gateway kapalıysa açık WARN. Buffer köprüsü v1.173'te zaten çıkarılmıştı, gazete fetch uzantısız zinciri aynen korundu → uzantı artık tamamen gereksiz. Kanıt: probe-gateway-music.mjs 8/8 PASS ( geçici port), `npx vite build` ✓ (27.22s), uzaktan gateway restart sonrası /health ok, app ilk açılışta kendi yerel kütüphanesini gateway diskine aynaladı (polyushka.mp3, 955 KB katalogda; rozet 'Gateway Kalıcı Müzik (4100)' görünüyor; uzantı rozeti temiz).
 - [x] v1.186: GAZETE_MANIFEST_VERIFY "sayfalar alındı ama eşleşme yok" dalı kaynak başına en güncel görülen tarihi açıkça raporlar + DURMA korundu (fail-closed). Tanı kanıtı (25 Ekim gece): GazeteOku/tekal HÜRRİYET 24 Ekim 2026; Aydınlık storage yalnız 2026-10-24 (gateway dışı doğrudan çekişte aynı); GZT listesi JS-render, SSR'de tarih-image eşleşmesiz → kaynaklar günün sayılarını yayımlamamıştı. Kanıt: `npx vite build` ✓ (15.57s), rozet Chatgpt_1.186.
 
+---
+
+## DEVAM HATTI — yarın kaldığımız yerden (otta anınış 25/26 Ekim gecesi)
+
+**Son sürüm:** v1.186 (`167c504`, push edildi). v1.184 (`f06885e`), v1.185 (`10271a4`) öcesinde pushlandı. Çalışan ağ: app :5173, gateway :4100 (/api/music canlı), analysis :4201, media :4202 — hepsi yukarı.
+
+**Yarın yapılacaklar (öncelik sıralı):**
+1. **Kullanıcı doğrulaması:** Ctrl+F5 → rozet Chatgpt_1.186; gazete SEÇ ekranını sabah yenilediğinde kaynaklar 25/26 Ekim sayılarını yayımladıysa liste doğrulanıyor mu → log satırlarını paylaşacak; hâlâ duruyorsa v1.186 mesajındaki per-kaynak tarih bilgisi tanıyı doğrudan verecek.
+2. **Müzik gateway onayı:** Müzik panelinde 'Gateway Kalıcı Müzik (4100)' rozeti + parça sayısı; bir üretim çalıştırıp BGM satırının "yerel kütüphaneye aynalandı" olduğunu ve titreşipsiz müzikli video çıktığını kontrol.
+3. **Firefox uzantısını kaldırma testi:** uzantı kapalı/kaldırılmışken gazete SEÇ + müzik + haber linki akışlarının yalnız gateway/yerel yollarla eksiksiz çalışması (v1.185'in asıl hedefi; kanıtlandı ama kullanıcı el çekişi ile teyit edilmeli).
+4. **Bilinen bekleyen küçük madde (acil değil):** MP4 analizinde saptanan kırmızı altyazı bandındaki cümle-ortaş kırıkları ("önünden başlayan yürüyüş," / "Aynı zamanda İstanbul, Ankara, Bursa ve diğer") — progressive altyazı sayfa bölmeleri karakter bütçesine göre kesiliyor; istenirse cümle-sınırı bölme düzeltmesi (v1.187 adayı).
+5. Git adayları (kalıcı): commit edilmeyi bekleyen iz görüntüsü yok; `OTONOM_1_105_Firefox.zip` ve `tasks/nefes-real-article.txt` bilinçli olarak untracked bırakıldı (kullanıcı verisi/analiz malzemesi).
+
