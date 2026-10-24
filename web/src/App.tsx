@@ -1,6 +1,16 @@
 // ============================================================================
 // OTONOM Chatgpt_1.181 — SÜRÜM BAŞLIĞI (her değişiklikte burayı, APP_VERSION'ı ve SÜRÜM NOTLARI'nı birlikte artır)
 // Program menüsündeki rozet APP_VERSION.toBadge() ile bu sürümden otomatik üretilir.
+// v1.184 ÖZET: Kullanıcı üretim-dosyası analizi (MP4 ölçtüğü kanıt) üç boşluk
+// yakaladı. (1) KAPAK SESSİZLİĞİ: clickbait TTS null döndüğünde bile "hazır"
+// SUCCESS logu basılıyor, kapak yazıları ekranda ama seslendirme yok (0-2 sn
+// konuşma-bandı RMS -37dB = yalnız müzik). Null → WARN + tek retry, yine null →
+// açık ERROR. (2) 0:48-0:52 YAZI VAR/KONUŞMA YOK: sahne TTS null sessizce
+// atanıyordu; render'da o sahne 4 sn deterministik sessiz oynatır (sessiz
+// fallback). artık birebir same: WARN + tek retry, yine null → açık ERROR ve
+// render null path'te açık WARN. Konuşma haritası kanıt: 2-47 ve 52-65 sürekli
+// konuşma; 0-2 ve 48-51 yalnız müzik. (3) Sunleş Son Söz/outro kareleri ve ses
+// düzeyleri temiz (max -3.1 dB, kırpma yok).
 // v1.183 ÖZET: Kullanıcı talebi — panoya kopyalanan canlı izleme logunun
 // İLK SATIRINA sürüm eklendi ("OTONOM Chatgpt_1.183 — canlı izleme logları
 // (tarih saat)"); kullanıcı log raporları artık sürüm doğrulamasına tek satırda
@@ -157,7 +167,7 @@ const { Download, RotateCcw, UploadCloud, Music, Trash2, Volume2, Clock, Loader2
 // M1: CONSTANTS & CONFIG
 // ============================================================================
 const APP_VERSION = {
-  major: 1, minor: 183, hotfix: 'Chatgpt_1.183',
+  major: 1, minor: 184, hotfix: 'Chatgpt_1.184',
   short() { return `${this.major}.${this.minor}`; },
   toString() { return `OTONOM Chatgpt_${this.major}.${this.minor}`; },
   toBadge() { return `${this.toString()} • One-Page`; }
@@ -1254,6 +1264,7 @@ const collectUltimateCoverReferences = async (jobState) => {
 const useDebounce = (value, delay = 300) => { const [debounced, setDebounced] = useState(value); useEffect(() => { const timer = setTimeout(() => setDebounced(value), delay); return () => clearTimeout(timer); }, [value, delay]); return debounced; };
 
 const FIX_CHECKLIST = Object.freeze([
+  { version: '1.184', key: 'TTS_NULL_SILENT_FAILURE_RETRY_CAP_TOP_AND_SCENE', text: 'Kullanıcı üretim dosyası analizi (MP4+ses haritesi): (1) kapak clickbait başlığı/tarih/gazete adı ekrandaydı ama 0-2 sn konuşma yoktu — kök neden: clickbait TTS null döndürüp kod koşulsuz "Clickbait seslendirme hazır" SUCCESS yazıyordu, null sessizce atanıyordu; (2) 0:48-0:52 aralığı yazılı ama konuşmasızdı — kök neden: sahne TTS null döndüğünde null sessizce atanıp render da o sahneyi 4 sn sessiz oynatmada bırakıyordu (sessiz fallback). Çözüm: kapak ve sahne TTS null dönme noktalarında TEK yeniden deneme, yine null kalırsa açık ERROR; render tarafında sesi olmayan sahnede açık WARN. Kanıt: konuşma-bandı RMS haritası (0-2 ve 48-51 yalnız müzik -35..-37dB; 2-47 ve 52-65 konuşma -23..-27dB), kare çıkarımı, build.' },
   { version: '1.183', key: 'LIVE_MONITOR_CLIPBOARD_VERSION_HEADER', text: 'Kullanıcı talebi: panoya kopyalanan canlı izleme logunun başına sürüm eklensin; çünkü yapıştırdığı log kayıtları hangi app sürümünden geldiği birebir görünmüyordu (SÜREÇ TXT ise başlığındaki Sürüm satırı taşıyordu). Çözüm: copyLiveMonitorLogs çıktısının İLK satırı artık "OTONOM Chatgpt_1.183 — canlı izleme logları (tr-TR tarih)" biçiminde sürüm dosyalı; kalan metin aynen zaman damgalı satırlar. Sessiz davranış değişikliği yok.' },
   { version: '1.182', key: 'ANALYSIS_ZERO_SLIDES_CHAIN_RETRY', text: 'Üretim: Haber Linki analizinde zincir (openai/gpt-oss-120b) devraldı, JSON sorunsuz parse oldu AMA videoSlides 0 sahne döndürdü ve üretim NO_SCENES_GENERATED ile durdu. Tanı: probe-scenes-chain.mjs gerçek üretim sysPrompt\'unu App.tsx\'ten birebir çıkarıp şema talimatını metin olarak gömdü, gateway zincirini ve gerçek Nefes makale metnini kullandı ve 3 tur koştu → her turda 12 sahne; zincir sistematik olarak boş döndürmüyor ([Muhtemelen] tek seferlik dalgınlık; zincir yolunda retry yoktu ve JSON güvenle parse sonlandığı için boşluk sessizce geçti). Çözüm: analyzeContent\'te videoSlides yok/boşsa anahtar-listeli WARN yazılır ve SAHNE ZORUNLULUĞU talimatı (EN AZ N sahne; ASLA BOŞ DÖNDÜRME) ile TEK yeniden istek gönderilir; yine boşsa mevcut fail-closed NO_SCENES davranışı aynen sürer. Başarıda "İçerik analizi: N sahne döndürüldü" bilgi satırı düşer.' },
   { version: '1.181', key: 'TR_TTS_THOUSAND_SEPARATOR_GROUPS', text: 'Seslendirmede "yaklaşık 3 000" ifadesi "üç" + "000" diye iki bağımsız sayı sanılıp "üç sıfır (sıfır) gazeteci" gibi okunuyordu (kullanıcı kaydında doğrulanan gerçek üretim hatası). Kök neden: Türkçe TTS normalizer\'ındaki binlik ayraçlar (boşluk / nokta / thin-space) bilinmiyordu; bağımsız-sayı kuralı her rakam kümesini tek tek sözcüğe çeviriyordu. Çözüm: bağımsız-sayı kuralından ÖNCE binlik ayraç birleştirme eklendi — "3.000" / "3 000" / "3 000 000" / "85.450 TL" tek sayıya çevrilip Türkçe sözcükte yazılır (üç bin, üç milyon, seksen beş bin dört yüz elli); tarih/saat/ondalık kuralları zaten bundan önce işlediği için korunur. Kanıt: probe-tr-number-norm.mjs simülasyonu + üretimde v1.35 normalize günlük satırı (önce/sonra metnini basar).' },
@@ -6307,6 +6318,8 @@ const RenderWorkerService = {
         }
       } else {
         sceneAudioBuffers.push(null);
+        // v1.184: Sesi üretilememiş sahne sessiz oynar — artık sessiz geçiş değil, açık uyarı var.
+        if ((allTexts[si] || "").trim()) addSystemLog(`Sahne ${si + 1}: ses verisi yok — bu sahne sessiz oynayacak (yazı görünür, konuşma yok).`, 'warn');
         const wordCount = (allTexts[si] || "").split(/\s+/).filter(Boolean).length;
         playedSpeechDur = Math.max(2.4, wordCount / 2.5);
         segDur = Math.min(Math.max(SPEECH_LEAD_IN + playedSpeechDur + SPEECH_TAIL + (si < slideCount - 1 ? PAGE_TURN_SECONDS : 0.18), 4.0), maxAllowedDur);
@@ -9422,9 +9435,28 @@ ${buildSonSozHistoryPrompt()}
                     this.state.preferences.narratorVoice,
                     this.state.config.language || 'tr'
                   );
-              const [imgResData, audResData] = await Promise.all([imgPromise, audPromise]);
+              const [imgResData, audRaw] = await Promise.all([imgPromise, audPromise]);
               this.state.assets.images[actualIndex] = imgResData;
-              this.state.assets.audio[actualIndex] = audResData;
+              // v1.184 KULLANICI BULGUSU (0:48-0:52 yazı var/konuşma yok): TTS null
+              // döndüğünde null sessizce atanıyor ve render'da o sahne 4 sn SESSİZ
+              // oynuyordu. Artık null'da tek yeniden deneme yapılır; yine nullsa
+              // açık ERROR yazılır (sessiz geçiş yok).
+              if (audRaw) {
+                this.state.assets.audio[actualIndex] = audRaw;
+              } else {
+                addSystemLog(`Sahne ${actualIndex + 1} seslendirme boş döndü — tek yeniden deneme.`, 'warn');
+                const audRetry = await MediaSynthesisService.generateAudio(
+                  slide.spokenText,
+                  this.state.preferences.narratorVoice,
+                  this.state.config.language || 'tr'
+                );
+                if (audRetry) {
+                  this.state.assets.audio[actualIndex] = audRetry;
+                  addSystemLog(`Sahne ${actualIndex + 1} seslendirme yeniden denemede hazır.`, 'success');
+                } else {
+                  addSystemLog(`Sahne ${actualIndex + 1} seslendirme üretilemedi (TTS zinciri boş); bu sahne sessiz oynayacak.`, 'error');
+                }
+              }
             });
             await Promise.all(chunkPromises);
             const currentProgress = Math.min(i + CHUNK_SIZE, this.state.script.videoSlides.length);
@@ -9521,8 +9553,25 @@ ${buildSonSozHistoryPrompt()}
               this.state.preferences.narratorVoice,
               ttsLanguage
             ).then(res => {
-              this.state.assets.thumbnailAudio = res;
-              addSystemLog('Clickbait seslendirme hazır.', 'success');
+              // v1.184 KULLANICI BULGUSU (kapak başlığı/tarih/gazete adı okunmuyor):
+              // TTS null döndüğünde bile "hazır" SUCCESS logu basılıyordu ve
+              // kapak tamamen sessiz oynuyordu. Null'da tek yeniden deneme yapılır;
+              // yine null kombinasyonda açık ERROR yazılır (sessiz başarılı görünümü yok).
+              if (res) {
+                this.state.assets.thumbnailAudio = res;
+                addSystemLog('Clickbait seslendirme hazır.', 'success');
+                return null;
+              }
+              addSystemLog('Clickbait TTS ilk istekte boş döndü — tek yeniden deneme.', 'warn');
+              return MediaSynthesisService.generateAudio(clickbaitText, this.state.preferences.narratorVoice, ttsLanguage).then(retryRes => {
+                if (retryRes) {
+                  this.state.assets.thumbnailAudio = retryRes;
+                  addSystemLog('Clickbait seslendirme yeniden denemede hazır.', 'success');
+                } else {
+                  addSystemLog('Clickbait TTS iki denemede de üretilemedi; kapak yazıları görünecek ama seslendirme YOK olacak.', 'error');
+                }
+                return null;
+              });
             })
           );
         }
