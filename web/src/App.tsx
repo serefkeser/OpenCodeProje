@@ -1,9 +1,11 @@
 // ============================================================================
-// OTONOM Chatgpt_1.173 — SÜRÜM BAŞLIĞI (her değişiklikte burayı, APP_VERSION'ı ve SÜRÜM NOTLARI'nı birlikte artır)
+// OTONOM Chatgpt_1.174 — SÜRÜM BAŞLIĞI (her değişiklikte burayı, APP_VERSION'ı ve SÜRÜM NOTLARI'nı birlikte artır)
 // Program menüsündeki rozet APP_VERSION.toBadge() ile bu sürümden otomatik üretilir.
-// v1.173 ÖZET: Buffer sosyal paylaşım katmanı tamamen kaldırıldı. Üretim yalnızca
-// ses/video üretir ve MP4'ü yerel ortamda saklar/indirir; gönderim kuyruğu, scheduler,
-// Buffer bridge uzantı protokolü ve paylaşım panoları koddan çıkarıldı.
+// v1.174 ÖZET: Gemini görsel üretimi kotasız/ücretsiz kalınca (Google görsel modellerinin
+// ücretsiz kotası "limit: 0" oldu) AI görsel hatasında yeni sıfır maliyet yedeği devrede:
+// Wikipedia/Commons serbest lisanslı gerçek görsel araması jenerik prosedürel yedeğe
+// düşmeden önce denenir. Anahtar gerektirmez; metin (OpenRouter/Groq/NVIDIA/Gemini) ve
+// TTS (Gemini) zincirleri aynen korunur.
 // ============================================================================
 // ============================================================================
 // OTONOM - Gemini Canvas Uyumlu Versiyon (Firebase KALDIRILDI — Local-First)
@@ -84,7 +86,7 @@ const { Download, RotateCcw, UploadCloud, Music, Trash2, Volume2, Clock, Loader2
 // M1: CONSTANTS & CONFIG
 // ============================================================================
 const APP_VERSION = {
-  major: 1, minor: 173, hotfix: 'Chatgpt_1.173',
+  major: 1, minor: 174, hotfix: 'Chatgpt_1.174',
   short() { return `${this.major}.${this.minor}`; },
   toString() { return `OTONOM Chatgpt_${this.major}.${this.minor}`; },
   toBadge() { return `${this.toString()} • One-Page`; }
@@ -1171,6 +1173,7 @@ const collectUltimateCoverReferences = async (jobState) => {
 const useDebounce = (value, delay = 300) => { const [debounced, setDebounced] = useState(value); useEffect(() => { const timer = setTimeout(() => setDebounced(value), delay); return () => clearTimeout(timer); }, [value, delay]); return debounced; };
 
 const FIX_CHECKLIST = Object.freeze([
+  { version: '1.174', key: 'FREE_IMAGE_WIKI_FALLBACK', text: 'Google tüm görsel modellerinde (Nano Banana ailesi) ücretsiz katman kotasını "limit: 0" yaptı: hiçbir görsel isteği artık ücretsiz verilmiyor. AI görsel üretimi tüm Gemini görsel modelleri hata verince — jenerik prosedürel yedeğe geçmeden önce — SIFIR MALIYET gerçek görsel araması yapar: (1) Türkçe Wikipedia aramasında en üst maddenin sayfa görseli, (2) Wikimedia Commons bitmap araması. Bu yol anahtar/ücret/faturalandırma gerektirmez; dönen görsel Atatürk akışındaki gibi doğrudan görsel kaynağı olarak kullanılır. Gazete Yorumla 16:9 gerçek sayfa referanslı kapak zorunluluğu aynen korunur (bu akış jenerik yedeğe sessizce düşmez, hata verir).' },
   { version: '1.173', key: 'BUFFER_REMOVED', text: 'Buffer sosyal paylaşım katmanı koddan tamamen çıkarıldı: PAYLAŞ düğmesi ve paylaşım rapor panosu, kalıcı gönderim kuyruğu + scheduler (IndexedDB store’ları da dahil), Buffer API/GraphQL akışı, Buffer Bridge Chrome/Firefox uzantı protokolü, Buffer istek bütçesi (rate-limit ledger), otomatik Buffer zamanlama anahtarları ve canlı izlemedeki gönderim filtresi/kartları kaldırıldı. Üretim artık yalnız ses/video üretir ve MP4’ü yerel ortamda saklar/indirir; gazete sırası, önizleme-ended kapısı, MP4 onarım döngüsü ve süre/token ölçümleri aynen korunur.' },
   { version: '1.171', key: 'MP4_AUTO_REPAIR_LOOP', text: 'MP4 üretimi hata verince artık 2 denemede pes edilmez: 10 adımlık otomatik onarım döngüsü. Her başarısız denemeden sonra FFmpeg runtime sıfırlanır ve strateji sadeleşir (1: süre kilidi+fade+kapak, 2: süre kilidi yok, 3: kapak bindirme yok, 4: ses filtresi yok; 2-3-4 tekrar eder). FFmpeg’in son log satırları hata mesajına eklenir. Ayrıca çift döngüsü adımı MP4/FFmpeg hatasıyla bitiyorsa video baştan üretilerek en fazla 2 kez daha denenir; doğru MP4 çıkana kadar sıradaki adıma geçilmez.' },
   { version: '1.170', key: 'MP4_HARD_DURATION_LOCK_NO_MUSIC_TAIL', text: 'Son Söz bittikten sonra donmuş son karede müziğin devam etmesi kök nedeni giderildi: MP4 dönüştürmede kapak bindirme girdisi sonsuz döngüdeydi (-loop 1) ve overlay son kareyi tekrarladığı için -shortest etkisiz kalıyor, ses/müzik kaydı görüntüden uzunsa son kare donup müzik çalmaya devam ediyordu. Artık render, MediaRecorder başlangıcından son kapanış karesine kadar gerçek süreyi ölçer; ffmpeg çıktısı -t ile bu süreye kilitlenir ve son 0.4 sn ses fade-out edilir. Süre uyuşmazlığı logda uyarılır.' },
@@ -5134,6 +5137,37 @@ Return ONLY the translated quote. No labels, no explanation.
 // M6: MEDIA SYNTHESIS
 // ============================================================================
 class MediaSynthesisService {
+  // Sıfır maliyet görsel yedeği: Wikipedia (tr) sayfa görseli + Commons bitmap araması.
+  // AI görsel kotası bittiğinde devreye girer; anahtar/faturalandırma gerektirmez.
+  static async findFreeRealImage(prompt) {
+    const STOP = new Set('the and for with from this that into over under about after before more most very can will just also than then when while because through during between against without within along across behind beyond plus versus cinematic editorial illustrative illustration drawing painting artwork style detailed detail resolution quality scene scenes lighting atmosphere composition shot lens wide golden dramatic soft subtle neon accents network neural elements symbolic represent representing strong premium factual anchored art direction bespoke design news context article background foreground subject visual clearly talks including claims reported'.split(' ').filter(w => w.length > 2));
+    const content = String(prompt || '').replace(/^[^:\n]{0,90}:\s*/, '');
+    const words = content.replace(/[^A-Za-z0-9çğıöşüÇĞIİÖŞÜ\s-]/g, ' ').split(/\s+/).filter(w => w.length > 2 && !STOP.has(w.toLowerCase()));
+    const capsRuns = (content.match(/(?:[A-ZÇĞİÖŞÜ][a-zçğıöşüâîöü]{2,})(?:\s+[A-ZÇĞİÖŞÜ][a-zçğıöşüâîöü]{2,}){0,3}/g) || [])
+      .map(s => s.trim()).filter(Boolean);
+    capsRuns.sort((a, b) => b.length - a.length);
+    const candidateTitle = capsRuns[0] || null; // ör. "Recep Tayyip Erdoğan"
+    const query = [...new Set([...(candidateTitle ? candidateTitle.split(/\s+/) : []), ...words])].slice(0, 4).join(' ').trim();
+    if (!query) return null;
+    const pageImageUrl = d => d?.query?.pages ? Object.values(d.query.pages).map(x => x?.thumbnail?.source).filter(Boolean)[0] || null : null;
+    const wmFetch = async (apiQuery) => {
+      const r = await fetch(`https://tr.wikipedia.org/w/api.php?${apiQuery}`, { signal: AbortSignal.timeout(20000) });
+      return r.ok ? pageImageUrl(await r.json()) : null;
+    };
+    const apis = [
+      // 1) Proper-isim grubunun birebir madde başlığı eşleşmesi — en doğru görsel
+      //    ("Cumhurbaşkanı Recep Tayyip Erdoğan" gibi baş ödeme "Cumhurbaşkanı'sız" varyantı da denenir)
+      ...[...new Set([candidateTitle, candidateTitle && candidateTitle.split(/\s+/).length > 2 ? candidateTitle.split(/\s+/).slice(1).join(' ') : null].filter(Boolean))].map(t => () => wmFetch(`action=query&titles=${encodeURIComponent(t)}&redirects=1&prop=pageimages&piprop=thumbnail&pithumbsize=1280&format=json`)),
+      // 2) Puanlı madde aramasının en üst sonucunun sayfa görseli
+      () => wmFetch(`action=query&generator=search&gsrsearch=${encodeURIComponent(query)}&gsrnamespace=0&gsrlimit=1&prop=pageimages&piprop=thumbnail&pithumbsize=1280&format=json`),
+      // 3) Commons bitmap araması
+      () => fetchWikimediaImages(query, 2).catch(() => null),
+    ];
+    for (const api of apis) {
+      try { const url = await api(); if (url) return url; } catch (_) {}
+    }
+    return null;
+  }
   static generateProceduralFallback(prompt, imageStyle) {
     const canvas = document.createElement('canvas'); canvas.width = 1024; canvas.height = 1024; const ctx = canvas.getContext('2d');
     const grad = ctx.createRadialGradient(512, 512, 50, 512, 512, 600); grad.addColorStop(0, '#1e1b4b'); grad.addColorStop(0.5, '#0f172a'); grad.addColorStop(1, '#020617'); ctx.fillStyle = grad; ctx.fillRect(0, 0, 1024, 1024);
@@ -5255,6 +5289,18 @@ class MediaSynthesisService {
     if (isGazeteYorumlaCover) {
       // Yorumla kapağında jenerik/prosedürel görsele sessiz düşme: kaynak görseller ve gerçek 16:9 zorunlu.
       throw new Error('GAZETE_YORUMLA_COVER_FAILED: Gemini gerçek gazete referanslı yatay 16:9 kapağı üretemedi; jenerik yedek kapakla devam edilmedi.');
+    }
+    // Sıfır maliyet yedeği: Wikipedia (tr) sayfa görseli + Commons serbest görsel.
+    // Google görsel modellerinin ücretsiz kotası "limit: 0"; anahtar/faturalandırma gerektirmez.
+    try {
+      const realUrl = await this.findFreeRealImage(prompt);
+      if (realUrl) {
+        addSystemLog(`AI görsel kotası yok → Wikipedia/Commons gerçek görsel kullanılıyor: ${String(realUrl).substring(0, 72)}...`, 'warn');
+        return realUrl;
+      }
+      addSystemLog('Wikipedia/Commons araması uygun görsel bulamadı; prosedürel yedek kullanılacak.', 'warn');
+    } catch (wikiErr) {
+      addSystemLog(`Serbest görsel araması hatası: ${wikiErr?.message || wikiErr}; prosedürel yedeğe geçiliyor.`, 'warn');
     }
     return this.generateProceduralFallback(prompt, imageStyle);
   }

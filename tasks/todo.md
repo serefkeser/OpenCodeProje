@@ -23,3 +23,9 @@ Not: Sürüm notlarındaki tarihî Buffer kayıtları silinmez (geçmiş döküm
 
 Sürüm kuralı: SÜRÜM BAŞLIĞI + APP_VERSION (1,172) + SÜRÜM NOTLARI birlikte artırılır.
 Not: .env anahtarlar ASLA repoya yazılmaz.
+
+## Sıfır Maliyet Görsel Yedeği (v1.174 görevi)
+
+- [x] G1: Tüm key/model gerçek istekle test edildi (scripts/test-models.mjs) — ÇALIŞAN: Gemini metin (gemini-2.5-flash), Gemini TTS (3.1-flash-tts-preview+Aoede), OpenRouter metin (gpt-oss-120b), OpenRouter vizyon (google/gemini-2.5-flash), Groq metin (gpt-oss-120b), NVIDIA metin (minimaxai/minimax-m3.1-flash — .env'den 404 nemotron düzeltildi), NVIDIA vizyon (meta/llama-3.2-11b-vision-instruct — .env'den 410 Gone düzeltildi). ÇALIŞMAYAN (kota/bakiye, key değil): Gemini görsel tüm Nano Banana ailesi → Google ücretsiz kotası "limit: 0"; OpenRouter görsel → 402 kredi; OpenRouter TTS → 402 (≥$0.50 bakiye); OPENCODE anahtarları kod'a bağlı değil.
+- [x] G2: .env yedeği (değerler repoya yazılmaz): .env.yedek-20261024-2100; .gitignore'a `.env.yedek*` deseni eklendi.
+- [x] G3: App.tsx v1.174 — MediaSynthesisService.generateImage Gemini görsel hatalarında jenerik prosedürel yedeğe düşmeden önce findFreeRealImage çalıştırır: (1) proper-isim grubunun tr.wikipedia birebir başlık görseli (ilk kelimesiz varyant dahil), (2) puanlı aramanın en üst madde sayfa görseli, (3) Commons bitmap araması. Sıfır key/ücret yok. Gazete Yorumla 16:9 gerçek-referans kapak throw'u aynen korundu. Kanıt: `npx vite build` ✓ (12.28s, 0 hata); scripts/test-wiki-fallback.mjs ile Erdoğan → bizzat Erdoğan 2025 fotoğrafı (HTTP 200, 1.5 MB), İstanbul → Boğaz köprüsü.
