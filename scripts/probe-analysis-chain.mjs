@@ -10,6 +10,7 @@ const r = await fetch('http://127.0.0.1:4100/api/analysis/text', {
     prompt: `HABER METNİ:\n${metin}\n\nYukarıdaki metinden 2 sahnelik haber videosu taslağı üret.`,
     system: `Sen tarafsız bir haber editörüsün.\n\n${schemaRule}`,
     temperature: 0.7,
+    maxTokens: 8192, // v1.180 zemin: reasoning bütçesi JSON'u kesmez
   }),
   signal: AbortSignal.timeout(150000),
 });

@@ -1,6 +1,20 @@
 // ============================================================================
-// OTONOM Chatgpt_1.179 — SÜRÜM BAŞLIĞI (her değişiklikte burayı, APP_VERSION'ı ve SÜRÜM NOTLARI'nı birlikte artır)
+// OTONOM Chatgpt_1.180 — SÜRÜM BAŞLIĞI (her değişiklikte burayı, APP_VERSION'ı ve SÜRÜM NOTLARI'nı birlikte artır)
 // Program menüsündeki rozet APP_VERSION.toBadge() ile bu sürümden otomatik üretilir.
+// v1.180 ÖZET: İki kırılma giderildi. (1) Analysis zinciri devralıp sağlayıcıdan
+// yanıt aldı ama JSON "~224. karakterde kesik" döndü; kök neden: uygulama
+// maxOutputTokens göndermediği için zincir default 2048 token'da kalıyordu ve
+// reasoning üreten sağlayıcı (gpt-oss-120b) bütçeyi reasoning'e yiyip JSON'u
+// ortada kesiyordu. Çözüm: zincir çağrısına 8192 token zemini + kesik JSON'u
+// (dize kaçış duyurusu duyarlı tarama ile parantez kapatma) onarıp kullanılan parser;
+// onarım kullanıldığında ve onarılamadığında ham çıktı başı WARN/ERROR olarak
+// günlüğe düşer (sessiz yama yok). Sunucu zinciri default'u da 4096'ya taşındı.
+// (2) Canlı izleme'de SÜRE/TOKEN sekmesi beyaz sayfa veriyordu: "ORT. GAZETE
+// ÇEVRİMİ" kartı hiç tanımlanmamış performanceAverageCadenceMs değişkenini
+// kullanıyordu (eski kopyadaki delivery metriği web'e hiç port edilmemişti) —
+// render ReferenceError → React çöküşü. Kart ölçülen gerçek veri olmadığından
+// sahte değer uydurmak yerine kaldırıldı. Ayrıca v1.179'un HATA/LİMİT
+// düzeltmesi doğrulandı; ort. üretim süresi kartı zaten aynı metni veriyor.
 // v1.179 ÖZET: İki kırılma giderildi. (1) Gemini ücretsiz metin kotası bittiğinde
 // "İçerik analiz ediliyor..." aşaması HTTP 429 x5 deneme tükenmesiyle FAILED
 // oluyordu; _callGeminiAndParse (tek analiz soketi) artık kota/transport
@@ -113,7 +127,7 @@ const { Download, RotateCcw, UploadCloud, Music, Trash2, Volume2, Clock, Loader2
 // M1: CONSTANTS & CONFIG
 // ============================================================================
 const APP_VERSION = {
-  major: 1, minor: 179, hotfix: 'Chatgpt_1.179',
+  major: 1, minor: 180, hotfix: 'Chatgpt_1.180',
   short() { return `${this.major}.${this.minor}`; },
   toString() { return `OTONOM Chatgpt_${this.major}.${this.minor}`; },
   toBadge() { return `${this.toString()} • One-Page`; }
@@ -1210,6 +1224,8 @@ const collectUltimateCoverReferences = async (jobState) => {
 const useDebounce = (value, delay = 300) => { const [debounced, setDebounced] = useState(value); useEffect(() => { const timer = setTimeout(() => setDebounced(value), delay); return () => clearTimeout(timer); }, [value, delay]); return debounced; };
 
 const FIX_CHECKLIST = Object.freeze([
+  { version: '1.180', key: 'ANALYSIS_CHAIN_TRUNCATED_JSON_FIX', text: 'Zincir devraldı ve "openai/gpt-oss-120b" yanıt döndürdü ama "JSON.parse: end of data when ... column 224" ile FAILED oldu. Kök neden: uygulama analiz isteklerinde maxOutputTokens göndermiyor; zincir default 2048 token zemininde kalıyordu ve reasoning üreten gpt-oss-120b bütçenin çoğunu reasoning üstüne harcayıp JSON çıktısını ortada kesiyordu (kesim ~224. karakter). Çözüm üç katmanlı: (1) zincir çağrısına 8192 token zemini; (2) analysis servisi default zeminleri 4096 (openai-style + gemini dahil); (3) kesik JSON metnini dize kaçışlarına duyarlı tarama ile kapatıp onaran _parseMaybeTruncatedJson — onarım kullanılırsa "çıktı kesik geldi; JSON onarıldı" WARN, onarılamazsa ham çıktı başını ERROR olarak loglar ve durur (sessiz sahte veri yok).' },
+  { version: '1.180', key: 'LIVE_MONITOR_METRICS_CRASH_CADENCE_CARD_REMOVED', text: 'Canlı izleme\'de SÜRE/TOKEN sekmesi beyaz sayfa veriyordu (HATA/LİMİT v1.179\'da düzelmişti). Kök neden: "ORT. GAZETE ÇEVRİMİ (EK BEKLEME YOK)" kartı hiçbir yerde tanımlanmamış performanceAverageCadenceMs değişkenini kullanıyordu — eski kopyada (haber_saas) performanceAverageDeliveryMs\'ye alias\'lanmıştı; o metrik web App\'e hiç port edilmemişti, dolayısıyla ölçülen gerçek veri yoktu [kanıt: tüm dosyada tek geçiş = kullanım satırı]. Render sırasında ReferenceError → React ağacı çöküyordu. Çözüm: sahte değer uydurulmadı; kart kaldırıldı ("ORT. GAZETE → MP4" kartı zaten aynı çevrim süresini gösteriyor). Kalan tüm metrik değişkenleri tanımlı olarak doğrulandı.' },
   { version: '1.179', key: 'ANALYSIS_CHAIN_FALLBACK_ON_GEMINI_QUOTA', text: '"İçerik analiz ediliyor..." HTTP 429 x5 deneme tükenmesiyle FAILED oluyordu (fetchWithRetry: tüm denemeler başarısız): tarayıcı üretimi yalnız kullanıcının Gemini anahtarına (ücretsiz metin kotası) bağımlıydı; sunucu zinciri (OpenRouter→Groq→NVIDIA→Gemini, 4201) idde çalışırken işe yaramıyordu. Çözüm: _callGeminiAndParse transport/kota kırılmalarında aynı istek şeklini (systemInstruction + contents metinleri + inlineData görseller) gateway /api/analysis/text|vision\'a pas eder, dönen metni aynı gevşek parser ile JSON\'a çevirir; "Gemini kota aşımı → kendi analysis zinciri devraldı (sağlayıcı: X, model: Y)" SUCCESS satırı basılır. google_search aracı sağlayıcılara taşınmaz (gerçek doğrulanmış-tabanlı analiz bu yolda sınırlıdır: zincir yalnız verilen metinden analiz eder). Canvas sürümünde yedek yok (gateway adresi define edilmemiş); yedek de patlarsa asıl Gemini hatası yüzeye çıkar.' },
   { version: '1.179', key: 'LIVE_MONITOR_FILTER_CRASH_FIX', text: 'Canlı izleme\'de HATA/LİMİT (ve kalıcı durumdan dolayı sonraki seçimlerde) sayfa beyaz oluyordu. Kök neden: errors filtresi (satır ~14058) tanımsız \'line\' değişkenine test ediyordu → render sırasında ReferenceError → React ağacı çöküyordu; filtre ns_liveMonitorFilter olarak localStorage\'a yazıldığından sayfa yenilendiğinde bile depodan yüklenen filtre ilk render\'da yeniden patlatıyordu (beyaz sayfa kalıcı). Çözüm: regex artık String(log?.text) üzerinden çalışır (log kayıtlarının metin alanı log.text\'tir; render satırı 14778 kanıtı). TÜM LOG / HATA-LİMİT / SÜRE-TOKEN üç filtre artık güvenle seçilebilir.' },
   { version: '1.178', key: 'BGM_SILENT_FAILURE_INSTRUMENTATION', text: 'Videoda fon müziği çalmıyordu ve canlı izleme günlüğünde hiçbir BGM hatası görünmüyordu. Kök neden 1: render BGM yükleyicisi (loadBGM) tüm hata yollarını console.warn ile F12 konsoluna basıyordu — parça bulunamadı, ses verisi eksik, decode hatası hepsi sessiz geçiliyordu (sessiz fallback ihlali). Kök neden 2: default parça (polyushka) init\'te hydrate edilip tercihe yazılsa da kalıcı yerel kütüphaneye kaydedilmiyordu; her üretim uzantı MUSIC_GET (20 sn) round-trip\'ine bağımlıydı ve eklentideki tek seferlik bir durgunluk müziksiz video üretiyordu. Çözüm: (a) loadBGM tüm kırılma noktaları ERROR/WARN olarak günlüğe düşer; (b) "BGM başlatıldı: isim (süre, seviye)" başarı satırı basılır; (c) init ve müzik yenileme akışları aktif parçayı AssetManagerService.saveMusicToLib ile kalıcı yerel IndexedDB\'ye aynalar; render uzantısız da çalabilir.' },
@@ -2839,6 +2855,37 @@ const _otonomAnalysisBase = () => {
   } catch (e) {}
   return '';
 };
+// v1.180: Kesik model çıktısını onaran JSON parser. Zincir sağlayıcıları
+// (özellikle reasoning üreten gpt-oss ailesi) bütçeyi reasoning'e harcayıp JSON'u
+// ortasında kesebiliyor; gerçek üretimde kanıt: "end of data when ',' or ']' was
+// expected at line 1 column 224". Dize kaçışlarına duyarlı tarama ile açık
+// parantezleri kapatıp onarmayı DENER (kesim "değer sınırında" ise çalışır,
+// bir string'in ortasında kaldıysa yol yoktur); onarım kullanıldığında
+// ve onarılamadığında sessiz geçiş YAPMAZ — çağıran ham çıktı başını loglar.
+const _parseMaybeTruncatedJson = (rawText, label) => {
+  let s = String(rawText || '').replace(/`json/gi, '').replace(/`/g, '').trim();
+  const start = s.indexOf('{');
+  if (start === -1) throw new Error(`${label} JSON formatında yanıt döndürmedi.`);
+  const slice = s.substring(start, s.lastIndexOf('}') !== -1 ? s.lastIndexOf('}') + 1 : s.length);
+  try { return { value: JSON.parse(slice), repaired: false }; } catch (strictErr) { /* kesik; onarım aşağıda */ }
+  const stack = []; let inStr = false, esc = false;
+  for (let i = 0; i < slice.length; i++) {
+    const ch = slice[i];
+    if (inStr) { if (esc) esc = false; else if (ch === '\\') esc = true; else if (ch === '"') inStr = false; }
+    else if (ch === '"') inStr = true;
+    else if (ch === '{' || ch === '[') stack.push(ch);
+    else if (ch === '}' || ch === ']') stack.pop();
+  }
+  let out = slice;
+  if (inStr) { while (out.endsWith('\\')) out = out.slice(0, -1); out += '"'; }
+  out = out.replace(/[\s,:]+$/, '');
+  while (stack.length) out += stack.pop() === '{' ? '}' : ']';
+  try {
+    const value = JSON.parse(out);
+    addSystemLog(`${label}: çıktı max-token sınırında kesik geldi; JSON onarılıp kullanıldı (dikkat: yanıt eksik olabilir).`, 'warn');
+    return { value, repaired: true };
+  } catch (repairErr) { return null; }
+};
 const _callAnalysisChainAndParse = async (payload) => {
   const analysisBase = _otonomAnalysisBase();
   if (!analysisBase) throw new Error('Yerel analysis zinciri yok (gateway adresi bilinmiyor).');
@@ -2856,7 +2903,10 @@ const _callAnalysisChainAndParse = async (payload) => {
       system: systemText || undefined,
       ...(images.length ? { images } : {}),
       temperature: payload?.generationConfig?.temperature,
-      maxTokens: payload?.generationConfig?.maxOutputTokens,
+      // v1.180: maxOutputTokens gönderilmeyen isteklerde zincir default 2048'de
+      // kalıyor; reasoning üreten sağlayıcı (gpt-oss-120b) bütçeyi reasoning'e
+      // harcayıp JSON'u ~224. karakterde kesiyordu (gerçek üretim kanıtı).
+      maxTokens: Math.max(Number(payload?.generationConfig?.maxOutputTokens) || 0, 8192),
     }),
     signal: AbortSignal.timeout(150000),
   });
@@ -2868,10 +2918,13 @@ const _callAnalysisChainAndParse = async (payload) => {
   const d = await r.json();
   if (!d?.text) throw new Error('Analysis zinciri boş metin döndürdü.');
   addSystemLog(`✓ Gemini kota aşımı → kendi analysis zinciri devraldı (sağlayıcı: ${d.provider}, model: ${d.model}).`, 'success');
-  let responseText = String(d.text).replace(/`json/gi, '').replace(/`/g, '').trim();
-  const jsonStart = responseText.indexOf('{'); const jsonEnd = responseText.lastIndexOf('}');
-  if (jsonStart === -1 || jsonEnd === -1) throw new Error('Analysis zinciri JSON formatında yanıt döndürmedi.');
-  return JSON.parse(responseText.substring(jsonStart, jsonEnd + 1));
+  const parsedChain = _parseMaybeTruncatedJson(d.text, 'Analysis zinciri');
+  if (!parsedChain) {
+    // v1.180: onarılamayan kesik çıktıda ham başlık loglanır — sessiz fallback yok.
+    addSystemLog(`Analysis zinciri çıktısı onarılamadı; ham çıktı başı: ${String(d.text).substring(0, 200)}`, 'error');
+    throw new Error('Analysis zinciri JSON\'u onarılamayacak biçimde kesik döndürdü.');
+  }
+  return parsedChain.value;
 };
 const _callGeminiAndParse = async (url, payload) => {
   payload = _stripJsonConfigForSearch(payload);
@@ -14758,7 +14811,6 @@ export default function App() {
                 <div className="rounded-lg border border-slate-800 bg-slate-900 p-2"><div className="text-[9px] text-slate-400">KAYITLI GERÇEK TOKEN</div><div className="text-base font-black text-emerald-200">{livePerfNumber(performanceActualTotalTokens)}</div><div className="text-[8px] text-slate-500">Girdi {livePerfNumber(performanceActualPromptTokens)} · Çıktı {livePerfNumber(performanceActualOutputTokens)}</div></div>
                 <div className="rounded-lg border border-slate-800 bg-slate-900 p-2"><div className="text-[9px] text-slate-400">TAHMİNİ METİN TOKENI</div><div className="text-base font-black text-amber-200">{livePerfNumber(performanceEstimatedTextTokens)}</div><div className="text-[8px] text-slate-500">{performanceEstimatedCalls.length} çağrı · görsel/ses tokenları hariç</div></div>
                 <div className="rounded-lg border border-emerald-900/70 bg-slate-900 p-2"><div className="text-[9px] text-slate-400">ORT. GERÇEK TOKEN / GAZETE</div><div className="text-base font-black text-emerald-200">{performanceAverageActualTokensPerRun == null ? '—' : livePerfNumber(performanceAverageActualTokensPerRun)}</div><div className="text-[8px] text-slate-500">{performanceRunsWithActualTokens.length} gazetede API kullanım verisi mevcut</div></div>
-                <div className="rounded-lg border border-orange-900/70 bg-slate-900 p-2"><div className="text-[9px] text-slate-400">ORT. GAZETE ÇEVRİMİ (EK BEKLEME YOK)</div><div className="text-base font-black text-orange-200">{livePerfDuration(performanceAverageCadenceMs)}</div><div className="text-[8px] text-slate-500">Ölçülen başlangıç → Buffer süresi; sabit ek bekleme yok</div></div>
               </div>
               <div className="rounded-lg border border-slate-800 bg-slate-900/80 p-2">
                 <div className="mb-2 flex items-center justify-between"><span className="font-black text-white">ŞU AN ÇALIŞAN AŞAMALAR</span><span className="text-[8px] text-slate-500">Canlı sayaç</span></div>

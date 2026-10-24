@@ -52,7 +52,9 @@ const openAiStyleCall = async ({ endpoint, apiKey, model, system, prompt, images
     body: JSON.stringify({
       model,
       temperature: temperature ?? 0.8,
-      max_tokens: maxTokens ?? 2048,
+      // v1.180: default zemin 2048 → 4096; reasoning üreten modeller bütçeyi
+      // reasoning'e harcayıp JSON'u ortada kesiyordu (gerçek üretim kanıtı: 224. kolon).
+      max_tokens: maxTokens ?? 4096,
       ...(system
         ? { messages: [{ role: 'system', content: system }, { role: 'user', content }] }
         : { messages: [{ role: 'user', content }] }),
@@ -80,7 +82,7 @@ const geminiCall = async ({ prompt, system, images, temperature, maxTokens, mode
     body: JSON.stringify({
       contents: [{ role: 'user', parts }],
       ...(system ? { systemInstruction: { parts: [{ text: system }] } } : {}),
-      generationConfig: { temperature: temperature ?? 0.8, maxOutputTokens: maxTokens ?? 2048 },
+      generationConfig: { temperature: temperature ?? 0.8, maxOutputTokens: maxTokens ?? 4096 }, // v1.180: 2048 → 4096 (kesik çıktı zimni)
     }),
     signal: AbortSignal.timeout(90_000),
   });
