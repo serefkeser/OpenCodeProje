@@ -32,3 +32,5 @@ Thumbs.db
 coverage/
 # Local key backups (never commit)
 .env.yedek*
+# v1.185: gateway müzik deposu kullanıcı verisi (yerel disk, git dışı)
+services/gateway/muzik/

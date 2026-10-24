@@ -1,6 +1,21 @@
 // ============================================================================
 // OTONOM Chatgpt_1.181 — SÜRÜM BAŞLIĞI (her değişiklikte burayı, APP_VERSION'ı ve SÜRÜM NOTLARI'nı birlikte artır)
 // Program menüsündeki rozet APP_VERSION.toBadge() ile bu sürümden otomatik üretilir.
+// v1.185 ÖZET: Kullanıcı talebi — OTONOM_1_105_Firefox uzantısı analiz edildi;
+// program tarayıcı-uzantısından bağımsız hale getirildi. Analiz: Buffer köprüsü
+// v1.173'te zaten App'ten çıkarılmış (uzantının buffer-* dosyaları ölü), gazete
+// fetch uzantı yolu yoksa gateway /proxy zincirine sessizce düşüyordu; TEK canlı
+// bağımlılık müzik kütüphanesiydi (MUSIC_* protokolü). Çözüm: müziklerin ikinci
+// kalıcı kopyası gateway (4100) /api/music rotasına taşındı — sıfır bağımlılık
+// node:fs deposit (services/gateway/muzik/ katalog.json + <id>.audio), uzantı
+// protokolü sınırları birebir (id ^fm_[A-Za-z0-9_-]{1,230}$, 32 MB, yalnız
+// audio/* veya application/(ogg|octet-stream) data-URL). App'te
+// musicExtensionRequest/probeMusicExtension silinip saveMusicToLib /
+// getAllMusicFromLib / getMusicFromLib / removeMusicFromLib /
+// mirrorLocalMusicToGateway / refreshMusicLibrary gateway fetch'lerine bağlandı;
+// yerel IndexedDB birincil önbellek, gateway ikinci kalıcı kopya. Gateway
+// kapalıysa açık WARN (sessiz fallback yasak). UI uzantı rozeti "Gateway Kalıcı
+// Müzik (4100)" oldu. Kanıt: probe-gateway-music.mjs 8/8 PASS (geçici port 4199).
 // v1.184 ÖZET: Kullanıcı üretim-dosyası analizi (MP4 ölçtüğü kanıt) üç boşluk
 // yakaladı. (1) KAPAK SESSİZLİĞİ: clickbait TTS null döndüğünde bile "hazır"
 // SUCCESS logu basılıyor, kapak yazıları ekranda ama seslendirme yok (0-2 sn
@@ -167,7 +182,7 @@ const { Download, RotateCcw, UploadCloud, Music, Trash2, Volume2, Clock, Loader2
 // M1: CONSTANTS & CONFIG
 // ============================================================================
 const APP_VERSION = {
-  major: 1, minor: 184, hotfix: 'Chatgpt_1.184',
+  major: 1, minor: 185, hotfix: 'Chatgpt_1.185',
   short() { return `${this.major}.${this.minor}`; },
   toString() { return `OTONOM Chatgpt_${this.major}.${this.minor}`; },
   toBadge() { return `${this.toString()} • One-Page`; }
@@ -1264,6 +1279,7 @@ const collectUltimateCoverReferences = async (jobState) => {
 const useDebounce = (value, delay = 300) => { const [debounced, setDebounced] = useState(value); useEffect(() => { const timer = setTimeout(() => setDebounced(value), delay); return () => clearTimeout(timer); }, [value, delay]); return debounced; };
 
 const FIX_CHECKLIST = Object.freeze([
+  { version: '1.185', key: 'MUSIC_LIBRARY_GATEWAY_NO_EXTENSION', text: 'Kullanıcı talebi: Firefox eklentisi (OTONOM_1_105) tarayıcıdan bağımsız olsun — müzik kütüphanesi tek canlı uzantı bağımlılığıydı (Buffer v1.173te zaten çıkarılmış, gazete fetch uzantısız aynen çalışıyor). Çözüm: gateway 4100 /api/music kalıcı deposu (services/gateway/muzik/ klasörü: katalog.json + <id>.audio; id regex ^fm_[A-Za-z0-9_-]{1,230}$, 32 MB üst sınır, yalnız audio veya ogg/octet-stream data-URL) + App müzik metodları uzantı MUSIC_* protokolünden gateway fetch çağrılarına bağlandı (saveMusicToLib/getAllMusicFromLib/getMusicFromLib/removeMusicFromLib/mirrorLocalMusicToGateway/refreshMusicLibrary; musicExtensionRequest ve probeMusicExtension silindi). Yerel IndexedDB birincil önbellek; gateway kapalıysa açık WARN, sessiz düşme yok. UI uzantı rozeti "Gateway Kalıcı Müzik (4100)". Kanıt: probe-gateway-music.mjs 8/8 PASS (boş katalog, kayıt, liste, data-URL okuma, id reddi, mime reddi, silme, yeniden boş).' },
   { version: '1.184', key: 'TTS_NULL_SILENT_FAILURE_RETRY_CAP_TOP_AND_SCENE', text: 'Kullanıcı üretim dosyası analizi (MP4+ses haritesi): (1) kapak clickbait başlığı/tarih/gazete adı ekrandaydı ama 0-2 sn konuşma yoktu — kök neden: clickbait TTS null döndürüp kod koşulsuz "Clickbait seslendirme hazır" SUCCESS yazıyordu, null sessizce atanıyordu; (2) 0:48-0:52 aralığı yazılı ama konuşmasızdı — kök neden: sahne TTS null döndüğünde null sessizce atanıp render da o sahneyi 4 sn sessiz oynatmada bırakıyordu (sessiz fallback). Çözüm: kapak ve sahne TTS null dönme noktalarında TEK yeniden deneme, yine null kalırsa açık ERROR; render tarafında sesi olmayan sahnede açık WARN. Kanıt: konuşma-bandı RMS haritası (0-2 ve 48-51 yalnız müzik -35..-37dB; 2-47 ve 52-65 konuşma -23..-27dB), kare çıkarımı, build.' },
   { version: '1.183', key: 'LIVE_MONITOR_CLIPBOARD_VERSION_HEADER', text: 'Kullanıcı talebi: panoya kopyalanan canlı izleme logunun başına sürüm eklensin; çünkü yapıştırdığı log kayıtları hangi app sürümünden geldiği birebir görünmüyordu (SÜREÇ TXT ise başlığındaki Sürüm satırı taşıyordu). Çözüm: copyLiveMonitorLogs çıktısının İLK satırı artık "OTONOM Chatgpt_1.183 — canlı izleme logları (tr-TR tarih)" biçiminde sürüm dosyalı; kalan metin aynen zaman damgalı satırlar. Sessiz davranış değişikliği yok.' },
   { version: '1.182', key: 'ANALYSIS_ZERO_SLIDES_CHAIN_RETRY', text: 'Üretim: Haber Linki analizinde zincir (openai/gpt-oss-120b) devraldı, JSON sorunsuz parse oldu AMA videoSlides 0 sahne döndürdü ve üretim NO_SCENES_GENERATED ile durdu. Tanı: probe-scenes-chain.mjs gerçek üretim sysPrompt\'unu App.tsx\'ten birebir çıkarıp şema talimatını metin olarak gömdü, gateway zincirini ve gerçek Nefes makale metnini kullandı ve 3 tur koştu → her turda 12 sahne; zincir sistematik olarak boş döndürmüyor ([Muhtemelen] tek seferlik dalgınlık; zincir yolunda retry yoktu ve JSON güvenle parse sonlandığı için boşluk sessizce geçti). Çözüm: analyzeContent\'te videoSlides yok/boşsa anahtar-listeli WARN yazılır ve SAHNE ZORUNLULUĞU talimatı (EN AZ N sahne; ASLA BOŞ DÖNDÜRME) ile TEK yeniden istek gönderilir; yine boşsa mevcut fail-closed NO_SCENES davranışı aynen sürer. Başarıda "İçerik analizi: N sahne döndürüldü" bilgi satırı düşer.' },
@@ -2404,99 +2420,49 @@ const NetworkUtils = {
 };
 
 // ============================================================================
-// v1.47: OTONOM MUSIC EXTENSION BRIDGE
+// v1.185: MÜZİK KALICI KÜTÜPHANESİ — GATEWAY /api/music (4100)
 // ============================================================================
-// Müziklerin ana kalıcı kopyası tarayıcı eklentisinin kendi origin/IndexedDB alanında
-// tutulabilir. Eklenti yoksa mevcut sayfa IndexedDB akışı aynen devam eder.
-const OTONOM_MUSIC_BRIDGE_SOURCE = 'OTONOM_MUSIC_EXTENSION';
-const OTONOM_APP_BRIDGE_SOURCE = 'OTONOM_APP';
-const MUSIC_EXTENSION_PROBE_TTL_MS = 60_000;
-let _musicExtensionProbe = { available: null, checkedAt: 0, version: '', count: 0 };
-
-const musicExtensionRequest = (type, payload = {}, timeoutMs = 5000) => new Promise((resolve) => {
-  if (typeof window === 'undefined' || typeof window.postMessage !== 'function') return resolve(null);
-  const requestId = `music_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-  let settled = false;
-
-  const cleanup = () => {
-    window.removeEventListener('message', onMessage);
-    clearTimeout(timer);
-  };
-
-  const finish = (value) => {
-    if (settled) return;
-    settled = true;
-    cleanup();
-    resolve(value);
-  };
-
-  const onMessage = (event) => {
-    const data = event?.data;
-    if (!data || data.source !== OTONOM_MUSIC_BRIDGE_SOURCE || data.id !== requestId) return;
-    if (data.type !== 'MUSIC_RESULT') return;
-    finish(data);
-  };
-
-  const timer = setTimeout(() => finish(null), Math.max(1200, timeoutMs));
-  window.addEventListener('message', onMessage);
-
-  const message = {
-    source: OTONOM_APP_BRIDGE_SOURCE,
-    channel: 'OTONOM_MUSIC',
-    type,
-    id: requestId,
-    payload
-  };
-
-  // v1.53: Gemini Canvas bazen sandbox/cross-origin iframe içindedir. Content script
-  // child frame'e enjekte edilemese bile üst Gemini frame'indeki eklenti köprüsüne ulaş.
-  const targets = [];
-  const addTarget = (target) => {
-    try { if (target && typeof target.postMessage === 'function' && !targets.includes(target)) targets.push(target); }
-    catch (e) { ErrorHandler.silent(e); }
-  };
-  addTarget(window);
-  try { addTarget(window.parent); } catch (e) { ErrorHandler.silent(e); }
-  try { addTarget(window.top); } catch (e) { ErrorHandler.silent(e); }
-
-  try {
-    for (const target of targets) target.postMessage(message, '*');
-  } catch (e) {
-    ErrorHandler.silent(e);
-    finish(null);
-  }
-});
-
-const probeMusicExtension = async (force = false) => {
-  const now = Date.now();
-  if (!force && _musicExtensionProbe.available !== null && (now - _musicExtensionProbe.checkedAt) < MUSIC_EXTENSION_PROBE_TTL_MS) {
-    return { ..._musicExtensionProbe };
-  }
-
-  const reply = await musicExtensionRequest('MUSIC_PING', {}, 3500);
-  _musicExtensionProbe = {
-    available: !!reply?.ok,
-    checkedAt: now,
-    version: reply?.version || '',
-    count: Number(reply?.count || 0)
-  };
-  return { ..._musicExtensionProbe };
+// Uzantı IndexedDB köprüsü (musicExtensionRequest protokolü) kalktı: müziklerin
+// ikinci kalıcı kopyası artık yerel gateway servisinin kendi diskinde
+// (services/gateway/muzik/ — katalog.json + <id>.audio). Yerel sayfa IndexedDB
+// (LIB_STORE) birincil önbellek olarak aynen kalır; gateway erişilemezse
+// çağırana ok:false/başarısız dönülür ve çağıran taraf açık log basar —
+// sessiz fallback yası yok (zero-cost, sıfır bağımlılık).
+const _otonomGatewayBase = () => {
+  let base = 'http://127.0.0.1:4100';
+  try { if (typeof __OTONOM_GATEWAY__ === 'string' && __OTONOM_GATEWAY__) base = __OTONOM_GATEWAY__; } catch (e) {}
+  return String(base).replace(/\/+$/, '');
 };
-
-const _resetMusicExtensionProbe = () => {
-  _musicExtensionProbe = { available: null, checkedAt: 0, version: '', count: 0 };
-};
-
-const openMusicExtensionOptions = async () => {
+const _gatewayMusicErrorText = (j, status) => j?.code || j?.message || (Number.isFinite(status) ? `HTTP ${status}` : 'Gateway yanıt vermedi');
+const gatewayMusicStatus = async () => {
   try {
-    const probe = await probeMusicExtension(true);
-    if (!probe.available) return { ok: false, available: false };
-    const reply = await musicExtensionRequest('MUSIC_OPEN_OPTIONS', {}, 3000);
-    return { ok: !!reply?.ok, available: true, count: Number(reply?.count || probe.count || 0) };
-  } catch (e) {
-    ErrorHandler.silent(e);
-    return { ok: false, available: false };
-  }
+    const r = await fetch(`${_otonomGatewayBase()}/api/music`, { signal: AbortSignal.timeout(8000) });
+    const j = await r.json();
+    if (r.ok && j?.ok && Array.isArray(j.tracks)) return { ok: true, tracks: j.tracks, count: Number(j.count ?? j.tracks.length) };
+    return { ok: false, tracks: [], count: 0, error: _gatewayMusicErrorText(j, r.status) };
+  } catch (e) { return { ok: false, tracks: [], count: 0, error: e?.message || String(e) }; }
+};
+const gatewayMusicPut = async (track) => {
+  try {
+    const r = await fetch(`${_otonomGatewayBase()}/api/music`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ track }), signal: AbortSignal.timeout(30000) });
+    const j = await r.json();
+    return { ok: !!(r.ok && j?.ok), error: _gatewayMusicErrorText(j, r.status) };
+  } catch (e) { return { ok: false, error: e?.message || String(e) }; }
+};
+const gatewayMusicGet = async (id) => {
+  try {
+    const r = await fetch(`${_otonomGatewayBase()}/api/music?id=${encodeURIComponent(String(id || ''))}`, { signal: AbortSignal.timeout(30000) });
+    const j = await r.json();
+    if (r.ok && j?.ok && j?.track?.data) return { ok: true, track: { id, name: j.track.name || id, mimeType: j.track.mimeType, data: j.track.data } };
+    return { ok: false, error: _gatewayMusicErrorText(j, r.status) };
+  } catch (e) { return { ok: false, error: e?.message || String(e) }; }
+};
+const gatewayMusicDelete = async (id) => {
+  try {
+    const r = await fetch(`${_otonomGatewayBase()}/api/music?id=${encodeURIComponent(String(id || ''))}`, { method: 'DELETE', signal: AbortSignal.timeout(8000) });
+    const j = await r.json();
+    return { ok: !!(r.ok && j?.ok), error: _gatewayMusicErrorText(j, r.status) };
+  } catch (e) { return { ok: false, error: e?.message || String(e) }; }
 };
 
 // ============================================================================
@@ -2578,38 +2544,33 @@ class AssetManagerService {
       localOk = await new Promise(r => { tx.oncomplete = () => r(true); tx.onerror = () => r(false); tx.onabort = () => r(false); });
     } catch (e) { ErrorHandler.silent(e); }
 
-    // v1.47: Eklenti açıksa aynı parçayı onun kalıcı deposuna da aynala.
-    // Eklenti hatası yerel çalışan akışı ASLA bozmaz.
-    let extensionOk = false;
+    // v1.185: Uzantı deposu yerine gateway servisinin kalıcı diskine aynala.
+    // Gateway hatası yerel çalışan akışı ASLA bozmaz.
+    let gatewayOk = false;
+    let gatewayError = '';
     try {
-      const probe = await probeMusicExtension(false);
-      if (probe.available && musicObj?.id && musicObj?.data) {
-        const reply = await musicExtensionRequest('MUSIC_PUT', { track: musicObj }, 20000);
-        extensionOk = !!reply?.ok;
+      if (musicObj?.id && musicObj?.data) {
+        const gw = await gatewayMusicPut(musicObj);
+        gatewayOk = !!gw.ok;
+        if (!gw.ok) gatewayError = gw.error || '';
       }
-    } catch (e) { ErrorHandler.silent(e); }
-    return localOk || extensionOk;
+    } catch (e) { gatewayError = e?.message || String(e); ErrorHandler.silent(e); }
+    if (!gatewayOk && musicObj?.id && musicObj?.data) console.warn(`[AssetManager] Gateway müzik kaydı başarısız (id=${musicObj.id}): ${gatewayError}`);
+    return localOk || gatewayOk;
   }
   static async getAllMusicFromLib() {
     const local = await this.getAllMusicLocal();
-    try {
-      const probe = await probeMusicExtension(false);
-      if (!probe.available) return local;
-      const reply = await musicExtensionRequest('MUSIC_LIST', {}, 8000);
-      if (!reply?.ok || !Array.isArray(reply.tracks)) return local;
+    const gw = await gatewayMusicStatus();
+    if (!gw.ok) { console.warn(`[AssetManager] Gateway müzik katalogu okunamadı (yerel kütüphaneyle devam): ${gw.error || ''}`); return local; }
 
-      const merged = new Map();
-      for (const track of local) if (track?.id) merged.set(track.id, track);
-      for (const track of reply.tracks) {
-        if (!track?.id) continue;
-        if (!merged.has(track.id)) merged.set(track.id, { ...track, extensionStored: true });
-        else merged.set(track.id, { ...track, ...merged.get(track.id), extensionStored: true });
-      }
-      return [...merged.values()];
-    } catch (e) {
-      ErrorHandler.silent(e);
-      return local;
+    const merged = new Map();
+    for (const track of local) if (track?.id) merged.set(track.id, track);
+    for (const track of gw.tracks) {
+      if (!track?.id) continue;
+      if (!merged.has(track.id)) merged.set(track.id, { ...track, gatewayStored: true });
+      else merged.set(track.id, { ...track, ...merged.get(track.id), gatewayStored: true });
     }
+    return [...merged.values()];
   }
   static async migrateLegacyMusicLibraries() {
     try {
@@ -2660,12 +2621,11 @@ class AssetManagerService {
       if (localTrack?.data) return localTrack;
     } catch (e) { ErrorHandler.silent(e); }
 
-    // Yerel kopya yoksa tarayıcı eklentisindeki kalıcı Blob'u iste.
+    // Yerel kopya yoksa gateway'in kalıcı diskindeki Blob'u iste.
     try {
-      const probe = await probeMusicExtension(false);
-      if (!probe.available) return null;
-      const reply = await musicExtensionRequest('MUSIC_GET', { id }, 20000);
-      if (reply?.ok && reply.track?.data) return { ...reply.track, extensionStored: true };
+      const gw = await gatewayMusicGet(id);
+      if (gw?.ok && gw.track?.data) return { ...gw.track, gatewayStored: true };
+      if (!gw?.ok) console.warn(`[AssetManager] Gateway parça okunamadı (id=${String(id).slice(0, 40)}): ${gw?.error || ''}`);
     } catch (e) { ErrorHandler.silent(e); }
     return null;
   }
@@ -2678,35 +2638,33 @@ class AssetManagerService {
       localOk = await new Promise(r => { tx.oncomplete = () => r(true); tx.onerror = () => r(false); tx.onabort = () => r(false); });
     } catch (e) { ErrorHandler.silent(e); }
 
-    let extensionOk = false;
+    let gatewayOk = false;
     try {
-      const probe = await probeMusicExtension(false);
-      if (probe.available) {
-        const reply = await musicExtensionRequest('MUSIC_DELETE', { id }, 5000);
-        extensionOk = !!reply?.ok;
-      }
+      const gw = await gatewayMusicDelete(id);
+      gatewayOk = !!gw.ok;
+      if (!gw.ok) console.warn(`[AssetManager] Gateway müzik silme başarısız (id=${String(id).slice(0, 40)}): ${gw.error || ''}`);
     } catch (e) { ErrorHandler.silent(e); }
-    return localOk || extensionOk;
+    return localOk || gatewayOk;
   }
-  static async mirrorLocalMusicToExtension() {
+  static async mirrorLocalMusicToGateway() {
     try {
-      const probe = await probeMusicExtension(true);
-      if (!probe.available) return { ok: false, available: false, copied: 0, total: 0 };
+      const gw = await gatewayMusicStatus();
+      if (!gw.ok) return { ok: false, available: false, copied: 0, total: 0, error: gw.error || '' };
 
       const local = await this.getAllMusicLocal();
-      if (!local.length) return { ok: true, available: true, copied: 0, total: 0, extensionCount: probe.count || 0 };
+      if (!local.length) return { ok: true, available: true, copied: 0, total: 0, gatewayCount: gw.count || 0 };
 
-      const listReply = await musicExtensionRequest('MUSIC_LIST', {}, 8000);
-      const extIds = new Set((listReply?.tracks || []).map(t => t?.id).filter(Boolean));
-      const missing = local.filter(track => track?.id && track?.data && !extIds.has(track.id));
+      const gwIds = new Set(gw.tracks.map(t => t?.id).filter(Boolean));
+      const missing = local.filter(track => track?.id && track?.data && !gwIds.has(track.id));
       let copied = 0;
+      let lastError = '';
       for (const track of missing) {
-        const reply = await musicExtensionRequest('MUSIC_PUT', { track }, 20000);
+        const reply = await gatewayMusicPut(track);
         if (reply?.ok) copied++;
+        else lastError = reply?.error || '';
       }
-      _resetMusicExtensionProbe();
-      const finalProbe = await probeMusicExtension(true);
-      return { ok: true, available: true, copied, total: local.length, extensionCount: finalProbe.count || 0 };
+      const finalGw = await gatewayMusicStatus();
+      return { ok: true, available: true, copied, total: local.length, gatewayCount: finalGw.count || 0, lastError };
     } catch (e) {
       ErrorHandler.silent(e);
       return { ok: false, available: true, copied: 0, total: 0, error: e?.message || String(e) };
@@ -10164,7 +10122,7 @@ export default function App() {
   }, []);
 
   // FIREBASE DEĞİŞİKLİĞİ: statusMsg 'Bulut Kontrol Ediliyor...' → 'Yerel Mod', isLoading false
-  const [studioMedia, setStudioMedia] = useState({ outroUrl: null, musicLoaded: false, musicName: '', musicId: '', musicList: [], customSceneImages: [], isLoading: false, statusMsg: 'Yerel Mod', syncedFolderName: '', musicExtensionReady: false, musicExtensionCount: 0 });
+  const [studioMedia, setStudioMedia] = useState({ outroUrl: null, musicLoaded: false, musicName: '', musicId: '', musicList: [], customSceneImages: [], isLoading: false, statusMsg: 'Yerel Mod', syncedFolderName: '', musicGatewayReady: false, musicGatewayCount: 0 });
   const [musicSearchQuery, setMusicSearchQuery] = useState('');
   const canvasRef = useRef(null);
   const workflowRef = useRef(new WorkflowCoordinator());
@@ -10669,10 +10627,12 @@ export default function App() {
         // Tarayıcıdan mümkünse kalıcı depolama iste; IndexedDB müzikleri yeniden açılışlarda korunur.
         try { if (navigator.storage?.persist) await navigator.storage.persist(); } catch (e) { ErrorHandler.silent(e); }
 
-        // v1.47: Önce OTONOM Music Extension var mı kontrol et. Eklenti yoksa mevcut yerel akış aynen sürer.
-        const musicExtProbe = await probeMusicExtension(true);
-        if (musicExtProbe.available) {
-          addSystemLog(`🎵 OTONOM Music Extension v${musicExtProbe.version || '?'} bağlı; eklentide ${musicExtProbe.count || 0} müzik.`, 'success');
+        // v1.185: Uzantı köprüsü kalktı; gateway kalıcı müzik kütüphanesi yoklanır.
+        const gwMusic = await gatewayMusicStatus();
+        if (gwMusic.ok) {
+          addSystemLog(`🎵 Gateway müzik kütüphanesi bağlı; sunucuda ${gwMusic.count} müzik.`, 'success');
+        } else {
+          addSystemLog(`📢 Gateway müzik kütüphanesi şu an kapalı/kayıtsız (${gwMusic.error || ''}) — yerel kütüphane kullanılacak.`, 'warn');
         }
 
         let allMusic = await AssetManagerService.getAllMusicFromLib();
@@ -10706,18 +10666,18 @@ export default function App() {
           addSystemLog(`Müzik klasörü otomatik senkronlanamadı; kayıtlı kütüphane kullanılacak.`, 'warn');
         }
 
-        setStudioMedia(s => ({ ...s, musicList: [...allMusic], musicLoaded: allMusic.length > 0, isLoading: false, statusMsg: musicExtProbe.available ? 'OTONOM Eklenti' : 'Yerel Mod', syncedFolderName: savedFolderName, musicExtensionReady: !!musicExtProbe.available, musicExtensionCount: Number(musicExtProbe.count || 0) }));
+        setStudioMedia(s => ({ ...s, musicList: [...allMusic], musicLoaded: allMusic.length > 0, isLoading: false, statusMsg: gwMusic.ok ? 'Gateway' : 'Yerel Mod', syncedFolderName: savedFolderName, musicGatewayReady: gwMusic.ok, musicGatewayCount: Number(gwMusic.count || 0) }));
         if (allMusic.length > 0) {
           if (!SafeStorage.getItem('ns_syncedFolderName') && savedFolderName) SafeStorage.setItem('ns_syncedFolderName', savedFolderName);
           addSystemLog(`🎵 Müzik kütüphanesi hazır: ${allMusic.length} müzik.`, 'success');
 
-          // Mevcut eski sayfa IndexedDB kütüphanesini eklentiye bir kez aynala.
+          // Yerel IndexedDB'deki eksik parçaları gateway kalıcı kütüphaneye aynala.
           // Arka planda yapılır; video üretimi veya UI bu geçişi beklemez.
-          if (musicExtProbe.available) {
-            void AssetManagerService.mirrorLocalMusicToExtension().then(result => {
+          if (gwMusic.ok) {
+            void AssetManagerService.mirrorLocalMusicToGateway().then(result => {
               if (!result?.available) return;
-              if (result.copied > 0) addSystemLog(`✓ OTONOM eklentisine ${result.copied} müzik kalıcı olarak aktarıldı. Eklenti toplamı: ${result.extensionCount}.`, 'success');
-              setStudioMedia(prev => ({ ...prev, musicExtensionReady: true, musicExtensionCount: Number(result.extensionCount || prev.musicExtensionCount || 0), statusMsg: 'OTONOM Eklenti' }));
+              if (result.copied > 0) addSystemLog(`✓ Gateway kalıcı kütüphaneye ${result.copied} müzik aktarıldı. Sunucu toplamı: ${result.gatewayCount}.`, 'success');
+              setStudioMedia(prev => ({ ...prev, musicGatewayReady: true, musicGatewayCount: Number(result.gatewayCount || prev.musicGatewayCount || 0), statusMsg: 'Gateway' }));
             }).catch(ErrorHandler.silent);
           }
 
@@ -10743,18 +10703,18 @@ export default function App() {
           targetBgmId = activeTrack?.id || targetBgmId;
 
           if (activeTrack) {
-            // Eklenti kataloğu yalnız metadata döndürür; ses verisini gerektiğinde tek parça olarak getir.
+            // Gateway kataloğu yalnız metadata döndürür; ses verisini gerektiğinde tek parça olarak getir.
             const hydratedTrack = activeTrack.data ? activeTrack : await AssetManagerService.getMusicFromLib(activeTrack.id);
             if (!hydratedTrack?.data) {
               addSystemLog(`Müzik kataloğunda bulundu ancak ses verisi alınamadı: ${activeTrack.name || activeTrack.id}`, 'warn');
             } else {
             activeTrack = { ...activeTrack, ...hydratedTrack };
-            // v1.178: Aktif default parça kalıcı yerel kütüphaneye aynalanır; böylece
-            // her üretimde uzantıya MUSIC_GET round-trip'i bağımlılığı kalmaz ve
-            // eklentideki tek seferlik bir durgunluk müziksiz videoya yol açmaz.
+            // v1.185: Aktif default parça kalıcı yerel kütüphaneye aynalanır; böylece
+            // her üretimde gateway MUSIC GET round-trip'i bağımlılığı kalmaz ve
+            // gateway'in tek seferlik bir durgunluğu müziksiz videoya yol açmaz.
             try {
               const mirrored = await AssetManagerService.saveMusicToLib({ id: activeTrack.id, name: activeTrack.name, data: activeTrack.data });
-              addSystemLog(mirrored ? 'Aktif BGM parçası yerel kütüphaneye aynalandı (render artık eklentiye bağımlı değil).' : 'BGM aynalama başarısız; render uzantıya bağımlı kalıyor (erişim yoksa bölüm tekrar denenir).', mirrored ? 'info' : 'warn');
+              addSystemLog(mirrored ? 'Aktif BGM parçası yerel kütüphaneye aynalandı (render artık gateway sunucusuna bağımlı değil).' : 'BGM aynalama başarısız; render gateway erişimine bağımlı kalıyor (erişim yoksa bölüm tekrar denenir).', mirrored ? 'info' : 'warn');
             } catch (mirrorError) { ErrorHandler.silent(mirrorError); }
             const blob = _base64ToBlob(activeTrack.data);
             const url = ObjectURLManager.create(blob);
@@ -10784,7 +10744,7 @@ export default function App() {
             }
           }
         } else {
-          addSystemLog("Müzik kütüphanesi boş. 'MÜZİK KLASÖRÜ SEÇ' ile ekleyin veya OTONOM Music Extension seçeneklerinden klasörü bir kez içe aktarın; sonraki açılışlarda otomatik gelir.", 'info');
+          addSystemLog("Müzik kütüphanesi boş. 'MÜZİK KLASÖRÜ SEÇ' ile ekleyin; parçalar hem yerel hem gateway (4100) kalıcı kütüphaneye kaydedilir, sonraki açılışlarda otomatik gelir.", 'info');
         }
       } catch (e) { setStudioMedia(s => ({ ...s, isLoading: false, statusMsg: 'Yerel Mod' })); }
     };
@@ -10863,16 +10823,7 @@ export default function App() {
 
   const handleFolderSelect = async () => {
     try {
-      // v1.48: OTONOM Music Bridge varsa klasör erişimini web sayfasından isteme.
-      // Eklenti seçenekleri bir kez müzikleri kendi kalıcı IndexedDB alanına alır;
-      // böylece Gemini/Chrome her açılışta klasör izin penceresi göstermez.
-      const extensionOpen = await openMusicExtensionOptions();
-      if (extensionOpen.available && extensionOpen.ok) {
-        addSystemLog('🎵 OTONOM Music Bridge seçenekleri açıldı. Müzik klasörünü eklentiye bir kez aktarın; sonraki açılışlarda kalıcı gelir.', 'success');
-        return;
-      }
-
-      // Eklenti yoksa mevcut yerel yöntem aynen korunur.
+      // v1.185: Uzantı seçenekleri köprüsü kalktı; yerele özgü klasör akışı tek yoldur.
       if (typeof window.showDirectoryPicker === 'function') {
         let dirHandle = null;
         const savedDir = await AssetManagerService.getDirHandle();
@@ -11028,34 +10979,29 @@ export default function App() {
     addSystemLog(`✓ Müzik seçildi ve kalıcı saklandı: ${track.name}`, 'success');
   }, [prefs]);
 
-  // v1.53: Eklentideki kalıcı müzik kataloğunu kullanıcı isteğiyle zorla yeniden oku.
-  // Klasör seçimi gerekmez; OTONOM Music Bridge içinde görünen parçalar doğrudan kullanılır.
+  // v1.53→v1.185: Kalıcı müzik kataloğunu kullanıcı isteğiyle zorla yeniden oku.
+  // Klasör seçimi gerekmez; gateway (4100) kütüphanesindeki parçalar doğrudan kullanılır.
   const refreshMusicLibrary = useCallback(async () => {
     setStudioMedia(prev => ({ ...prev, isLoading: true, statusMsg: 'Müzikler yenileniyor...' }));
-    addSystemLog('🎵 OTONOM müzik kataloğu zorla yenileniyor...', 'info');
+    addSystemLog('🎵 Gateway müzik kataloğu zorla yenileniyor...', 'info');
 
     try {
-      _resetMusicExtensionProbe();
-      const probe = await probeMusicExtension(true);
       const local = await AssetManagerService.getAllMusicLocal();
-      let allMusic = [...local];
-      let extensionCount = 0;
+      const gw = await gatewayMusicStatus();
+      let allMusic = local.length ? local : [];
+      let gatewayCount = gw.count || 0;
 
-      if (probe.available) {
-        const listReply = await musicExtensionRequest('MUSIC_LIST', {}, 8000);
-        if (!listReply?.ok || !Array.isArray(listReply.tracks)) {
-          throw new Error(listReply?.error || 'OTONOM Music Bridge katalog yanıtı alınamadı');
-        }
-        extensionCount = Number(listReply.count || listReply.tracks.length || 0);
+      if (gw.ok) {
         const merged = new Map();
         for (const track of local) if (track?.id) merged.set(track.id, track);
-        for (const track of listReply.tracks) {
+        for (const track of gw.tracks) {
           if (!track?.id) continue;
           const localTrack = merged.get(track.id);
-          merged.set(track.id, localTrack ? { ...track, ...localTrack, extensionStored: true } : { ...track, extensionStored: true });
+          merged.set(track.id, localTrack ? { ...track, ...localTrack, gatewayStored: true } : { ...track, gatewayStored: true });
         }
         allMusic = [...merged.values()].sort((a, b) => String(a?.name || '').localeCompare(String(b?.name || ''), 'tr'));
       } else {
+        addSystemLog(`Gateway müzik kataloğu okunamadı (${gw.error || ''}) — yerel kütüphane kullanılıyor.`, 'warn');
         allMusic = await AssetManagerService.getAllMusicFromLib();
       }
 
@@ -11064,13 +11010,13 @@ export default function App() {
         musicList: [...allMusic],
         musicLoaded: allMusic.length > 0,
         isLoading: false,
-        statusMsg: probe.available ? 'OTONOM Eklenti' : 'Yerel Mod',
-        musicExtensionReady: !!probe.available,
-        musicExtensionCount: extensionCount || Number(probe.count || 0)
+        statusMsg: gw.ok ? 'Gateway' : 'Yerel Mod',
+        musicGatewayReady: !!gw.ok,
+        musicGatewayCount: gatewayCount
       }));
 
       if (!allMusic.length) {
-        addSystemLog(probe.available ? 'OTONOM eklentisi bağlı fakat katalog boş döndü.' : 'OTONOM Music Bridge bağlantısı kurulamadı ve yerel müzik bulunamadı.', 'warn');
+        addSystemLog(gw.ok ? 'Gateway kütüphanesi bağlı fakat katalog boş döndü.' : 'Gateway kütüphanesine ulaşılamadı ve yerel müzik bulunamadı.', 'warn');
         return;
       }
 
@@ -11083,18 +11029,18 @@ export default function App() {
         polyushkaTrack ||
         allMusic[0];
 
-      // MUSIC_LIST yalnız metadata taşır. Seçilen parçanın gerçek verisini MUSIC_GET ile al.
+      // Gateway katalog yanıtı yalnız metadata taşır. Seçilen parçanın gerçek verisini tek tek al.
       const hydrated = activeTrack?.data ? activeTrack : await AssetManagerService.getMusicFromLib(activeTrack?.id);
       if (!hydrated?.data) {
         addSystemLog('Müzik listesi geldi fakat seçilen parçanın ses verisi alınamadı: ' + (activeTrack?.name || activeTrack?.id || '?'), 'error');
         return;
       }
       activeTrack = { ...activeTrack, ...hydrated };
-      // v1.178: Aktif parçayı kalıcı yerel kütüphaneye aynala (render, uzantı MUSIC_GET
-      // round-trip'ine bağımlı kalmasın; eklenti durgunlğünde müziksiz video kalmasın).
+      // v1.178: Aktif parçayı kalıcı yerel kütüphaneye aynala (render, gateway MUSIC GET
+      // round-trip'ine bağımlı kalmasın; sunucu durgunluğunda müziksiz video kalmasın).
       try {
         const mirrored = await AssetManagerService.saveMusicToLib({ id: activeTrack.id, name: activeTrack.name, data: activeTrack.data });
-        addSystemLog(mirrored ? `Aktif BGM '${activeTrack.name}' yerel kütüphaneye aynalandı.` : `BGM aynalama başarısız (uzantı erişimi yok); render uzantıya bağımlı kalıyor.`, mirrored ? 'info' : 'warn');
+        addSystemLog(mirrored ? `Aktif BGM '${activeTrack.name}' yerel kütüphaneye aynalandı.` : `BGM aynalama başarısız (gateway erişimi yok); render gateway'e bağımlı kalıyor.`, mirrored ? 'info' : 'warn');
       } catch (mirrorError) { ErrorHandler.silent(mirrorError); }
 
       const oldUrl = await AssetManagerService.loadMedia('CUSTOM_MUSIC');
@@ -14417,17 +14363,17 @@ export default function App() {
                 <button onClick={clearSyncedFolder} className="text-[10px] text-slate-400 hover:text-rose-400 transition">Kaldır</button>
               </div>
             )}
-            {studioMedia.musicExtensionReady && (
+            {studioMedia.musicGatewayReady && (
               <div className="mt-2 flex items-center justify-between bg-violet-500/10 border border-violet-500/25 rounded-lg px-3 py-2">
                 <div className="flex items-center gap-2">
                   <Database size={12} className="text-violet-300" />
-                  <span className="text-[10px] text-violet-300 font-bold">OTONOM Chrome / Firefox Kalıcı Müzik</span>
+                  <span className="text-[10px] text-violet-300 font-bold">Gateway Kalıcı Müzik (4100)</span>
                 </div>
-                <span className="text-[10px] text-violet-200 font-black">{studioMedia.musicExtensionCount || studioMedia.musicList.length} parça</span>
+                <span className="text-[10px] text-violet-200 font-black">{studioMedia.musicGatewayCount || studioMedia.musicList.length} parça</span>
               </div>
             )}
             {studioMedia.musicList.length === 0 && (
-              <p className="text-[9px] text-slate-500 mt-1.5 text-center">Müzik klasörünü bir kez seçin — OTONOM Chrome/Firefox eklentisi varsa kalıcı kopyası da tutulur</p>
+              <p className="text-[9px] text-slate-500 mt-1.5 text-center">Müzik klasörünü bir kez seçin — gateway (4100) sunucusu çalışıyorsa kalıcı kopyası da tutulur</p>
             )}
             {prefs.ambientSound && !['none', 'rain', 'wind', 'waves', 'fire'].includes(prefs.ambientSound) && (
               <div className="mt-2 flex items-center gap-2 bg-slate-900/60 border border-violet-500/30 rounded-lg px-3 py-2">

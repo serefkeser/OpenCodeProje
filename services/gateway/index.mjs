@@ -1,11 +1,13 @@
 // ============================================================================
-// OTONOM v1.176 — GATEWAY MİKRO SERVİS (port: GATEWAY_PORT / 4100)
+// OTONOM v1.185 — GATEWAY MİKRO SERVİS (port: GATEWAY_PORT / 4100)
 // Sorumluluk: CORS, /health, /proxy (+/api/proxy) sayfa proxy, /api/gemini-proxy
-//             (Gemini anahtarı sunucuda kalır), /api/* isteklerini analysis (4201)
-//             ve media (4202) servislerine yönlendir.
+//             (Gemini anahtarı sunucuda kalır), /api/music (kalıcı müzik deposu),
+//             /api/* isteklerini analysis (4201) ve media (4202) servislerine yönlendir.
 // İlke: zero-dependency (node:http + node:fetch) — server.mjs stiliyle uyumlu.
 // ============================================================================
 import { createServer } from 'node:http';
+import { mkdirSync, readFileSync, writeFileSync, rmSync, existsSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
 const GEMINI_ORIGIN = 'https://generativelanguage.googleapis.com';
 const GEMINI_MAX_BODY_BYTES = 100 * 1024 * 1024;
@@ -139,6 +141,106 @@ const handlePageProxy = async incomingUrl => {
   });
 };
 
+// -- Kalıcı müzik deposu (v1.185) ---------------------------------------------
+// Uzantı IndexedDB köprüsü yerine kendi diskimizde kalıcı kütüphane:
+// services/gateway/muzik/ katalogda {id,name,mimeType,bytes,updatedAt}, parça
+// verisi <id>.audio (kaba byte). Uzantı protokolü ile aynı sınırlar:
+// id ^fm_[A-Za-z0-9_-]{1,230}$, parça başına 32 MB, yalnız audio/ veya
+// application/(ogg|octet-stream) data-URL. Parça /api/media/{görsel} değil;
+// app'in MUSIC_* protokolüyle birebir aynı JSON şekli korunur.
+const MUSIC_DIR = fileURLToPath(new URL('./muzik/', import.meta.url));
+const MUSIC_CATALOG = `${MUSIC_DIR}catalog.json`;
+const MUSIC_ID_RE = /^fm_[a-zA-Z0-9_-]{1,230}$/;
+const MUSIC_MAX_BYTES = 32 * 1024 * 1024;
+const MUSIC_DATAURL_RE = /^data:(audio\/[\w.+-]+|application\/(?:ogg|octet-stream));base64,/;
+const MUSIC_SECURE_NAME = /^[^\\/:*?"<>|\r\n]{1,200}$/;
+
+const musicReadCatalog = () => {
+  try { return JSON.parse(readFileSync(MUSIC_CATALOG, 'utf8')); } catch (_) { return []; }
+};
+const musicWriteCatalog = entries => {
+  mkdirSync(MUSIC_DIR, { recursive: true });
+  // Atomik benzeri yazım: önce .tmp, sonra katalog; yarı-yazılmış katalog riski kalmaz.
+  const tmp = `${MUSIC_CATALOG}.${process.pid}.tmp`;
+  writeFileSync(tmp, JSON.stringify(entries, null, 1));
+  rmSync(MUSIC_CATALOG, { force: true });
+  writeFileSync(MUSIC_CATALOG, JSON.stringify(entries, null, 1));
+  rmSync(tmp, { force: true });
+};
+
+const musicList = () => {
+  const entries = musicReadCatalog();
+  return json(200, 'OK', 'ok', { count: entries.length, tracks: entries });
+};
+
+const musicDelete = async incomingUrl => {
+  const url = new URL(`http://local${incomingUrl}`);
+  const id = String(url.searchParams.get('id') || '');
+  if (!MUSIC_ID_RE.test(id)) return json(400, 'INVALID_MUSIC_ID', `Geçersiz müzik id: ${id.slice(0, 40)}`);
+  const entries = musicReadCatalog();
+  const next = entries.filter(e => e.id !== id);
+  if (next.length === entries.length) return json(404, 'MUSIC_NOT_FOUND', `id katalogda yok: ${id.slice(0, 40)}`);
+  musicWriteCatalog(next);
+  rmSync(`${MUSIC_DIR}${id}.audio`, { force: true });
+  return json(200, 'OK', 'ok', { deleted: id });
+};
+
+const musicPut = async request => {
+  if (request.method !== 'PUT' && request.method !== 'POST') {
+    return json(405, 'METHOD_NOT_ALLOWED', 'Müzik kaydı yalnızca PUT/POST kabul eder.');
+  }
+  const raw = (await readBody(request)).toString('utf8');
+  let track;
+  try { track = JSON.parse(raw || '{}')?.track; } catch (_) { return json(400, 'INVALID_MUSIC_JSON', 'Gövde JSON çözümlenemedi.'); }
+  const id = String(track?.id || '');
+  const name = String(track?.name || '');
+  const dataUrl = String(track?.data || track?.dataUrl || '');
+  if (!MUSIC_ID_RE.test(id)) return json(400, 'INVALID_MUSIC_ID', `Geçersiz müzik id: ${id.slice(0, 40)}`);
+  if (!MUSIC_SECURE_NAME.test(name)) return json(400, 'INVALID_MUSIC_NAME', 'Geçersiz müzik dosya adı.');
+  if (!MUSIC_DATAURL_RE.test(dataUrl)) return json(415, 'UNSUPPORTED_MUSIC_MIME', 'data yalnızca audio/* veya application/(ogg|octet-stream) kabul eder.');
+  try {
+    const b64 = dataUrl.slice(dataUrl.indexOf(',') + 1);
+    const bytes = Buffer.from(b64, 'base64');
+    if (!bytes || bytes.length < 64 || bytes.length > MUSIC_MAX_BYTES) {
+      return json(413, 'MUSIC_TOO_LARGE_OR_EMPTY', `Parça boyutu 64 B..${MUSIC_MAX_BYTES} aralığında olmalı.`);
+    }
+    const mime = dataUrl.slice(5, dataUrl.indexOf(';')).trim();
+    mkdirSync(MUSIC_DIR, { recursive: true });
+    const updatedAt = new Date().toISOString();
+    const entries = musicReadCatalog().filter(e => e.id !== id);
+    entries.push({ id, name, mimeType: mime, bytes: bytes.length, updatedAt });
+    writeFileSync(`${MUSIC_DIR}${id}.audio`, bytes);
+    musicWriteCatalog(entries);
+    return json(200, 'OK', 'ok', { track: { id, name, mimeType: mime, bytes: bytes.length, updatedAt } });
+  } catch (error) {
+    return json(500, 'MUSIC_WRITE_FAILED', `Müzik diske yazılamadı: ${String(error?.message || error)}`);
+  }
+};
+
+const musicGet = async incomingUrl => {
+  const url = new URL(`http://local${incomingUrl}`);
+  const id = String(url.searchParams.get('id') || '');
+  if (!MUSIC_ID_RE.test(id)) return json(400, 'INVALID_MUSIC_ID', `Geçersiz müzik id: ${id.slice(0, 40)}`);
+  const file = `${MUSIC_DIR}${id}.audio`;
+  if (!existsSync(file)) return json(404, 'MUSIC_DATA_MISSING', `Parça verisi diskte yok: ${id.slice(0, 40)}`);
+  const entry = musicReadCatalog().find(e => e.id === id) || { id, mimeType: 'application/octet-stream', name: id };
+  try {
+    const blob = new Blob([readFileSync(file)], { type: entry.mimeType || 'application/octet-stream' });
+    const base64 = Buffer.from(await blob.arrayBuffer()).toString('base64');
+    return json(200, 'OK', 'ok', { track: { id, name: entry.name, mimeType: entry.mimeType, data: `data:${entry.mimeType};base64,${base64}` } });
+  } catch (error) {
+    return json(500, 'MUSIC_READ_FAILED', `Parça diskten okunamadı: ${String(error?.message || error)}`);
+  }
+};
+
+const handleMusicApi = async request => {
+  if (request.method === 'PUT' || request.method === 'POST') return musicPut(request);
+  if (request.method === 'DELETE') return musicDelete(request.url);
+  const url = new URL(`http://local${request.url}`);
+  if (url.searchParams.get('id')) return musicGet(request.url);
+  return musicList();
+};
+
 // -- Alt servislere passthrough ----------------------------------------------
 const handlePassthrough = (name, port) => async request => {
   const targetPath = request.url || '/';
@@ -198,6 +300,13 @@ const server = createServer(async (request, response) => {
     // v1.176: Haber Linki akışı için ham sayfa/görsel proxy (/#/api/proxy takma adı).
     if (request.url.startsWith('/proxy') || request.url.startsWith('/api/proxy')) {
       const upstream = await handlePageProxy(request.url);
+      response.writeHead(upstream.status, Object.fromEntries(upstream.headers));
+      response.end(Buffer.from(await upstream.arrayBuffer()));
+      return;
+    }
+    // v1.185: kalıcı müzik deposu (uzantı IndexedDB yerine gateway diski).
+    if (request.url.startsWith('/api/music')) {
+      const upstream = await handleMusicApi(request);
       response.writeHead(upstream.status, Object.fromEntries(upstream.headers));
       response.end(Buffer.from(await upstream.arrayBuffer()));
       return;
