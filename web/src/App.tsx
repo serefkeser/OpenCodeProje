@@ -1,6 +1,15 @@
 // ============================================================================
-// OTONOM Chatgpt_1.178 — SÜRÜM BAŞLIĞI (her değişiklikte burayı, APP_VERSION'ı ve SÜRÜM NOTLARI'nı birlikte artır)
+// OTONOM Chatgpt_1.179 — SÜRÜM BAŞLIĞI (her değişiklikte burayı, APP_VERSION'ı ve SÜRÜM NOTLARI'nı birlikte artır)
 // Program menüsündeki rozet APP_VERSION.toBadge() ile bu sürümden otomatik üretilir.
+// v1.179 ÖZET: İki kırılma giderildi. (1) Gemini ücretsiz metin kotası bittiğinde
+// "İçerik analiz ediliyor..." aşaması HTTP 429 x5 deneme tükenmesiyle FAILED
+// oluyordu; _callGeminiAndParse (tek analiz soketi) artık kota/transport
+// kırılmalarında aynı istek şeklini kendi gateway analiz zincirine
+// (OpenRouter → Groq → NVIDIA → Gemini, sunucu tarafı) aktarır ve aynı
+// gevşek parser ile JSON döndürür; günlüğe "Gemini kota aşımı → kendi analysis
+// zinciri devraldı" SUCCESS satırı düşer. (2) Canlı izleme'de HATA/LİMİT
+// filtresi tanımsız 'line' değişkenine ReferenceError verip sayfayı beyaz
+// bırakıyordu (filtre localStorage'da kalıcıydı; test artık log.text üzerinedir).
 // v1.178 ÖZET: İki üretim kırilması giderildi. (1) BGM/fon müziği: render'da tüm
 // hata yolları sessizdi (yalnız F12 console.warn); artık her kırılma günlüğe
 // ERROR/WARN olarak düşer + 'BGM başlatıldı: isim (süre, seviye)' başarı satırı
@@ -104,7 +113,7 @@ const { Download, RotateCcw, UploadCloud, Music, Trash2, Volume2, Clock, Loader2
 // M1: CONSTANTS & CONFIG
 // ============================================================================
 const APP_VERSION = {
-  major: 1, minor: 178, hotfix: 'Chatgpt_1.178',
+  major: 1, minor: 179, hotfix: 'Chatgpt_1.179',
   short() { return `${this.major}.${this.minor}`; },
   toString() { return `OTONOM Chatgpt_${this.major}.${this.minor}`; },
   toBadge() { return `${this.toString()} • One-Page`; }
@@ -1201,6 +1210,8 @@ const collectUltimateCoverReferences = async (jobState) => {
 const useDebounce = (value, delay = 300) => { const [debounced, setDebounced] = useState(value); useEffect(() => { const timer = setTimeout(() => setDebounced(value), delay); return () => clearTimeout(timer); }, [value, delay]); return debounced; };
 
 const FIX_CHECKLIST = Object.freeze([
+  { version: '1.179', key: 'ANALYSIS_CHAIN_FALLBACK_ON_GEMINI_QUOTA', text: '"İçerik analiz ediliyor..." HTTP 429 x5 deneme tükenmesiyle FAILED oluyordu (fetchWithRetry: tüm denemeler başarısız): tarayıcı üretimi yalnız kullanıcının Gemini anahtarına (ücretsiz metin kotası) bağımlıydı; sunucu zinciri (OpenRouter→Groq→NVIDIA→Gemini, 4201) idde çalışırken işe yaramıyordu. Çözüm: _callGeminiAndParse transport/kota kırılmalarında aynı istek şeklini (systemInstruction + contents metinleri + inlineData görseller) gateway /api/analysis/text|vision\'a pas eder, dönen metni aynı gevşek parser ile JSON\'a çevirir; "Gemini kota aşımı → kendi analysis zinciri devraldı (sağlayıcı: X, model: Y)" SUCCESS satırı basılır. google_search aracı sağlayıcılara taşınmaz (gerçek doğrulanmış-tabanlı analiz bu yolda sınırlıdır: zincir yalnız verilen metinden analiz eder). Canvas sürümünde yedek yok (gateway adresi define edilmemiş); yedek de patlarsa asıl Gemini hatası yüzeye çıkar.' },
+  { version: '1.179', key: 'LIVE_MONITOR_FILTER_CRASH_FIX', text: 'Canlı izleme\'de HATA/LİMİT (ve kalıcı durumdan dolayı sonraki seçimlerde) sayfa beyaz oluyordu. Kök neden: errors filtresi (satır ~14058) tanımsız \'line\' değişkenine test ediyordu → render sırasında ReferenceError → React ağacı çöküyordu; filtre ns_liveMonitorFilter olarak localStorage\'a yazıldığından sayfa yenilendiğinde bile depodan yüklenen filtre ilk render\'da yeniden patlatıyordu (beyaz sayfa kalıcı). Çözüm: regex artık String(log?.text) üzerinden çalışır (log kayıtlarının metin alanı log.text\'tir; render satırı 14778 kanıtı). TÜM LOG / HATA-LİMİT / SÜRE-TOKEN üç filtre artık güvenle seçilebilir.' },
   { version: '1.178', key: 'BGM_SILENT_FAILURE_INSTRUMENTATION', text: 'Videoda fon müziği çalmıyordu ve canlı izleme günlüğünde hiçbir BGM hatası görünmüyordu. Kök neden 1: render BGM yükleyicisi (loadBGM) tüm hata yollarını console.warn ile F12 konsoluna basıyordu — parça bulunamadı, ses verisi eksik, decode hatası hepsi sessiz geçiliyordu (sessiz fallback ihlali). Kök neden 2: default parça (polyushka) init\'te hydrate edilip tercihe yazılsa da kalıcı yerel kütüphaneye kaydedilmiyordu; her üretim uzantı MUSIC_GET (20 sn) round-trip\'ine bağımlıydı ve eklentideki tek seferlik bir durgunluk müziksiz video üretiyordu. Çözüm: (a) loadBGM tüm kırılma noktaları ERROR/WARN olarak günlüğe düşer; (b) "BGM başlatıldı: isim (süre, seviye)" başarı satırı basılır; (c) init ve müzik yenileme akışları aktif parçayı AssetManagerService.saveMusicToLib ile kalıcı yerel IndexedDB\'ye aynalar; render uzantısız da çalabilir.' },
   { version: '1.178', key: 'TTS_MODEL_QUOTA_ZERO_CHAIN', text: 'Son Söz seslendirme fail-stop\'u ("Son Söz seslendirmesi üretilemedi; video render durduruldu") tüm TTS\'in null dönmesinden geliyordu. Kök neden: app\'deki TTS modeli hardcoded "gemini-2.5-flash-preview-tts" ve ücretsiz kotası 0\'a düşmüştü — gerçek istekte HTTP 429 "You exceeded your current quota" [kanıt: probe-tts-models.mjs]. Model emekli DEĞİL, kotasız: aynı görsel modellerinin akıbeti. Çözüm: generateAudio artık doğrulanmış TTS_MODELS zincirinde sıçrar (gemini-3.1-flash-tts-preview → gemini-3.8-flash-tts → gemini-3.8-flash-lite-tts); üçü de bugün ücretsiz katmanda gerçek ses üretti (77/73/70 KB, probe-tts-models + probe-tts-38). Deneme başına model bilinen şekilde günlüğe yazılır ("TTS deneme 2/3 (model: ...)"). Media servisi varsayılanı da aynı şekilde güncellendi; .env\'de iki satır çift GEMINI_TTS_MODEL tek satıra indirgendi (son satır kazanmıştı servislerde — bu yüzden servisler çalışıp app kırılmıştı).' },
   { version: '1.177', key: 'CLICKBAIT_SEAL_WHEN_NO_COVER_IMG', text: 'TikTok akışında videonun ilk ~1.2 sn mühürlü karesi boş beyaz görünüyordu; clickbait kapak başlığı ancak oynatma ilerleyince çıkıyordu. Kök neden: kapak görseli (tImg) yokken renderWorker öncesi kapak canvas\'ına \'#f4f4f4\' DÜZ dolgu basılıyor, clickbait tipografisi hiç çizilmiyordu; bu boş kare assets._renderedClickbaitFrame olarak saklanıp FFmpeg ilk-kare mührü (lte(t,1.20) overlay) ile MP4\'ün başına bindiriliyordu. Ayrıca BLACK_FRAME_PREFLIGHT sadece karanlığı (luma) ölçtüğü için beyaz-boş kareyi de geçerli sayıyordu. Çözüm: tImg yokken RenderWorkerService.drawThumbnail ctx\'e img=null ile tam yedek kapak şablonu çizer (koyu gradyan zemin + logo + clickbait başlık) ve uyarı günlüğe düşer.' },
@@ -2816,11 +2827,67 @@ const _stripJsonConfigForSearch = (payload) => {
   payload.contents[0].parts.push({ text: jsonRule });
   return payload;
 };
+// v1.179: Gemini ücretsiz metin kotası bittiğinde (HTTP 429 → fetchWithRetry deneme
+// tükenmesi) istek hangi sağlayıcıdan sorusu, aynı istek ŞEKLİ kendi gateway analiz
+// zincirine (OpenRouter → Groq → NVIDIA → Gemini server-side) paslanır. Sözleşme:
+// POST /api/analysis/text|vision → {ok, text, provider, model}; dönen metin aynı
+// gevşek parse ile JSON'a çevrilir. Yalnız yerel kurulumda (__OTONOM_GATEWAY__ define)
+// aktiftir; canvas sürümünde bu yedek yoktur ve eski hata aynen yüzeye çıkar.
+const _otonomAnalysisBase = () => {
+  try {
+    if (typeof __OTONOM_GATEWAY__ === 'string' && __OTONOM_GATEWAY__) return String(__OTONOM_GATEWAY__).replace(/\/+$/, '') + '/api/analysis';
+  } catch (e) {}
+  return '';
+};
+const _callAnalysisChainAndParse = async (payload) => {
+  const analysisBase = _otonomAnalysisBase();
+  if (!analysisBase) throw new Error('Yerel analysis zinciri yok (gateway adresi bilinmiyor).');
+  const parts = payload?.contents?.[0]?.parts || [];
+  const textParts = parts.filter(p => typeof p?.text === 'string').map(p => p.text);
+  const images = parts.filter(p => p?.inlineData?.data).map(p => `data:${p.inlineData.mimeType || 'image/png'};base64,${p.inlineData.data}`);
+  // Sağlayıcılarda yedek betimleme niteliğiyle uyumsuz olan google_search aracı taşınmaz.
+  const systemText = payload?.systemInstruction?.parts?.map(p => p?.text).filter(Boolean).join('\n');
+  const endpoint = `${analysisBase}/${images.length ? 'vision' : 'text'}`;
+  const r = await fetch(endpoint, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      prompt: textParts.join('\n\n'),
+      system: systemText || undefined,
+      ...(images.length ? { images } : {}),
+      temperature: payload?.generationConfig?.temperature,
+      maxTokens: payload?.generationConfig?.maxOutputTokens,
+    }),
+    signal: AbortSignal.timeout(150000),
+  });
+  if (!r.ok) {
+    let detail = '';
+    try { detail = (await r.json())?.message || String(await r.text()).slice(0, 160); } catch (e) {}
+    throw new Error(`Analysis zinciri HTTP ${r.status} ${detail}`.trim());
+  }
+  const d = await r.json();
+  if (!d?.text) throw new Error('Analysis zinciri boş metin döndürdü.');
+  addSystemLog(`✓ Gemini kota aşımı → kendi analysis zinciri devraldı (sağlayıcı: ${d.provider}, model: ${d.model}).`, 'success');
+  let responseText = String(d.text).replace(/`json/gi, '').replace(/`/g, '').trim();
+  const jsonStart = responseText.indexOf('{'); const jsonEnd = responseText.lastIndexOf('}');
+  if (jsonStart === -1 || jsonEnd === -1) throw new Error('Analysis zinciri JSON formatında yanıt döndürmedi.');
+  return JSON.parse(responseText.substring(jsonStart, jsonEnd + 1));
+};
 const _callGeminiAndParse = async (url, payload) => {
   payload = _stripJsonConfigForSearch(payload);
-  const r = await NetworkUtils.fetchWithRetry(url, { method: 'POST', body: JSON.stringify(payload) });
-  if (!r) throw new Error('API yanıt döndürmedi');
-  const data = await r.json();
+  let data;
+  try {
+    const r = await NetworkUtils.fetchWithRetry(url, { method: 'POST', body: JSON.stringify(payload) });
+    if (!r) throw new Error('API yanıt döndürmedi');
+    data = await r.json();
+  } catch (geminiError) {
+    // v1.179: transport/kota kırılması (429 deneme tükenmesi dahil) → sunucu zinciri yedeği.
+    try { return await _callAnalysisChainAndParse(payload); }
+    catch (chainError) {
+      addSystemLog(`Analysis yedek zinciri de başarısız: ${String(chainError?.message || chainError)}`, 'error');
+      throw geminiError; // asıl Gemini hatası kaybolmasın
+    }
+  }
   if (data.candidates?.[0]?.finishReason === "SAFETY") throw new Error("İçerik güvenlik filtresine takıldı.");
   if (!data.candidates?.[0]?.content) throw new Error("Yapay Zeka API boş yanıt döndürdü.");
   let responseText = data.candidates[0].content.parts[0].text;
@@ -13999,7 +14066,7 @@ export default function App() {
     return acc;
   }, {})).map(x => ({ ...x, averageMs: x.count ? Math.round(x.totalMs / x.count) : 0 })).sort((a, b) => b.totalMs - a.totalMs);
   const liveMonitorLogs = (sysLogs || []).filter(log => {
-    if (liveMonitorFilter === 'errors') return log.type === 'warn' || log.type === 'error' || /(hata|error|failed|redded|limit|rate.limit|başarısız|basarisiz)/i.test(line);
+    if (liveMonitorFilter === 'errors') return log.type === 'warn' || log.type === 'error' || /(hata|error|failed|redded|limit|rate.limit|başarısız|basarisiz)/i.test(String(log?.text || ''));
     return true;
   }).slice(-140);
   const liveMonitorFmt = value => value && Number.isFinite(Number(value)) ? new Date(Number(value)).toLocaleString('tr-TR') : '—';
