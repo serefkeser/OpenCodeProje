@@ -30,3 +30,5 @@ Thumbs.db
 # Misc
 *.tsbuildinfo
 coverage/
+# Local key backups (never commit)
+.env.yedek*
