@@ -1,6 +1,13 @@
 // ============================================================================
 // OTONOM Chatgpt_1.181 — SÜRÜM BAŞLIĞI (her değişiklikte burayı, APP_VERSION'ı ve SÜRÜM NOTLARI'nı birlikte artır)
 // Program menüsündeki rozet APP_VERSION.toBadge() ile bu sürümden otomatik üretilir.
+// v1.187 ÖZET: Kullanıcı talebi — gazete kaynaklari birlesimi tamamlayici oldu.
+// Daha once sadece kendi esegini (20/20/15) tutturan kaynaklar birlesime
+// giriyor; esigi tutmayan kaynagin butun dogrulanmis gazeteleri kayboluyordu.
+// Yeni davranis: capak korundu (en az bir kaynak kendi esegini tutmali; tutmazsa
+// surec v1.186 mesajiyla DURUR, fail-closed aynen). Esegi tutmayan ama 3+
+// adi+tarih kanitli ad ureten kismi kaynaklar birlesime katilir ve eksik
+// gazeteler diger kaynaklardan tamamlanir. Kanit: vite build ✓.
 // v1.186 ÖZET: Kullanıcı onayı — GAZETE_MANIFEST_VERIFY "sayfalar alındı ama
 // eşleşme yok" dalı artık KAYNAK BAŞINA en güncel görülen tarihi raporlar
 // ("GazeteOku en fazla 24 Ekim tarihli içerik sundu", "GZT 25 Ekim başlıklı
@@ -192,7 +199,7 @@ const { Download, RotateCcw, UploadCloud, Music, Trash2, Volume2, Clock, Loader2
 // M1: CONSTANTS & CONFIG
 // ============================================================================
 const APP_VERSION = {
-  major: 1, minor: 186, hotfix: 'Chatgpt_1.186',
+  major: 1, minor: 187, hotfix: 'Chatgpt_1.187',
   short() { return `${this.major}.${this.minor}`; },
   toString() { return `OTONOM Chatgpt_${this.major}.${this.minor}`; },
   toBadge() { return `${this.toString()} • One-Page`; }
@@ -1289,6 +1296,7 @@ const collectUltimateCoverReferences = async (jobState) => {
 const useDebounce = (value, delay = 300) => { const [debounced, setDebounced] = useState(value); useEffect(() => { const timer = setTimeout(() => setDebounced(value), delay); return () => clearTimeout(timer); }, [value, delay]); return debounced; };
 
 const FIX_CHECKLIST = Object.freeze([
+  { version: '1.187', key: 'GAZETE_SOURCE_UNION_COMPLEMENT', text: 'Kullanici talebi: gazete kaynak birlesimi tamamlama calisir. Capak korundu: en az bir kaynak kendi esegini (20/20/15) tutmali; tutmazsa surec durur (fail-closed aynen). Esegi tutmayan ama 3+ adi+tarih kanitli ad ureten kismi kaynaklar artik birlesime katilir — eksik gazeteler diger kaynaklardan tamamlanir, kismi kaynak yok olmaz. Kanit: npx vite build ✓, rozet Chatgpt_1.187.' },
   { version: '1.186', key: 'GAZETE_VERIFY_PER_SOURCE_LATEST_DATE_REPORT', text: 'Kullanıcı onayı: gazete listesi doğrulanamadığında (sayfalar alındı, eşleşme yok dalı) mesaj artık kaynak başına en güncel görülen tarihi açıkça verir — örn. "GazeteOku en fazla 24 Ekim 2026 tarihli içerik sundu", "GZT 25 Ekim 2026 başlıklı sayfayı sundu ancak günün listesi HTML içinde doğrulanamadı (liste muhtemelen JS ile yükleniyor)" — ve eski/yarım listeyi göstermeden DURUR. Kanıt: 25 Ekim gece tanısı — GazeteOku kartları HÜRRİYET 24 Ekim 2026, Aydınlık storage yalnız 2026-10-24 (gateway dışı doğrudan çekişte aynı), GZT SSR listesiz; kaynaklar o saatte günün sayılarını yayımlamamıştı.' },
   { version: '1.185', key: 'MUSIC_LIBRARY_GATEWAY_NO_EXTENSION', text: 'Kullanıcı talebi: Firefox eklentisi (OTONOM_1_105) tarayıcıdan bağımsız olsun — müzik kütüphanesi tek canlı uzantı bağımlılığıydı (Buffer v1.173te zaten çıkarılmış, gazete fetch uzantısız aynen çalışıyor). Çözüm: gateway 4100 /api/music kalıcı deposu (services/gateway/muzik/ klasörü: katalog.json + <id>.audio; id regex ^fm_[A-Za-z0-9_-]{1,230}$, 32 MB üst sınır, yalnız audio veya ogg/octet-stream data-URL) + App müzik metodları uzantı MUSIC_* protokolünden gateway fetch çağrılarına bağlandı (saveMusicToLib/getAllMusicFromLib/getMusicFromLib/removeMusicFromLib/mirrorLocalMusicToGateway/refreshMusicLibrary; musicExtensionRequest ve probeMusicExtension silindi). Yerel IndexedDB birincil önbellek; gateway kapalıysa açık WARN, sessiz düşme yok. UI uzantı rozeti "Gateway Kalıcı Müzik (4100)". Kanıt: probe-gateway-music.mjs 8/8 PASS (boş katalog, kayıt, liste, data-URL okuma, id reddi, mime reddi, silme, yeniden boş).' },
   { version: '1.184', key: 'TTS_NULL_SILENT_FAILURE_RETRY_CAP_TOP_AND_SCENE', text: 'Kullanıcı üretim dosyası analizi (MP4+ses haritesi): (1) kapak clickbait başlığı/tarih/gazete adı ekrandaydı ama 0-2 sn konuşma yoktu — kök neden: clickbait TTS null döndürüp kod koşulsuz "Clickbait seslendirme hazır" SUCCESS yazıyordu, null sessizce atanıyordu; (2) 0:48-0:52 aralığı yazılı ama konuşmasızdı — kök neden: sahne TTS null döndüğünde null sessizce atanıp render da o sahneyi 4 sn sessiz oynatmada bırakıyordu (sessiz fallback). Çözüm: kapak ve sahne TTS null dönme noktalarında TEK yeniden deneme, yine null kalırsa açık ERROR; render tarafında sesi olmayan sahnede açık WARN. Kanıt: konuşma-bandı RMS haritası (0-2 ve 48-51 yalnız müzik -35..-37dB; 2-47 ve 52-65 konuşma -23..-27dB), kare çıkarımı, build.' },
@@ -12386,11 +12394,22 @@ export default function App() {
       status.push(`${source.label}:${names.length}${bodyCount ? '' : '/gövde-alınamadı'}${newestLabel}`);
     }
 
-    // Bir kaynağın tek bir rastgele tarihli görseli yeterli değildir; tam listeyi
-    // en az bir bağımsız kaynaktan eşik üstünde doğrulamadan birleştirme yapma.
-    const verifiedSources = sources.filter(item => (sourceLists.get(item.key) || []).length >= item.minCount);
-    const names = [...new Set(verifiedSources.flatMap(item => sourceLists.get(item.key) || []))].filter(name => name !== 'Yeni Akit');
-    const source = verifiedSources.map(item => item.key).join(' + ');
+    // v1.187: Çapak (anchor) korundu — en az BIR bağımsız kaynak kendi
+    // eşiğini (20/20/15) tutturur; tutturamayan kaynak VARSA süreç durur
+    // (aşağıdaki hata yolu fail-closed aynen). Eşiği tutturan kaynaklarda
+    // eksik kalan gazeteler ise eşiğini tutturamayan ama 3+ adı+tarih
+    // kanıtlı ad üreten kısmi kaynaklardan TAMAMLANIR: her kaynak yalnız
+    // kendi sayfasında kanıtlı adlarıyla katılır, kısmi kaynak artik yok
+    // olmaz. Rastgele tek görsel yine kanıt sayılmaz.
+    const GAZETE_PARTIAL_MIN_NAMES = 3;
+    const anchorSources = sources.filter(item => (sourceLists.get(item.key) || []).length >= item.minCount);
+    const partialSources = sources.filter(item => {
+      const count = (sourceLists.get(item.key) || []).length;
+      return count > 0 && count < item.minCount && count >= GAZETE_PARTIAL_MIN_NAMES;
+    });
+    const contributingSources = [...anchorSources, ...partialSources];
+    const names = [...new Set(contributingSources.flatMap(item => sourceLists.get(item.key) || []))].filter(name => name !== 'Yeni Akit');
+    const source = contributingSources.map(item => item.key).join(' + ');
 
     if (!names.length) {
       const bodiesAvailable = sourceDiagnostics.filter(item => item.bodyCount > 0);
