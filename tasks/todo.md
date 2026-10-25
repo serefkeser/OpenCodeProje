@@ -51,6 +51,7 @@ Not: .env anahtarlar ASLA repoya yazılmaz.
 **Son sürüm:** v1.186 (`167c504`, push edildi). v1.184 (`f06885e`), v1.185 (`10271a4`) öcesinde pushlandı. Çalışan ağ: app :5173, gateway :4100 (/api/music canlı), analysis :4201, media :4202 — hepsi yukarı.
 
 **Yarın yapılacaklar (öncelik sıralı):**
+0. **[TAMAMLANDI `e1a5e6d`] Taşınabilir paket:** `.env.example` (21 anahtar birebir, API adları boş, port/model önceden dolu), `KURULUM-PAKET.md` (Mac+Windows 8 adım + sık hatalar tablosu), `START-Windows.bat` / `START-Mac.sh` tek-komut launcher (env/node_modules kontrolü, spawn-all + web ayrı pencere, çıkışta taskkill). Kanıt: anahtar seti Compare-Object birebir eşit, .env ignore altında, push e1a5e6d.
 1. **Kullanıcı doğrulaması:** Ctrl+F5 → rozet Chatgpt_1.186; gazete SEÇ ekranını sabah yenilediğinde kaynaklar 25/26 Ekim sayılarını yayımladıysa liste doğrulanıyor mu → log satırlarını paylaşacak; hâlâ duruyorsa v1.186 mesajındaki per-kaynak tarih bilgisi tanıyı doğrudan verecek.
 2. **Müzik gateway onayı:** Müzik panelinde 'Gateway Kalıcı Müzik (4100)' rozeti + parça sayısı; bir üretim çalıştırıp BGM satırının "yerel kütüphaneye aynalandı" olduğunu ve titreşipsiz müzikli video çıktığını kontrol.
 3. **Firefox uzantısını kaldırma testi:** uzantı kapalı/kaldırılmışken gazete SEÇ + müzik + haber linki akışlarının yalnız gateway/yerel yollarla eksiksiz çalışması (v1.185'in asıl hedefi; kanıtlandı ama kullanıcı el çekişi ile teyit edilmeli).
