@@ -46,9 +46,9 @@ Not: .env anahtarlar ASLA repoya yazılmaz.
 
 ---
 
-## DEVAM HATTI — yarın kaldığımız yerden (güncellendi: 26 Ekim öğleden sonra v1.189)
+## DEVAM HATTI — yarın kaldığımız yerden (güncellendi: 26 Ekim akşam v1.190)
 
-**Son sürüm:** v1.189 (push ediliyor). Öncesinde v1.188 (`bdb46ab`) pushlandı — CF tespiti 503 CF_CHALLENGE + gün-önbelleği + matine esnetme + verifyNewsFromImage thinkingBudget:0 (+ canlı probda 200/grounding=2 kanıtlandı). Çalışan ağ: app :5173, gateway :4100, analysis :4201, media :4202.
+**Son sürüm:** v1.190 — "Video oluşturulamadı (0 Bayt)" kök nedeni: MediaRecorder render sırasında SESSİZCE inaktif oluyordu (onerror/onstop/track-ended izleyici yok, finalize önü stop yok) → 265 sn ölü kayıt → 0 parça. RECORDER GUARD (onerror + track onended logları) + nextFrame canarisi (~5 sn'debir state yoklaması; inaktifse RENDER_RECORDER_DEAD ile anında durur) + 0 Bayt mesajına ölüm kanıtı. Fail-closed aynen. Öncesinde v1.189 (`981c6e5`) pushlandı — evrensel.net 4. kaynak + FlareSolverr (Turnstile geçilemedi, entegre edilmedi); v1.188 (`bdb46ab`) — CF tespiti + gün-önbelleği + matine + verifyNewsFromImage dürüst kota. Çalışan ağ: app :5173, gateway :4100, analysis :4201, media :4202.
 
 **v1.188 içeriği (uygulandı):**
 0. **Takipten çıkarma:** Dokuz Sütun, Güneş, Yeni Yüzyıl → `GAZETE_EXCLUDED` (iç tanıma korunur, listede görünmez).
@@ -59,6 +59,7 @@ Not: .env anahtarlar ASLA repoya yazılmaz.
 **26 Ekim ek işlemi (v1.189):**
 6. **FlareSolverr:** GazeteOku/Aydınlık'taki interaktif Turnstile geçilemedi (headless + görünür + tabs_till_verify; probe kanıtları tasks/). Entegrasyon YAPILMADI (ölü kod); kullanıcı kaldırsın — sürek `flaresolverr.exe` (port 8191) kapatılabilir.
 7. **evrensel.net 4. kaynak:** /gazete?date= parametresi seçili tarihi SSR ile veriyor → `Evrensel/kendi` kaynağı (minCount 1, yalnız Evrensel adı; tarih+MANŞETİ+dosya img zorunlu). Dünya/Tavır/Pencere CF açılınca otomatik; Analiz ve Nasıl Bir Ekonomi kartı hiçbir kaynakta yok (ayrı tartışma).
+8. **v1.190 — 0 Bayt kök neden çözüldü:** MediaRecorder sessiz ölümü (26 Ekim BirGün koşusu, FAILED log) → RECORDER GUARD (onerror + track onended logları) + nextFrame canarisi (~5 sn state yoklaması; inaktifse RENDER_RECORDER_DEAD ile anında ve sebep adıyla durur) + finalize 0 Bayt hata mesajına ölüm kanıtı. Sessiz ölümün GERÇEK tetikleyicisi (track sonu mu / encoder hatası mı) bir sonraki üretim koşusunun GUARD satırı verecek; log satırı bize iletilirse kalıcı kök düzeltmeye yürü.
 
 **Yarın yapılacaklar (öncelik sıralı):**
 1. **ÇALIŞAN PROĞRA KURAL (kullanıcı direktifi 26 Ekim):** asla canlı sürecin varsa restart/stop yapma; sürüm uygulaması tamamen YENILLE/TİTLE kapali kullanıcıda mümkün (NİC programında başjar): Web tarayıcıda Ctrl+F5; ayrı pencere source aynı git pull ile alınır. Assistan yalnız commit+push yapar; kullanıcı yeniden başlatır.

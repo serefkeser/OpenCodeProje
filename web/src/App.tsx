@@ -1,6 +1,18 @@
 // ============================================================================
-// OTONOM Chatgpt_1.189 — SÜRÜM BAŞLIĞI (her değişiklikte burayı, APP_VERSION'ı ve SÜRÜM NOTLARI'nı birlikte artır)
+// OTONOM Chatgpt_1.190 — SÜRÜM BAŞLIĞI (her değişiklikte burayı, APP_VERSION'ı ve SÜRÜM NOTLARI'nı birlikte artır)
 // Program menüsündeki rozet APP_VERSION.toBadge() ile bu sürümden otomatik üretilir.
+// v1.190 ÖZET: Kullanicinin FAILED üretim logu teshisi — "RENDER FINALIZE HATASI:
+// Video olusturulamadi (0 Bayt)" kök nedeni dead-recorder ölüolimadi: MediaRecorder
+// render sirasında SESSIZCE inaktif olmusti (kodda finalize önü stop yok;
+// onerror/onstop/track-ended izleyici yok) ve 265 sn boyunca ölü kayda sahne
+// çizildi; finalize'de state=inactive + 0 parça belirsiz hata diye raporlandı.
+// RECORDER GUARD uygulandı: start sonrası recorder.onerror + track onended
+// gözleyicileri (sebep + saniye + parça sayısı logu); nextFrame canarisi her ~5 sn
+// recorder.state kontrol eder, olmuşsa RENDER_RECORDER_DEAD ile ANINDA ve sebep
+// adıyla durur (ölü kayıtla dakikalar harcanmaz); 0 Bayt hatası ölüm kanıtıyla
+// gelir. Sessiz düşüş yok; fail-closed AYNEN korunur (boş video asla kabul edilmez).
+// Kanıt: kullanıcı FAILED logu (13:02:12.692 "recorder zaten inactive" +
+// 13:02:12.702 "Blob hazırlanıyor (0 parça)") + kod taraması + vite build.
 // v1.189 ÖZET: Kullanici talebi — GazeteOku/Aydinlik CF engeline karsi topluluk araci
 // FlareSolverr sinandi (headless + gorunur + tabs_till_verify): iki sitedeki interaktif
 // Turnstile gecilemedi [kanit: probe-flaresolverr + probe-flare-tabs, 0 kart] — bu yol
@@ -226,7 +238,7 @@ const { Download, RotateCcw, UploadCloud, Music, Trash2, Volume2, Clock, Loader2
 // M1: CONSTANTS & CONFIG
 // ============================================================================
 const APP_VERSION = {
-  major: 1, minor: 189, hotfix: 'Chatgpt_1.189',
+  major: 1, minor: 190, hotfix: 'Chatgpt_1.190',
   short() { return `${this.major}.${this.minor}`; },
   toString() { return `OTONOM Chatgpt_${this.major}.${this.minor}`; },
   toBadge() { return `${this.toString()} • One-Page`; }
@@ -1323,6 +1335,7 @@ const collectUltimateCoverReferences = async (jobState) => {
 const useDebounce = (value, delay = 300) => { const [debounced, setDebounced] = useState(value); useEffect(() => { const timer = setTimeout(() => setDebounced(value), delay); return () => clearTimeout(timer); }, [value, delay]); return debounced; };
 
 const FIX_CHECKLIST = Object.freeze([
+  { version: '1.190', key: 'RECORDER_SILENT_DEATH_GUARD_AND_CANARY', text: 'Kullanıcı FAILED logu teşhisi: "RENDER FINALIZE HATASI: Video oluşturulamadı (0 Bayt)" kök nedeni dead-recorder — MediaRecorder render sırasında SESSİZCE inaktif oldu (finalize önü recorder.stop() çağıran kod yolu yok; onerror/onstop/track-onended izleyici hiç kurulmamıştı), 265.21 sn boyunca ölü kayda sahne çizimi yapıldı ve finalize\'de state=inactive + 0 parça ile belirsiz hata raporlandı [log kanıtı: 13:02:12.685 state=inactive, 13:02:12.702 "Blob hazırlanıyor (0 parça)"]. RECORDER GUARD uygulandı: recorder.start sonrası recorder.onerror + video/audio track onended gözleyicileri ölümü SEBEP + SANİYE + PARÇA SAYISI ile loglar; nextFrame içindeki canari her ~5 sn recorder.state yoklar, inaktifse render ANINDA RENDER_RECORDER_DEAD ile durur (ölü kayda dakikalar harcanmaz); blob finalize\'deki 0 Bayt hatası artık ölüm kanıtını taşır. Sessiz düşüş yok; boş video asla kabul edilmez (fail-closed aynen). Etkilenen: executeRender recorder kurulumu + nextFrame + finalize blob/dosya dalları; render planı, ses miksajı, GOLDEN MASTER testi, watchdog ve gazete kaynakları değişmedi. Kanıt: kullanıcı FAILED logu + kod taraması + npx vite build ✓.' },
   { version: '1.189', key: 'EVRENSEL_OWN_SITE_4TH_MANIFEST_SOURCE', text: 'Kullanıcı talebi: GazeteOku/Aydınlık engelini (Cloudflare interaktif Turnstile) FlareSolverr ile aşma denendi — headless, görünür mod ve tabs_till_verify kapsamında Turnstile geçilmedi [probe kanıtı: her varyant 0 kart, clearance cookie yok]; bu araç app koduna entegre edilmedi (ölü kod olurdu) ve kullanıcıdan kaldırılışı önerildi. Başarılı yol: evrensel.net kendi arşiv sayfası /gazete?date=YYYY-MM-DD seçili tarihi SSR ile veriyor [probe kanıtı: 2026-10-26 metni + 80 manşet img + EVRENSELİ MANŞETİ bölümü + /haber/ linki]. fetchVerifiedGazeteManifest 4. kaynak eklendi: Evrensel/kendi (minCount: 1 — yalnız kendi adını besler; tarih + MANŞETİ + /images/.../dosya/ görseli zorunlu; tarih eşleşmezse hiç ad verilmez, fail-closed aynen). Diğer kaynakların yolları değişmedi; toplama sitelerdeki CF engeli kalktığında Dünya/Tavır/Gazete Pencere otomatik döner. Kanıt: node --check, curl probes, npx vite build ✓.' },
   { version: '1.188', key: 'GAZETE_CF_BLOCK_DAY_CACHE_AND_MATINE_RELAX', text: 'Kullanıcı onayı: gazete listesi gündüz saatlerinde Cloudflare bot koruması (403 "Just a moment") yüzünden doğrulanamıyordu; mesaj "yayım yok" gibi görünüyordu. Üç katman: (1) gateway /proxy CF meydan okumasını 503 CF_CHALLENGE ile işaretler; (2) App fetchVerifiedGazeteManifest botBlocked kaynakları "bot koruması" yerine gerçek neden olarak raporlar (fail-closed aynen; yanlış/eski liste yine gösterilmez); (3) doğrulanmış liste gateway /api/gazete-manifest gün-önbelleğine yazılır (services/gateway/gazete/manifest-<tarih>.json, .gitignore dâhil) ve kaynaklar engellendiğinde AYNI günün kanıtıyla devam edilir — yalnız aynı tarihin kendisi okunur, eski tarih yok. Matine esnetmesi: bugün TR saat ≥08:00 iken tamamlama eşiği 3→1 (geçmiş tarihte ve gecede 3 kalır). Takip listesinden çıkarıldı: Dokuz Sütun, Güneş, Yeni Yüzyıl (GAZETE_EXCLUDED). Kanıt: node --check gateway, CF tespit probu (GazeteOku 403 challenge [kesin]), GZT tarihli adres analizi (26 adet 25-10-2026), npx vite build ✓.' },
   { version: '1.188', key: 'VERIFY_NEWS_GROUNDING_EMPTY_200_AND_QUOTA_HONESTY’, text: ’Kullanıcı hatası: medya analizinde bugünkü haber resmi "HABER_DOGRULANAMADI (internette kaynak bulunamadı)" ile durdu; canlı logda istekler 200 dönmüş ama grounding boş görünüyordu. Tanı (canlı log + aynı istek şekli probu): iki farklı arıza — (1) gemini-2.5-flash düşünme (thinking) tokenları maxOutputTokens:2000 bütçesini yiyip metni 0’a düşürüyor → 200 + boş içerik + grounding yok, uygulama bunu "kaynak yok" diye okuyordu (finishReason/usage loglanmadığı için görünmüyordu); (2) kota 429 yığını fetchWithRetry’den genel throw ile çıkıp yine "kaynak bulunamadı" diye çarpıtılıyordu [prob kanıtı: üç varyant da HTTP 429 "You exceeded your current quota"]. Çözüm: verifyNewsFromImage’de thinkingBudget:0 + maxOutputTokens:4000; başarısız denemede finishReason/çıkışToken/düşünmeToken logu; MAX_TOKENS/SAFETY boş yanıtları kendi adıyla, 429 yığını "API kota/ağ sınırı" olarak dürüst raporlanır ve kota durumunda 2. deneme atlanır (kota yakmayı azaltır). Fail-closed kapı aynen korunur: kaynak yoksa üretim yine DURUR.' },
@@ -7107,7 +7120,25 @@ const RenderWorkerService = {
       }
       responsiveFrameCounter++;
       if (responsiveFrameCounter % Number(RENDER_CONFIG.MAIN_THREAD_YIELD_EVERY_FRAMES || 15) === 0) await _cooperativeMainThreadYield();
+      // v1.190 RECORDER CANARY: kayıt sırasında MediaRecorder sessizce inaktif
+      // düştüyse render hemen ve sebep adıyla durur; ölü kayda dakikalar harcanmaz.
+      if (recorderRef && !renderFinalizedOk && performance.now() - lastRecorderCheckAt > 5000) {
+        lastRecorderCheckAt = performance.now();
+        if (recorderRef.state === 'inactive') {
+          const why = recorderDiedInfo
+            ? `${recorderDiedInfo.reason} (kayıt ${recorderDiedInfo.sec} sn'de kırıldı, parça=${recorderDiedInfo.chunks})`
+            : 'sebep onerror/track-sonu ile yakalanamadı';
+          throw new Error(`RENDER_RECORDER_DEAD: MediaRecorder kayıt sırasında inaktif oldu — ${why}. Boş video üretilmez; render erken durduruldu.`);
+        }
+      }
     };
+    // v1.190 RECORDER GUARD taşıyıcıları: ölü kayıt kanarisi + ölüm kanıtı.
+    // nextFrame canarisi recorder'ı her ~5 sn'de yoklar; sessiz ölümde render
+    // ANINDA RENDER_RECORDER_DEAD ile durur (ölü kayda dakikalar harcanmaz).
+    let recorderRef = null;
+    let recorderDiedInfo = null;
+    let renderFinalizedOk = false;
+    let lastRecorderCheckAt = 0;
     const audioCtx = _getAudioCtx(); if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume().catch((e) => { ErrorHandler.silent(e); });
     const audioDest = audioCtx ? audioCtx.createMediaStreamDestination() : null;
     // v1.163 GLOBAL MIX BUS: Haber/Gazete/Medya akışındaki tüm TTS, BGM ve özel ses
@@ -7817,6 +7848,24 @@ const RenderWorkerService = {
       }
       recorder.start(100);
       const recorderStartedAtPerf = performance.now();
+      // v1.190 RECORDER GUARD: MediaRecorder sessiz ölümü kanıtlı yakalanır.
+      // Kök kanıt (26 Ekim BirGün koşusu): recorder finalize'den ÖNCE inactive
+      // olmuştu (onerror/onstop/track-ended izleyici yoktu), 265 sn boyunca ölü
+      // kayda çizim yapıldı ve sebep bilinmeden "0 Bayt" raporlandı. Artık ölüm
+      // sebebi + saniyesi + parça sayısıyla loglanır; canary render'ı ANINDA durdurur.
+      recorderRef = recorder;
+      const recorderElapsedSec = () => ((performance.now() - recorderStartedAtPerf) / 1000).toFixed(1);
+      const noteRecorderDeath = (reason) => {
+        if (renderFinalizedOk || recorderDiedInfo) return;
+        recorderDiedInfo = { reason, sec: recorderElapsedSec(), chunks: videoChunks.length };
+        addSystemLog(`RENDER RECORDER GUARD: MediaRecorder kaydı ${recorderDiedInfo.sec} sn'de kırıldı (${reason}; parça sayısı=${recorderDiedInfo.chunks}).`, 'error');
+      };
+      recorder.onerror = (ev) => {
+        const err = ev && ev.error;
+        noteRecorderDeath(`onerror: ${err?.name || ev?.type || 'bilinmeyen'}${err?.message ? ` — ${err.message}` : ''}`);
+      };
+      videoTrack.onended = () => { noteRecorderDeath('video track sona erdi (onended)'); };
+      if (audioTracks.length) audioTracks[0].onended = () => { noteRecorderDeath('audio track sona erdi (onended)'); };
       let renderTrueEndSec = null;
       _pendingRenderTrueEnd = null;
       // Kapak kararması koruması: MediaRecorder başladıktan SONRA da ilk gerçek kareleri
@@ -8364,6 +8413,7 @@ const RenderWorkerService = {
               if (!variation.ok) throw new Error(`GAZETE_SCENE_FREEZE: çıktı kareleri değişmiyor (MAD=${Number(variation.maxMad || 0).toFixed(2)}). Donmuş video kaydedilmedi.`);
               if (!variation.skipped) addSystemLog(`✓ v1.83 GOLDEN MASTER TEST: gazete sahne değişimi doğrulandı (MAD=${variation.maxMad.toFixed(2)}, bölgesel=${Number(variation.maxRegionalMad || 0).toFixed(2)}, zaman kanıtı=${variation.verifiedFrames || 0} kare).`, 'success'); else addSystemLog(`v1.83 GOLDEN MASTER TEST: decoder kontrolü atlandı (${variation.reason || 'uygulanamaz'}); render akışı devam ediyor.`, 'warn');
               addSystemLog(`RENDER FINALIZE: dosya doğrulandı (${(file.size / 1024 / 1024).toFixed(2)} MB); akış ${Math.round(performance.now() - finalizeStartedAt)} ms içinde tamamlandı.`, 'success');
+              renderFinalizedOk = true;
               finish(null, { url: ObjectURLManager.create(file), blobType: file.type, fileHandle: videoFileHandle });
             } catch (err) {
               addSystemLog('Dosya kapatma hatası: ' + err.message, 'error');
@@ -8407,7 +8457,12 @@ const RenderWorkerService = {
             try {
               const blob = new Blob(videoChunks, { type: mimeType });
               videoChunks = [];
-              if (blob.size === 0) throw new Error('Video oluşturulamadı (0 Bayt).');
+              renderFinalizedOk = true;
+              if (blob.size === 0) {
+                // v1.190: belirsiz "0 Bayt" yerine ölüm kanıtı; sessiz düşüş yok.
+                const why = recorderDiedInfo ? ` — RECORDER GUARD: ${recorderDiedInfo.reason}; kayıt ${recorderDiedInfo.sec} sn'de kırıldı, parça=${recorderDiedInfo.chunks}` : '';
+                throw new Error(`Video oluşturulamadı (0 Bayt)${why}.`);
+              }
               if (renderTrueEndSec) _pendingRenderTrueEnd = { size: blob.size, sec: renderTrueEndSec };
               const variation = await verifyGazeteSceneVariation(blob);
               if (!variation.ok) throw new Error(`GAZETE_SCENE_FREEZE: çıktı kareleri değişmiyor (MAD=${Number(variation.maxMad || 0).toFixed(2)}). Donmuş video COMPLETED kabul edilmedi.`);

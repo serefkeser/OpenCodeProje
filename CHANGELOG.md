@@ -10,6 +10,29 @@ Kesin sürüm referansı `web/src/App.tsx` içinde `APP_VERSION`; burası insan-
 
 ---
 
+## v1.190 — (26 Ekim 2026 akşam)
+**"Video oluşturulamadı (0 Bayt)" kök nedeni çözüldü: sessiz MediaRecorder ölümü artık kanıtlı yakalanır.**
+
+- **Teşhis (kullanıcı FAILED logu kanıtı):** 26 Ekim 12:55 BirGün üretiminde MediaRecorder
+  finalize'den **ÖNCE** sessizce inaktif olmuş (render sırasında recorder.stop() çağıran
+  kod yolu yok; onerror/onstop/track-onended izleyici hiç kurulmamıştı) → 265.21 sn boyunca
+  ölü kayda çizim yapıldı → finalize'de `state=inactive` + **0 parça** → belirsiz
+  "0 Bayt" hatası (kayıt büyük olasılıkla ilk dakikada kırılmıştı: hiç byte boyutlu
+  dilim dönmemiş).
+- **RECORDER GUARD (kalıcı çözüm):**
+  - `recorder.onerror` + video/auto track `onended` gözleyicileri → ölüm **sebep +
+    saniye + parça sayısı** ile loglanır (bir daha sessiz ölüm olmaz).
+  - `nextFrame` canarisi her ~5 sn `recorder.state` yoklar → inaktifse render **ANINDA**
+    `RENDER_RECORDER_DEAD` ile durur; ölü kayda dakikalar harcanmaz.
+  - 0 Bayt hata mesajı artık ölüm kanıtını taşır ("RECORDER GUARD: ... sn'de kırıldı").
+  - Fail-closed aynen: boş/ölü video asla kabul edilmez, sessiz düşüş yok.
+- **Dokunulmayanlar:** render planı, ses miksajı, GOLDEN MASTER (kare-mad) testi,
+  Timer-Worker watchdog, gazete kaynakları (v1.188/1.189 yolları) — hepsi şaşmaz.
+
+Kanıt: kullanıcı FAILED logu (142 satır) + executeRender kod taraması + `npx vite build` ✓.
+
+---
+
 ## v1.189 — (26 Ekim 2026)
 **GazeteOku/Aydınlık Turnstile denendi, geçilemedi → evrensel.net 4. kaynak eklendi.**
 
