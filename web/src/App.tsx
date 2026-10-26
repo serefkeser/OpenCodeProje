@@ -1,6 +1,16 @@
 // ============================================================================
-// OTONOM Chatgpt_1.190 — SÜRÜM BAŞLIĞI (her değişiklikte burayı, APP_VERSION'ı ve SÜRÜM NOTLARI'nı birlikte artır)
+// OTONOM Chatgpt_1.191 — SÜRÜM BAŞLIĞI (her değişiklikte burayı, APP_VERSION'ı ve SÜRÜM NOTLARI'nı birlikte artır)
 // Program menüsündeki rozet APP_VERSION.toBadge() ile bu sürümden otomatik üretilir.
+// v1.191 ÖZET: Kullanici kaynak teklifi ölçüldü ve entegre edildi — (1) BİK İlk Sayfalar
+// (gazete.bik.gov.tr kapsam=yaygin): 20 kart SSR'de ad (figcaption) + tarih (alt:
+// "26 Ekim 2026 - ... tarihli X gazetesi ilk sayfası") taşıyor [probe-bik-count: 20/20];
+// 4. ana kaynak olarak eklendi (minCount 15) + Korkusuz/Milli Gazete/Yeni Asya + bugünk
+// Mevcut gazetelerin TASARIM kapak kaynagı. (2) dijitalbasin.com (Read/331 Evrensel,
+// Read/504 Gazete Pencere, Read/321 Diriliş Postası): SSR'de publication-name +
+// publication-date (bugün kanıtlı) ve GetPublicationDisplay JPEG kapak [probe-db: 3×].
+// Kart-başına tarih eşleşmesi ZORUNLU; eşleşmezse ad/kapak verilmez (fail-closed
+// aynen). CF-blok günlerinde BİK ana kaynak olabilir; Pencere (pencere.com CF'de
+// kapalıydı) dijitalbasin'den canlı gelir. Kanıt: probes + vite build.
 // v1.190 ÖZET: Kullanicinin FAILED üretim logu teshisi — "RENDER FINALIZE HATASI:
 // Video olusturulamadi (0 Bayt)" kök nedeni dead-recorder ölüolimadi: MediaRecorder
 // render sirasında SESSIZCE inaktif olmusti (kodda finalize önü stop yok;
@@ -238,7 +248,7 @@ const { Download, RotateCcw, UploadCloud, Music, Trash2, Volume2, Clock, Loader2
 // M1: CONSTANTS & CONFIG
 // ============================================================================
 const APP_VERSION = {
-  major: 1, minor: 190, hotfix: 'Chatgpt_1.190',
+  major: 1, minor: 191, hotfix: 'Chatgpt_1.191',
   short() { return `${this.major}.${this.minor}`; },
   toString() { return `OTONOM Chatgpt_${this.major}.${this.minor}`; },
   toBadge() { return `${this.toString()} • One-Page`; }
@@ -1335,6 +1345,7 @@ const collectUltimateCoverReferences = async (jobState) => {
 const useDebounce = (value, delay = 300) => { const [debounced, setDebounced] = useState(value); useEffect(() => { const timer = setTimeout(() => setDebounced(value), delay); return () => clearTimeout(timer); }, [value, delay]); return debounced; };
 
 const FIX_CHECKLIST = Object.freeze([
+  { version: '1.191', key: 'BIK_AND_DIGITALBASIN_SIX_GAZETE_SOURCES', text: 'Kullanıcı kaynak teklifi (dijitalbasin + BİK linkleri) ölçüldü ve entegre edildi: (1) BİK İlk Sayfalar (gazete.bik.gov.tr/Uygulamalar/GazeteIlkSayfalar?kapsam=yaygin) — 20 kart SSR\'de figcaption ad + alt tarih ("26 Ekim 2026 - ... tarihli X gazetesi ilk sayfası") taşıyor [probe-bik-count kanıtı: 20/20 tarihli]; 4. ana kaynak eklendi (minCount 15) ve kart-başına alt-tarih kanıtı ZORUNLU kılındı; Korkusuz/Milli Gazete/Yeni Asya + Cumhuriyet/Sözcü/Hürriyet/Karar/BirGün/Dünya vb. adları bu kaynaktan doğrulanır. (2) dijitalbasin.com Read/331 (Evrensel), Read/504 (Gazete Pencere), Read/321 (Diriliş Postası) — SSR publication-name + publication-date kanıtlı [probe-db kanıtı: 3× 26 Ekim 2026]; kapak GetPublicationDisplay?publicationId= JPEG\'inden kurulur; SSR date eşleşmezse ne ad ne kapak verilir (fail-closed aynen). fetchIndividualGazeteCandidates +BİK/+DijitalBasin kapak yolları; extractExactGazeteHeroCandidate BİK tam çözünürlük YYN-*.jpg izleme; isLikelyGazeteImage +dijitalbasin pattern. Mevcut GZT/GazeteOku/Aydınlık/Evrensel-kendi yolları ve fail-closed mantığı değişmedi. Kanıt: tasks/probe-v191-*.mjs + npx vite build ✓.' },
   { version: '1.190', key: 'RECORDER_SILENT_DEATH_GUARD_AND_CANARY', text: 'Kullanıcı FAILED logu teşhisi: "RENDER FINALIZE HATASI: Video oluşturulamadı (0 Bayt)" kök nedeni dead-recorder — MediaRecorder render sırasında SESSİZCE inaktif oldu (finalize önü recorder.stop() çağıran kod yolu yok; onerror/onstop/track-onended izleyici hiç kurulmamıştı), 265.21 sn boyunca ölü kayda sahne çizimi yapıldı ve finalize\'de state=inactive + 0 parça ile belirsiz hata raporlandı [log kanıtı: 13:02:12.685 state=inactive, 13:02:12.702 "Blob hazırlanıyor (0 parça)"]. RECORDER GUARD uygulandı: recorder.start sonrası recorder.onerror + video/audio track onended gözleyicileri ölümü SEBEP + SANİYE + PARÇA SAYISI ile loglar; nextFrame içindeki canari her ~5 sn recorder.state yoklar, inaktifse render ANINDA RENDER_RECORDER_DEAD ile durur (ölü kayda dakikalar harcanmaz); blob finalize\'deki 0 Bayt hatası artık ölüm kanıtını taşır. Sessiz düşüş yok; boş video asla kabul edilmez (fail-closed aynen). Etkilenen: executeRender recorder kurulumu + nextFrame + finalize blob/dosya dalları; render planı, ses miksajı, GOLDEN MASTER testi, watchdog ve gazete kaynakları değişmedi. Kanıt: kullanıcı FAILED logu + kod taraması + npx vite build ✓.' },
   { version: '1.189', key: 'EVRENSEL_OWN_SITE_4TH_MANIFEST_SOURCE', text: 'Kullanıcı talebi: GazeteOku/Aydınlık engelini (Cloudflare interaktif Turnstile) FlareSolverr ile aşma denendi — headless, görünür mod ve tabs_till_verify kapsamında Turnstile geçilmedi [probe kanıtı: her varyant 0 kart, clearance cookie yok]; bu araç app koduna entegre edilmedi (ölü kod olurdu) ve kullanıcıdan kaldırılışı önerildi. Başarılı yol: evrensel.net kendi arşiv sayfası /gazete?date=YYYY-MM-DD seçili tarihi SSR ile veriyor [probe kanıtı: 2026-10-26 metni + 80 manşet img + EVRENSELİ MANŞETİ bölümü + /haber/ linki]. fetchVerifiedGazeteManifest 4. kaynak eklendi: Evrensel/kendi (minCount: 1 — yalnız kendi adını besler; tarih + MANŞETİ + /images/.../dosya/ görseli zorunlu; tarih eşleşmezse hiç ad verilmez, fail-closed aynen). Diğer kaynakların yolları değişmedi; toplama sitelerdeki CF engeli kalktığında Dünya/Tavır/Gazete Pencere otomatik döner. Kanıt: node --check, curl probes, npx vite build ✓.' },
   { version: '1.188', key: 'GAZETE_CF_BLOCK_DAY_CACHE_AND_MATINE_RELAX', text: 'Kullanıcı onayı: gazete listesi gündüz saatlerinde Cloudflare bot koruması (403 "Just a moment") yüzünden doğrulanamıyordu; mesaj "yayım yok" gibi görünüyordu. Üç katman: (1) gateway /proxy CF meydan okumasını 503 CF_CHALLENGE ile işaretler; (2) App fetchVerifiedGazeteManifest botBlocked kaynakları "bot koruması" yerine gerçek neden olarak raporlar (fail-closed aynen; yanlış/eski liste yine gösterilmez); (3) doğrulanmış liste gateway /api/gazete-manifest gün-önbelleğine yazılır (services/gateway/gazete/manifest-<tarih>.json, .gitignore dâhil) ve kaynaklar engellendiğinde AYNI günün kanıtıyla devam edilir — yalnız aynı tarihin kendisi okunur, eski tarih yok. Matine esnetmesi: bugün TR saat ≥08:00 iken tamamlama eşiği 3→1 (geçmiş tarihte ve gecede 3 kalır). Takip listesinden çıkarıldı: Dokuz Sütun, Güneş, Yeni Yüzyıl (GAZETE_EXCLUDED). Kanıt: node --check gateway, CF tespit probu (GazeteOku 403 challenge [kesin]), GZT tarihli adres analizi (26 adet 25-10-2026), npx vite build ✓.' },
@@ -11612,17 +11623,17 @@ export default function App() {
     'Aydınlık': { ayd: 'aydinlik-gazetesi', go: 'aydinlik-gazetesi-manseti', gzt: 'aydinlik-gazetesi' },
     'BirGün': { ayd: 'birgun', go: 'birgun-gazetesi-manseti', gzt: 'birgun-gazetesi' },
     'Cumhuriyet': { ayd: 'cumhuriyet', go: 'cumhuriyet-gazetesi-manseti', gzt: 'cumhuriyet-gazetesi' },
-    'Diriliş Postası': { ayd: 'dirilis-postasi', go: 'dirilis-postasi-gazetesi-manseti', gzt: 'dirilis-postasi-gazetesi' },
+    'Diriliş Postası': { ayd: 'dirilis-postasi', go: 'dirilis-postasi-gazetesi-manseti', gzt: 'dirilis-postasi-gazetesi', db: '321/dirilis-postasi' },
     'Dünya': { ayd: 'dunya', go: 'dunya-gazetesi-manseti', gzt: 'dunya-gazetesi' },
-    'Evrensel': { ayd: 'evrensel', go: 'evrensel-gazetesi-manseti', gzt: 'evrensel-gazetesi' },
-    'Gazete Pencere': { ayd: 'gazete-pencere-online-gazete', gzt: 'gazetepencere-gazetesi' },
+    'Evrensel': { ayd: 'evrensel', go: 'evrensel-gazetesi-manseti', gzt: 'evrensel-gazetesi', db: '331/istanbul-bahcelievler-evrensel' },
+    'Gazete Pencere': { ayd: 'gazete-pencere-online-gazete', gzt: 'gazetepencere-gazetesi', db: '504/istanbul-besiktas-gazete-pencere' },
     'Fanatik': { ayd: 'fanatik', go: 'fanatik-gazetesi-manseti', gzt: 'fanatik-gazetesi' },
     'Fotomaç': { ayd: 'fotomac', go: 'fotomac-gazetesi-manseti', gzt: 'fotomac-gazetesi' },
     'Hürriyet': { go: 'hurriyet-gazetesi-manseti', gzt: 'hurriyet-gazetesi' },
     'Karar': { ayd: 'karar', go: 'karar-gazetesi-manseti', gzt: 'karar-gazetesi' },
-    'Korkusuz': { ayd: 'korkusuz', go: 'korkusuz-gazetesi-manseti', gzt: 'korkusuz-gazetesi' },
+    'Korkusuz': { ayd: 'korkusuz', go: 'korkusuz-gazetesi-manseti', gzt: 'korkusuz-gazetesi', bik: true },
     'Milat': { ayd: 'milat', go: 'milat-gazetesi-manseti', gzt: 'milat-gazetesi' },
-    'Milli Gazete': { ayd: 'milli-gazete', go: 'milli-gazete-gazetesi-manseti', gzt: 'milli-gazete' },
+    'Milli Gazete': { ayd: 'milli-gazete', go: 'milli-gazete-gazetesi-manseti', gzt: 'milli-gazete', bik: true },
     'Milliyet': { go: 'milliyet-gazetesi-manseti', gzt: 'milliyet-gazetesi' },
     'Nasıl Bir Ekonomi': { ayd: 'nb-ekonomi', gzt: 'nasilbirekonomi-gazetesi' },
     'Nefes': { ayd: 'nefes', go: 'nefes-gazetesi-manseti', gzt: 'nefes-gazetesi' },
@@ -11633,7 +11644,7 @@ export default function App() {
     'Tavır Gazetesi': { ayd: 'tavir', go: 'tavir-gazetesi-manseti', gzt: 'tavir-gazetesi' },
     'Türkiye': { ayd: 'turkiye-gazetesi', go: 'turkiye-gazetesi-manseti', gzt: 'turkiye-gazetesi' },
     'Yeniçağ': { ayd: 'yenicag', go: 'yenicag-gazetesi-manseti', gzt: 'turkiyede-yenicag-gazetesi' },
-    'Yeni Asya': { ayd: 'yeni-asya', go: 'yeni-asya-gazetesi-manseti', gzt: 'yeni-asya-gazetesi' },
+    'Yeni Asya': { ayd: 'yeni-asya', go: 'yeni-asya-gazetesi-manseti', gzt: 'yeni-asya-gazetesi', bik: true },
     'Yeni Birlik': { ayd: 'yenibirlik', go: 'yenibirlik-gazetesi-manseti', gzt: 'yenibirlik-gazetesi' },
     'Yeni Mesaj': { gzt: 'yenimesaj-gazetesi' },
     'Yeni Şafak': { ayd: 'yeni-safak', go: 'yeni-safak-gazetesi-manseti', gzt: 'yenisafak-gazetesi' },
@@ -11696,7 +11707,7 @@ export default function App() {
     if (!url) return false;
     if (url.startsWith('data:image/')) return true;
     if (/\.(?:jpe?g|png|webp|avif)(?:[?#]|$)/i.test(url)) return true;
-    return /img\.aydinlik\.com\.tr|img\.piri\.net|[si]\d*\.gazeteoku\.com|i\d+\.haber7\.net|haber7\.net|gazetemanset\.gzt\.com|gzt\.com|storage\/newspapers|\/gazete(?:ler)?\/|\/manset(?:ler)?\/|newspaper|gazete.*(?:image|upload|manset|cover)/i.test(url);
+    return /img\.aydinlik\.com\.tr|img\.piri\.net|[si]\d*\.gazeteoku\.com|i\d+\.haber7\.net|haber7\.net|gazetemanset\.gzt\.com|gzt\.com|storage\/newspapers|\/gazete(?:ler)?\/|\/manset(?:ler)?\/|newspaper|gazete.*(?:image|upload|manset|cover)|dijitalbasin\.com|publicationsdocument/i.test(url);
   };
   const makeGazetePlaceholder = (name) => {
     const safe = String(name).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -12352,6 +12363,37 @@ export default function App() {
       const hasOwnImage = /\/images\/\d+\/upload\/dosya\/\d+\.(?:jpe?g|png|webp)/i.test(body);
       return (hasManset && hasOwnImage) ? ['Evrensel'] : [];
     }
+    // v1.191: BİK İlk Sayfalar — kaynaktan tarih ile ilişkilendirilmiş kart zorunludur:
+    // kart alt metni "26 Ekim 2026 - ... tarihli <ad> gazetesi ilk sayfası" biçiminde
+    // tarih kanıtını taşır; yalnız tarihli altı çözümlenen ad kabul edilir.
+    if (sourceKey === 'BİK') {
+      try {
+        const doc = new DOMParser().parseFromString(String(payload), 'text/html');
+        const hits = [];
+        doc.querySelectorAll('a[href*="/first_pages/"]').forEach((link, index) => {
+          const image = link.querySelector('img');
+          const alt = image?.getAttribute('alt') || '';
+          const figureName = link.closest('figure')?.querySelector('.figcaption span')?.textContent || '';
+          if (!gazeteValueMatchesDate(`${alt} ${figureName}`, selectedDate)) return;
+          const name = resolveGazeteNameFromText(`${alt} ${figureName}`);
+          if (name) hits.push({ name, index });
+        });
+        return [...new Set(hits.sort((a, b) => a.index - b.index).map(hit => hit.name))];
+      } catch (e) { ErrorHandler.silent(e); return []; }
+    }
+    // v1.191: dijitalbasin Read sayfaları — tek gazetenin kendi edition sayfası;
+    // SSR publication-name + publication-date birebir doğrulanır, eşleşmezse [].
+    if (typeof sourceKey === 'string' && sourceKey.startsWith('DijitalBasin/')) {
+      try {
+        const doc = new DOMParser().parseFromString(String(payload), 'text/html');
+        const nameText = (doc.querySelector('.publication-name')?.textContent || '').trim();
+        const dateText = (doc.querySelector('.publication-date')?.textContent || '').trim();
+        const needle = gazeteManifestDateNeedle(selectedDate);
+        if (!needle || normalizeGazeteText(dateText) !== normalizeGazeteText(needle)) return [];
+        const name = resolveGazeteNameFromText(nameText);
+        return name ? [name] : [];
+      } catch (e) { ErrorHandler.silent(e); return []; }
+    }
     const cardHits = [];
     const seenNames = new Set();
     const record = (name, index) => {
@@ -12441,6 +12483,22 @@ export default function App() {
     return [...new Set(hits.map(hit => hit.name))];
   };
 
+  // v1.191: dijitalbasin Read sayfası doğrulayıcı — SSR'de publication-name gazetenin
+  // KENDİ adının çözümlenmiş karşılığı ve publication-date seçili tarihle birebir
+  // eşleşmek zorundadır; aksi halde kapak/ad verilmez (fail-closed).
+  const dijitalBasinReadVerified = (payload, forcedName, selectedDate) => {
+    if (!payload || !forcedName) return false;
+    try {
+      const doc = new DOMParser().parseFromString(String(payload), 'text/html');
+      const nameText = (doc.querySelector('.publication-name')?.textContent || '').trim();
+      const dateText = (doc.querySelector('.publication-date')?.textContent || '').trim();
+      if (resolveGazeteNameFromText(nameText) !== forcedName) return false;
+      const needle = gazeteManifestDateNeedle(selectedDate);
+      if (!needle || normalizeGazeteText(dateText) !== normalizeGazeteText(needle)) return false;
+      return true;
+    } catch (e) { ErrorHandler.silent(e); return false; }
+  };
+
   const gazeteDateFromPayload = (payload) => {
     const text = normalizeGazeteText(String(payload || '').slice(0, 350000));
     const dates = new Set();
@@ -12477,7 +12535,15 @@ export default function App() {
       // v1.189: evrensel.net kendi arşivi — toplama sitelerinin CF/Turnstile engeline
       // karşı Evrensel'in KENDİ sayfası (?date= seçili tarih) kanıt kaynağı olarak
       // eklenir; yalnız kendi adını, seçili tarihlenmiş SSR ile verir (minCount: 1).
-      { key: 'Evrensel/kendi', url: `https://www.evrensel.net/gazete?date=${selectedDate}`, label: 'Evrensel/kendi', minCount: 1 }
+      { key: 'Evrensel/kendi', url: `https://www.evrensel.net/gazete?date=${selectedDate}`, label: 'Evrensel/kendi', minCount: 1 },
+      // v1.191: BİK İlk Sayfalar — diğer kaynakların CF engeline karşı 20+ gazetenin
+      // adı+tarihı SSR'de doyurulan 4. ana kaynak; alt kanıt kart-başına zorunlu.
+      { key: 'BİK', url: 'https://gazete.bik.gov.tr/Uygulamalar/GazeteIlkSayfalar?kapsam=yaygin', label: 'BİK/İlkSayfalar', minCount: 15 },
+      // v1.191: dijitalbasin — edition-id sabit gazete sayfaları (SSR'de publication-date
+      // seçili tarih eşleşmezse ad verilmez); Pencere/Diriliş/Evrensel kapak desteği.
+      { key: 'DijitalBasin/Evrensel', url: 'https://www.dijitalbasin.com/Read/331/istanbul-bahcelievler-evrensel', label: 'DijitalBasin/Evrensel', minCount: 1 },
+      { key: 'DijitalBasin/Pencere', url: 'https://www.dijitalbasin.com/Read/504/istanbul-besiktas-gazete-pencere', label: 'DijitalBasin/Pencere', minCount: 1 },
+      { key: 'DijitalBasin/Diriliş', url: 'https://www.dijitalbasin.com/Read/321/dirilis-postasi', label: 'DijitalBasin/Diriliş', minCount: 1 }
     ];
 
     // v1.188: gün-önbelleği köprüsü — doğrulama başarılıysa gateway diske yazar (POST);
@@ -12710,6 +12776,19 @@ export default function App() {
       ErrorHandler.silent(e);
     }
 
+    // v1.191 BİK: a.newspaper-list-item href'indeki YYN-*.jpg TAM çözünürlük kapaktır
+    // (thumb img'in solundaki büyük sayfa); alt'ın "… tarihli <ad> gazetesi ilk sayfası"
+    // biçimli ad+tarih kanıtı zorunlu. Aksi bir dokunuş yok.
+    try {
+      doc.querySelectorAll('a[href*="/first_pages/"]').forEach(link => {
+        const image = link.querySelector('img');
+        const alt = image?.getAttribute('alt') || '';
+        if (!alt || !/tarihli/i.test(alt) || !isExactName(alt)) return;
+        const href = link.getAttribute('href') || '';
+        if (/gazete\.bik\.gov\.tr\/first_pages\/YYN-\d+\.jpg/i.test(href)) addExact(href, 'ExactHero/BIK');
+      });
+    } catch (e) { ErrorHandler.silent(e); }
+
     // Jina/Markdown: ![Analiz Gazetesi Manşeti](https://...)
     let match;
     const mdImage = /!\[([^\]]*)\]\((https?:\/\/[^\s)]+)(?:\s+["'][^"']*["'])?\)/gi;
@@ -12760,6 +12839,12 @@ export default function App() {
     if (meta.ayd) {
       pushSource(`https://www.aydinlik.com.tr/gazete-mansetleri/${meta.ayd}`, 'Aydınlık/Detay');
     }
+    // v1.191: BİK İlk Sayfalar — kapsam=yaygin günün kartlarını SSR ile verir;
+    // alt metni "GG Ay Yıl - ... tarihli <ad> gazetesi ilk sayfası" = ad+tarih kesin kanıt.
+    if (meta.bik) pushSource('https://gazete.bik.gov.tr/Uygulamalar/GazeteIlkSayfalar?kapsam=yaygin', 'BİK/İlkSayfalar');
+    // v1.191: dijitalbasin — Read sayfası SSR'de publication-name + publication-date
+    // taşır; tarih seçili tarihe eşleşmezse kapak kurulmaz (fail-closed aynen).
+    if (meta.db) pushSource(`https://www.dijitalbasin.com/Read/${meta.db}`, 'DijitalBasin/Read');
 
     const candidates = [];
     for (const source of sources) {
@@ -12774,6 +12859,26 @@ export default function App() {
         // URL tarihli olsa bile 404/fallback sayfası başka güne dönebilir.
         // Bu nedenle gövde de aynı tarihi açıkça doğrulamak zorunda.
         if (!gazetePayloadMatchesDate(body, selectedDate)) continue;
+
+        // v1.191: dijitalbasin Read sayfası HTML img etiketi taşımaz; bugünün kapak
+        // görseli GetPublicationDisplay endpoint'indendir. SSR'de publication-name
+        // (gazete adı) + publication-date (seçili tarih) kesin doğrulanırsa kur.
+        if (meta.db && source.label === 'DijitalBasin/Read' && dijitalBasinReadVerified(body, name, selectedDate)) {
+          const publicationId = String(meta.db).split('/')[0];
+          candidates.push({
+            name,
+            src: `https://www.dijitalbasin.com/PublicationsDocument/GetPublicationDisplay?publicationId=${publicationId}`,
+            source: source.label,
+            alt: name,
+            title: name,
+            hint: name,
+            score: 1000,
+            verifiedDate: selectedDate,
+            verifiedName: name
+          });
+          addSystemLog(`✓ ${name}: ${selectedDate} gerçek kapak ${source.label} ile AD+TARİH kesin doğrulandı.`, 'success');
+          break;
+        }
 
         const exactHero = extractExactGazeteHeroCandidate(body, source.url, name);
         if (exactHero) {

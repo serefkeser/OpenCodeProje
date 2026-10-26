@@ -10,6 +10,27 @@ Kesin sürüm referansı `web/src/App.tsx` içinde `APP_VERSION`; burası insan-
 
 ---
 
+## v1.191 — (26 Ekim 2026 akşam, kükreş)
+**Kullanıcı kaynak teklifi: BİK + dijitalbasin — 6 gazete isim+kapak entegrasyonu.**
+
+- **BİK İlk Sayfalar (`kapsam=yaygin`):** 20 kart SSR'de; figcaption = gazete adı,
+  alt = "GG Ay Yıl - ... tarihli X gazetesi ilk sayfası" tarih kanıtı [kanıt: 20/20
+  tarihli, KORKUSUZ/MİLLİ GAZETE/YENİ ASYA dahil]. **4. ana kaynak** (minCount 15).
+  Ayrıca Cumhuriyet/Sözcü/Hürriyet/Karar/BirGün/Dünya/Türkiye... bu kaynaktan gelen
+  Gelir; ayrıca Cumhuriyet/Sözcü/Hürriyet/Karar/BirGün/Dünya/Türkiye... adları BİK'ten
+  doğrulanır; Korkusuz/Milli Gazete/Yeni Asya kapakları BİK tam çözünürlük sayfasıdır.
+- **dijitalbasin:** Read/331 Evrensel, Read/504 Gazete Pencere, Read/321 Diriliş
+  Postası — SSR `publication-name`+`publication-date` [kanıt: 3× 26 Ekim 2026];
+  kapak `GetPublicationDisplay?publicationId=` JPEG. Kart-başına tarih eşleşmesi
+  ZORUNLU; eşleşmezse ne ad ne kapak verilir (fail-closed aynen).
+- **Yan etkisi:** Pencere (kendi sitesi CF'de) dijitalbasin'den canlı gelir; BİK
+  CF-blok günlerinde ana kaynak olabilir. Mevcut kaynaklar ve fail-closed mantığı
+  şaşmaz; asistan canlı süreçlere dokunmaz (kullanıcı yenileme yapar).
+
+Kanıt: `tasks/probe-v191-*.mjs`, `tasks/probe-bik-count.mjs`, `tasks/probe-db-count.mjs`; `npx vite build` ✓.
+
+---
+
 ## v1.190 — (26 Ekim 2026 akşam)
 **"Video oluşturulamadı (0 Bayt)" kök nedeni çözüldü: sessiz MediaRecorder ölümü artık kanıtlı yakalanır.**
 

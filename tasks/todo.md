@@ -46,9 +46,9 @@ Not: .env anahtarlar ASLA repoya yazılmaz.
 
 ---
 
-## DEVAM HATTI — yarın kaldığımız yerden (güncellendi: 26 Ekim akşam v1.190)
+## DEVAM HATTI — yarın kaldığımız yerden (güncellendi: 26 Ekim akşam v1.191)
 
-**Son sürüm:** v1.190 — "Video oluşturulamadı (0 Bayt)" kök nedeni: MediaRecorder render sırasında SESSİZCE inaktif oluyordu (onerror/onstop/track-ended izleyici yok, finalize önü stop yok) → 265 sn ölü kayıt → 0 parça. RECORDER GUARD (onerror + track onended logları) + nextFrame canarisi (~5 sn'debir state yoklaması; inaktifse RENDER_RECORDER_DEAD ile anında durur) + 0 Bayt mesajına ölüm kanıtı. Fail-closed aynen. Öncesinde v1.189 (`981c6e5`) pushlandı — evrensel.net 4. kaynak + FlareSolverr (Turnstile geçilemedi, entegre edilmedi); v1.188 (`bdb46ab`) — CF tespiti + gün-önbelleği + matine + verifyNewsFromImage dürüst kota. Çalışan ağ: app :5173, gateway :4100, analysis :4201, media :4202.
+**Son sürüm:** v1.191 — kullanıcı kaynak teklifi entegre: BİK İlk Sayfalar 4. ana kaynak (20/20 kart alt-tarihli; Korkusuz/Milli Gazete/Yeni Asya + diğer kartlar) + dijitalbasin (Evrensel/Pencere/Diriliş; SSR publication-date kanıtlı, kapak GetPublicationDisplay JPEG). Fail-closed aynen; asistan canlı süreçlere dokunmaz. Öncesinde v1.190 (`3f3ff06`) — MediaRecorder sessiz ölüm guard+canary; v1.189 (`981c6e5`) — evrensel.net 4. kaynak; v1.188 (`bdb46ab`) — CF tespiti + gün-önbelleği + matine. Çalışan ağ: app :5173, gateway :4100, analysis :4201, media :4202.
 
 **v1.188 içeriği (uygulandı):**
 0. **Takipten çıkarma:** Dokuz Sütun, Güneş, Yeni Yüzyıl → `GAZETE_EXCLUDED` (iç tanıma korunur, listede görünmez).
