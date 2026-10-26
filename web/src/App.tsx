@@ -1,6 +1,16 @@
 // ============================================================================
-// OTONOM Chatgpt_1.188 — SÜRÜM BAŞLIĞI (her değişiklikte burayı, APP_VERSION'ı ve SÜRÜM NOTLARI'nı birlikte artır)
+// OTONOM Chatgpt_1.189 — SÜRÜM BAŞLIĞI (her değişiklikte burayı, APP_VERSION'ı ve SÜRÜM NOTLARI'nı birlikte artır)
 // Program menüsündeki rozet APP_VERSION.toBadge() ile bu sürümden otomatik üretilir.
+// v1.189 ÖZET: Kullanici talebi — GazeteOku/Aydinlik CF engeline karsi topluluk araci
+// FlareSolverr sinandi (headless + gorunur + tabs_till_verify): iki sitedeki interaktif
+// Turnstile gecilemedi [kanit: probe-flaresolverr + probe-flare-tabs, 0 kart] — bu yol
+// entegre edilmedi (olu kod olur). BASARILI YOL: evrensel.net kendi arsivi
+// /gazete?date=YYYY-MM-DD sirada secili tarihi SSR'de veriyor [kanit: 2026-10-26 +
+// 80 manset img + "EVRENSEL'IN MANSETI" bolumu]. 4. kaynak eklendi: Evrensel/kendi
+// (minCount: 1, yalniz kendi adini besler; dogrulama tarih+MANSETI+dosya img
+// zorunlu; tarih eslesmezse ad verilmez — fail-closed aynen). GZT/GazeteOku/Aydinlik
+// yollari degismedi; CF engeli kalcaksa Dünya/Tavır/Pencere otomatikye geri girer.
+// Kanit: probs + vite build.
 // v1.188 ÖZET: (1) Takipten çıkarma — Dokuz Sütun, Güneş, Yeni Yüzyıl GAZETE_EXCLUDED'a
 // eklendi (kullanıcı talebi; listeden silinirler, iç tanıma korunur). (2) Gri gazete
 // kök nedeni [kesin tanı 25 Ekim]: GazeteOku+Aydınlık Cloudflare bot koruması ("Just a
@@ -216,7 +226,7 @@ const { Download, RotateCcw, UploadCloud, Music, Trash2, Volume2, Clock, Loader2
 // M1: CONSTANTS & CONFIG
 // ============================================================================
 const APP_VERSION = {
-  major: 1, minor: 188, hotfix: 'Chatgpt_1.188',
+  major: 1, minor: 189, hotfix: 'Chatgpt_1.189',
   short() { return `${this.major}.${this.minor}`; },
   toString() { return `OTONOM Chatgpt_${this.major}.${this.minor}`; },
   toBadge() { return `${this.toString()} • One-Page`; }
@@ -1313,6 +1323,7 @@ const collectUltimateCoverReferences = async (jobState) => {
 const useDebounce = (value, delay = 300) => { const [debounced, setDebounced] = useState(value); useEffect(() => { const timer = setTimeout(() => setDebounced(value), delay); return () => clearTimeout(timer); }, [value, delay]); return debounced; };
 
 const FIX_CHECKLIST = Object.freeze([
+  { version: '1.189', key: 'EVRENSEL_OWN_SITE_4TH_MANIFEST_SOURCE', text: 'Kullanıcı talebi: GazeteOku/Aydınlık engelini (Cloudflare interaktif Turnstile) FlareSolverr ile aşma denendi — headless, görünür mod ve tabs_till_verify kapsamında Turnstile geçilmedi [probe kanıtı: her varyant 0 kart, clearance cookie yok]; bu araç app koduna entegre edilmedi (ölü kod olurdu) ve kullanıcıdan kaldırılışı önerildi. Başarılı yol: evrensel.net kendi arşiv sayfası /gazete?date=YYYY-MM-DD seçili tarihi SSR ile veriyor [probe kanıtı: 2026-10-26 metni + 80 manşet img + EVRENSELİ MANŞETİ bölümü + /haber/ linki]. fetchVerifiedGazeteManifest 4. kaynak eklendi: Evrensel/kendi (minCount: 1 — yalnız kendi adını besler; tarih + MANŞETİ + /images/.../dosya/ görseli zorunlu; tarih eşleşmezse hiç ad verilmez, fail-closed aynen). Diğer kaynakların yolları değişmedi; toplama sitelerdeki CF engeli kalktığında Dünya/Tavır/Gazete Pencere otomatik döner. Kanıt: node --check, curl probes, npx vite build ✓.' },
   { version: '1.188', key: 'GAZETE_CF_BLOCK_DAY_CACHE_AND_MATINE_RELAX', text: 'Kullanıcı onayı: gazete listesi gündüz saatlerinde Cloudflare bot koruması (403 "Just a moment") yüzünden doğrulanamıyordu; mesaj "yayım yok" gibi görünüyordu. Üç katman: (1) gateway /proxy CF meydan okumasını 503 CF_CHALLENGE ile işaretler; (2) App fetchVerifiedGazeteManifest botBlocked kaynakları "bot koruması" yerine gerçek neden olarak raporlar (fail-closed aynen; yanlış/eski liste yine gösterilmez); (3) doğrulanmış liste gateway /api/gazete-manifest gün-önbelleğine yazılır (services/gateway/gazete/manifest-<tarih>.json, .gitignore dâhil) ve kaynaklar engellendiğinde AYNI günün kanıtıyla devam edilir — yalnız aynı tarihin kendisi okunur, eski tarih yok. Matine esnetmesi: bugün TR saat ≥08:00 iken tamamlama eşiği 3→1 (geçmiş tarihte ve gecede 3 kalır). Takip listesinden çıkarıldı: Dokuz Sütun, Güneş, Yeni Yüzyıl (GAZETE_EXCLUDED). Kanıt: node --check gateway, CF tespit probu (GazeteOku 403 challenge [kesin]), GZT tarihli adres analizi (26 adet 25-10-2026), npx vite build ✓.' },
   { version: '1.188', key: 'VERIFY_NEWS_GROUNDING_EMPTY_200_AND_QUOTA_HONESTY’, text: ’Kullanıcı hatası: medya analizinde bugünkü haber resmi "HABER_DOGRULANAMADI (internette kaynak bulunamadı)" ile durdu; canlı logda istekler 200 dönmüş ama grounding boş görünüyordu. Tanı (canlı log + aynı istek şekli probu): iki farklı arıza — (1) gemini-2.5-flash düşünme (thinking) tokenları maxOutputTokens:2000 bütçesini yiyip metni 0’a düşürüyor → 200 + boş içerik + grounding yok, uygulama bunu "kaynak yok" diye okuyordu (finishReason/usage loglanmadığı için görünmüyordu); (2) kota 429 yığını fetchWithRetry’den genel throw ile çıkıp yine "kaynak bulunamadı" diye çarpıtılıyordu [prob kanıtı: üç varyant da HTTP 429 "You exceeded your current quota"]. Çözüm: verifyNewsFromImage’de thinkingBudget:0 + maxOutputTokens:4000; başarısız denemede finishReason/çıkışToken/düşünmeToken logu; MAX_TOKENS/SAFETY boş yanıtları kendi adıyla, 429 yığını "API kota/ağ sınırı" olarak dürüst raporlanır ve kota durumunda 2. deneme atlanır (kota yakmayı azaltır). Fail-closed kapı aynen korunur: kaynak yoksa üretim yine DURUR.' },
   { version: '1.187', key: 'GAZETE_SOURCE_UNION_COMPLEMENT', text: 'Kullanici talebi: gazete kaynak birlesimi tamamlama calisir. Capak korundu: en az bir kaynak kendi esegini (20/20/15) tutmali; tutmazsa surec durur (fail-closed aynen). Esegi tutmayan ama 3+ adi+tarih kanitli ad ureten kismi kaynaklar artik birlesime katilir — eksik gazeteler diger kaynaklardan tamamlanir, kismi kaynak yok olmaz. Kanit: npx vite build ✓, rozet Chatgpt_1.187.' },
@@ -12277,6 +12288,15 @@ export default function App() {
 
   const extractExactDailyManifestNames = (payload, selectedDate, sourceKey = '') => {
     if (!payload || !gazetePayloadMatchesDate(payload, selectedDate)) return [];
+    // v1.189: evrensel.net kendi arşiv sayfası (?date=YYYY-MM-DD) — yalnız kendi adını
+    // üretir; tarihle SSR'li sayfada "EVRENSEL'İN MANŞETİ" bölümü + kendi dosya görseli
+    // zorunlu. Tarih eşleşmezse FAIL-CLOSED aynen: hiçbir ad verilmez.
+    if (sourceKey === 'Evrensel/kendi') {
+      const body = String(payload);
+      const hasManset = /EVRENSEL.{0,24}MANŞETİ/i.test(body) || /manşet['\u2019]{0,2}i/i.test(body.slice(0, 60000));
+      const hasOwnImage = /\/images\/\d+\/upload\/dosya\/\d+\.(?:jpe?g|png|webp)/i.test(body);
+      return (hasManset && hasOwnImage) ? ['Evrensel'] : [];
+    }
     const cardHits = [];
     const seenNames = new Set();
     const record = (name, index) => {
@@ -12398,7 +12418,11 @@ export default function App() {
     const sources = [
       { key: 'GazeteOku', url: 'https://www.gazeteoku.com/gazeteler', label: 'GazeteOku/Ana', minCount: 20 },
       { key: 'GZT', url: 'https://gazetemanset.gzt.com/', label: 'GZT/Ana', minCount: 20 },
-      { key: 'Aydınlık', url: 'https://www.aydinlik.com.tr/gazete-mansetleri', label: 'Aydınlık/Ana', minCount: 15 }
+      { key: 'Aydınlık', url: 'https://www.aydinlik.com.tr/gazete-mansetleri', label: 'Aydınlık/Ana', minCount: 15 },
+      // v1.189: evrensel.net kendi arşivi — toplama sitelerinin CF/Turnstile engeline
+      // karşı Evrensel'in KENDİ sayfası (?date= seçili tarih) kanıt kaynağı olarak
+      // eklenir; yalnız kendi adını, seçili tarihlenmiş SSR ile verir (minCount: 1).
+      { key: 'Evrensel/kendi', url: `https://www.evrensel.net/gazete?date=${selectedDate}`, label: 'Evrensel/kendi', minCount: 1 }
     ];
 
     // v1.188: gün-önbelleği köprüsü — doğrulama başarılıysa gateway diske yazar (POST);

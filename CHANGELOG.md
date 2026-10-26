@@ -10,6 +10,27 @@ Kesin sürüm referansı `web/src/App.tsx` içinde `APP_VERSION`; burası insan-
 
 ---
 
+## v1.189 — (26 Ekim 2026)
+**GazeteOku/Aydınlık Turnstile denendi, geçilemedi → evrensel.net 4. kaynak eklendi.**
+
+- **FlareSolverr denemesi [kesin ölçüm]:** headless + görünür mod + `tabs_till_verify` —
+  iki site de **interaktif Turnstile** istiyor; FlareSolverr hiçbir varyantta geçemedi
+  (0 kart, clearance cookie yok; README de "captcha solvers çalışmıyor" diyor). App
+  entegrasyonu yapılmadı (ölü kod); kullanıcının kaldırması önerilir.
+- **Başarılı yol:** `evrensel.net/gazete?date=YYYY-MM-DD` seçili tarihi **SSR ile**
+  veriyor (bugün kanıtlandı: 2026-10-26 + 80 manşet gövdesi + MANŞETİ bölümü).
+  `fetchVerifiedGazeteManifest` 4. kaynak eklendi: **Evrensel/kendi** (minCount 1;
+  yalnız kendi adını besler; **tarih + MANŞETİ + dosya görseli** zorunlu — tarih
+  eşleşmezse ad verilmez, fail-closed aynen).
+- Dünya / Tavır / Gazete Pencere: toplama sitelerdeki CF engeli kalktığında otomatik
+  döner (geçici IP engeli). Analiz ve Nasıl Bir Ekonomi: bugün hiçbir kaynakta kart
+  yok — ayrı 4. kaynak tartışması sürer.
+
+Künye: kanıt prob'ları `tasks/probe-flaresolverr.mjs`, `tasks/probe-flare-tabs.mjs`,
+`tasks/probe-evrensel-*.mjs`; `npx vite build` ✓.
+
+---
+
 ## v1.188 — (25 Ekim 2026)
 **İki paket: (a) gri gazetelerin kalıcı çözümü + takipten 3 çıkarma, (b) medya analizi `HABER_DOGRULANAMADI` kök nedeni.**
 

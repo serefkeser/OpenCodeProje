@@ -46,15 +46,19 @@ Not: .env anahtarlar ASLA repoya yazılmaz.
 
 ---
 
-## DEVAM HATTI — yarın kaldığımız yerden (güncellendi: 25 Ekim öğleden sonra v1.188)
+## DEVAM HATTI — yarın kaldığımız yerden (güncellendi: 26 Ekim öğleden sonra v1.189)
 
-**Son sürüm:** v1.188 (bu başlıkta push edildi; ÖZET/APP_VERSION/FIX_CHECKLIST/index.html/CHANGELOG birlikte artırıldı). Öncesinde v1.187 (`4aeb74c`), taşınabilir paket (`e1a5e6d`+`e28ee13`), CHANGELOG (`e40b245`) pushlandı. Çalışan ağ: app :5173, gateway :4100, analysis :4201, media :4202.
+**Son sürüm:** v1.189 (push ediliyor). Öncesinde v1.188 (`bdb46ab`) pushlandı — CF tespiti 503 CF_CHALLENGE + gün-önbelleği + matine esnetme + verifyNewsFromImage thinkingBudget:0 (+ canlı probda 200/grounding=2 kanıtlandı). Çalışan ağ: app :5173, gateway :4100, analysis :4201, media :4202.
 
 **v1.188 içeriği (uygulandı):**
 0. **Takipten çıkarma:** Dokuz Sütun, Güneş, Yeni Yüzyıl → `GAZETE_EXCLUDED` (iç tanıma korunur, listede görünmez).
 1. **Gri gazete kök nedeni [kesin tanı]:** GazeteOku + Aydınlık Cloudflare bot koruması (403 "Just a moment", Jina reader dahil challenge; dün 200 idi → IP bazlı geçici engel). Gateway `/proxy` → 503 `CF_CHALLENGE` işareti; App `botBlocked` kaynakları "bot koruması" olarak dürüst raporlar (fail-closed aynen).
 2. **Gün-önbelleği:** doğrulanmış liste gateway `/api/gazete-manifest` POST ile `services/gateway/gazete/manifest-<tarih>.json` kaydı; bot koruması gününde GET ile **aynı günün kanıtı** devam eder (`.gitignore` girdisi eklendi — canlıda test için gateway restart ister). Matine esnetmesi: bugün TR saat ≥08:00 iken tamamlama eşiği 3→1.
 3. **Medya analizi HABER_DOGRULANAMADI:** iki arıza üst üste — (a) `gemini-2.5-flash` **düşünme (thinking) token'ları** maxOutputTokens:2000'i yiyip boş-200 üretiyordu; (b) 429 kota yığını "internette kaynak bulunamadı" diye çarpıtılıyordu [probe kanıtı: üç varyant da HTTP 429 "You exceeded your current quota"]. `verifyNewsFromImage`: thinkingBudget:0 + 4000 token; finishReason/çıkışToken/düşünmeToken tanı logları; 429 → "API kota/ağ sınırı" dürüst mesajı; kota durumunda 2. deneme atlanır. Fail-closed kapı aynen korunur.
+
+**26 Ekim ek işlemi (v1.189):**
+6. **FlareSolverr:** GazeteOku/Aydınlık'taki interaktif Turnstile geçilemedi (headless + görünür + tabs_till_verify; probe kanıtları tasks/). Entegrasyon YAPILMADI (ölü kod); kullanıcı kaldırsın — sürek `flaresolverr.exe` (port 8191) kapatılabilir.
+7. **evrensel.net 4. kaynak:** /gazete?date= parametresi seçili tarihi SSR ile veriyor → `Evrensel/kendi` kaynağı (minCount 1, yalnız Evrensel adı; tarih+MANŞETİ+dosya img zorunlu). Dünya/Tavır/Pencere CF açılınca otomatik; Analiz ve Nasıl Bir Ekonomi kartı hiçbir kaynakta yok (ayrı tartışma).
 
 **Yarın yapılacaklar (öncelik sıralı):**
 1. **Kota toplarınca doğrula:** Gemini günlük kotası bugün doldu (prob 429); kota açılınca kullanıcı haber resmini yeniden verip gerçek üretimde `verifyNewsFromImage` doğrulaması izlenir; hâlâ boş-200 olursa loglardaki finishReason/usage satırları tanıyı doğrudan verecek.
