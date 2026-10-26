@@ -61,6 +61,7 @@ Not: .env anahtarlar ASLA repoya yazılmaz.
 7. **evrensel.net 4. kaynak:** /gazete?date= parametresi seçili tarihi SSR ile veriyor → `Evrensel/kendi` kaynağı (minCount 1, yalnız Evrensel adı; tarih+MANŞETİ+dosya img zorunlu). Dünya/Tavır/Pencere CF açılınca otomatik; Analiz ve Nasıl Bir Ekonomi kartı hiçbir kaynakta yok (ayrı tartışma).
 
 **Yarın yapılacaklar (öncelik sıralı):**
+1. **ÇALIŞAN PROĞRA KURAL (kullanıcı direktifi 26 Ekim):** asla canlı sürecin varsa restart/stop yapma; sürüm uygulaması tamamen YENILLE/TİTLE kapali kullanıcıda mümkün (NİC programında başjar): Web tarayıcıda Ctrl+F5; ayrı pencere source aynı git pull ile alınır. Assistan yalnız commit+push yapar; kullanıcı yeniden başlatır.
 1. **Kota toplarınca doğrula:** Gemini günlük kotası bugün doldu (prob 429); kota açılınca kullanıcı haber resmini yeniden verip gerçek üretimde `verifyNewsFromImage` doğrulaması izlenir; hâlâ boş-200 olursa loglardaki finishReason/usage satırları tanıyı doğrudan verecek.
 2. **Kullanıcı doğrulaması:** Ctrl+F5 → rozet Chatgpt_1.188; gazete SEÇ ekranı sabah yenileme; bot koruması gününde "bot koruması" mesajı + gün-önbelleği devreye girmeli. Gateway restart (v1.188 kodu canlıda değil).
 3. **Analiz ve Nasıl Bir Ekonomi:** 3 kaynakta da seçili tarih kanıtı YOK (probe-gzt-detay: hep 404/fallback; gazeteoku/ayd listelerinde ad yok) — bugünkü koşuda gri kalır; bu ikisi için 4. kaynak tartışması ayrı karar.
