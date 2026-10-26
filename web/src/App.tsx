@@ -1,6 +1,23 @@
 // ============================================================================
-// OTONOM Chatgpt_1.181 — SÜRÜM BAŞLIĞI (her değişiklikte burayı, APP_VERSION'ı ve SÜRÜM NOTLARI'nı birlikte artır)
+// OTONOM Chatgpt_1.188 — SÜRÜM BAŞLIĞI (her değişiklikte burayı, APP_VERSION'ı ve SÜRÜM NOTLARI'nı birlikte artır)
 // Program menüsündeki rozet APP_VERSION.toBadge() ile bu sürümden otomatik üretilir.
+// v1.188 ÖZET: (1) Takipten çıkarma — Dokuz Sütun, Güneş, Yeni Yüzyıl GAZETE_EXCLUDED'a
+// eklendi (kullanıcı talebi; listeden silinirler, iç tanıma korunur). (2) Gri gazete
+// kök nedeni [kesin tanı 25 Ekim]: GazeteOku+Aydınlık Cloudflare bot koruması ("Just a
+// moment") 403 meydan okumasına döndü (dün 200'di; IP bazlı geçici engel) — kapı hata
+// değil engeli raporluyordu ama neden "yayım yok" gibi görünüyordu. Çözüm üç katman:
+// gateway /proxy CF sayfasını 503 CF_CHALLENGE ile işaretler; App botBlocked'i
+// görünür kılar ("bot koruması" dürüst mesajı, fail-closed aynen); doğrulanmış liste
+// gateway /api/gazete-manifest gün-önbelleğine yazılır ve kaynaklar engellenirse
+// AYNI günün kanıtıyla devam edilir (eski tarih asla gösterilmez, .gitignore'a
+// services/gateway/gazete/ girdisi). (3) Matine esnetmesi: bugün TR saat ≥08:00 iken
+// tamamlama eşiği 3→1 (geçmiş tarih ve gece aynen 3). (4) Medya analizi
+// HABER_DOGRULANAMADI tanısı: canlı loglar + prob — istekler 200 döndürüp grounding
+// boştu; kök neden gemini-2.5-flash thinking token'larının maxOutputTokens:2000
+// bütçesini yemesi + kota 429 dönemlerinin 'kaynak bulunamadı' diye çarpıtılması.
+// verifyNewsFromImage: thinkingBudget:0 + 4000 token; başarısız denemede
+// finishReason/usage logu; 429 yığını "API kota/ağ sınırı" olarak dürüst raporlanır
+// ve kota durumunda 2. deneme atlanır (fail-closed aynen). Kanıt: probs + vite build.
 // v1.187 ÖZET: Kullanıcı talebi — gazete kaynaklari birlesimi tamamlayici oldu.
 // Daha once sadece kendi esegini (20/20/15) tutturan kaynaklar birlesime
 // giriyor; esigi tutmayan kaynagin butun dogrulanmis gazeteleri kayboluyordu.
@@ -199,7 +216,7 @@ const { Download, RotateCcw, UploadCloud, Music, Trash2, Volume2, Clock, Loader2
 // M1: CONSTANTS & CONFIG
 // ============================================================================
 const APP_VERSION = {
-  major: 1, minor: 187, hotfix: 'Chatgpt_1.187',
+  major: 1, minor: 188, hotfix: 'Chatgpt_1.188',
   short() { return `${this.major}.${this.minor}`; },
   toString() { return `OTONOM Chatgpt_${this.major}.${this.minor}`; },
   toBadge() { return `${this.toString()} • One-Page`; }
@@ -1296,6 +1313,8 @@ const collectUltimateCoverReferences = async (jobState) => {
 const useDebounce = (value, delay = 300) => { const [debounced, setDebounced] = useState(value); useEffect(() => { const timer = setTimeout(() => setDebounced(value), delay); return () => clearTimeout(timer); }, [value, delay]); return debounced; };
 
 const FIX_CHECKLIST = Object.freeze([
+  { version: '1.188', key: 'GAZETE_CF_BLOCK_DAY_CACHE_AND_MATINE_RELAX', text: 'Kullanıcı onayı: gazete listesi gündüz saatlerinde Cloudflare bot koruması (403 "Just a moment") yüzünden doğrulanamıyordu; mesaj "yayım yok" gibi görünüyordu. Üç katman: (1) gateway /proxy CF meydan okumasını 503 CF_CHALLENGE ile işaretler; (2) App fetchVerifiedGazeteManifest botBlocked kaynakları "bot koruması" yerine gerçek neden olarak raporlar (fail-closed aynen; yanlış/eski liste yine gösterilmez); (3) doğrulanmış liste gateway /api/gazete-manifest gün-önbelleğine yazılır (services/gateway/gazete/manifest-<tarih>.json, .gitignore dâhil) ve kaynaklar engellendiğinde AYNI günün kanıtıyla devam edilir — yalnız aynı tarihin kendisi okunur, eski tarih yok. Matine esnetmesi: bugün TR saat ≥08:00 iken tamamlama eşiği 3→1 (geçmiş tarihte ve gecede 3 kalır). Takip listesinden çıkarıldı: Dokuz Sütun, Güneş, Yeni Yüzyıl (GAZETE_EXCLUDED). Kanıt: node --check gateway, CF tespit probu (GazeteOku 403 challenge [kesin]), GZT tarihli adres analizi (26 adet 25-10-2026), npx vite build ✓.' },
+  { version: '1.188', key: 'VERIFY_NEWS_GROUNDING_EMPTY_200_AND_QUOTA_HONESTY’, text: ’Kullanıcı hatası: medya analizinde bugünkü haber resmi "HABER_DOGRULANAMADI (internette kaynak bulunamadı)" ile durdu; canlı logda istekler 200 dönmüş ama grounding boş görünüyordu. Tanı (canlı log + aynı istek şekli probu): iki farklı arıza — (1) gemini-2.5-flash düşünme (thinking) tokenları maxOutputTokens:2000 bütçesini yiyip metni 0’a düşürüyor → 200 + boş içerik + grounding yok, uygulama bunu "kaynak yok" diye okuyordu (finishReason/usage loglanmadığı için görünmüyordu); (2) kota 429 yığını fetchWithRetry’den genel throw ile çıkıp yine "kaynak bulunamadı" diye çarpıtılıyordu [prob kanıtı: üç varyant da HTTP 429 "You exceeded your current quota"]. Çözüm: verifyNewsFromImage’de thinkingBudget:0 + maxOutputTokens:4000; başarısız denemede finishReason/çıkışToken/düşünmeToken logu; MAX_TOKENS/SAFETY boş yanıtları kendi adıyla, 429 yığını "API kota/ağ sınırı" olarak dürüst raporlanır ve kota durumunda 2. deneme atlanır (kota yakmayı azaltır). Fail-closed kapı aynen korunur: kaynak yoksa üretim yine DURUR.' },
   { version: '1.187', key: 'GAZETE_SOURCE_UNION_COMPLEMENT', text: 'Kullanici talebi: gazete kaynak birlesimi tamamlama calisir. Capak korundu: en az bir kaynak kendi esegini (20/20/15) tutmali; tutmazsa surec durur (fail-closed aynen). Esegi tutmayan ama 3+ adi+tarih kanitli ad ureten kismi kaynaklar artik birlesime katilir — eksik gazeteler diger kaynaklardan tamamlanir, kismi kaynak yok olmaz. Kanit: npx vite build ✓, rozet Chatgpt_1.187.' },
   { version: '1.186', key: 'GAZETE_VERIFY_PER_SOURCE_LATEST_DATE_REPORT', text: 'Kullanıcı onayı: gazete listesi doğrulanamadığında (sayfalar alındı, eşleşme yok dalı) mesaj artık kaynak başına en güncel görülen tarihi açıkça verir — örn. "GazeteOku en fazla 24 Ekim 2026 tarihli içerik sundu", "GZT 25 Ekim 2026 başlıklı sayfayı sundu ancak günün listesi HTML içinde doğrulanamadı (liste muhtemelen JS ile yükleniyor)" — ve eski/yarım listeyi göstermeden DURUR. Kanıt: 25 Ekim gece tanısı — GazeteOku kartları HÜRRİYET 24 Ekim 2026, Aydınlık storage yalnız 2026-10-24 (gateway dışı doğrudan çekişte aynı), GZT SSR listesiz; kaynaklar o saatte günün sayılarını yayımlamamıştı.' },
   { version: '1.185', key: 'MUSIC_LIBRARY_GATEWAY_NO_EXTENSION', text: 'Kullanıcı talebi: Firefox eklentisi (OTONOM_1_105) tarayıcıdan bağımsız olsun — müzik kütüphanesi tek canlı uzantı bağımlılığıydı (Buffer v1.173te zaten çıkarılmış, gazete fetch uzantısız aynen çalışıyor). Çözüm: gateway 4100 /api/music kalıcı deposu (services/gateway/muzik/ klasörü: katalog.json + <id>.audio; id regex ^fm_[A-Za-z0-9_-]{1,230}$, 32 MB üst sınır, yalnız audio veya ogg/octet-stream data-URL) + App müzik metodları uzantı MUSIC_* protokolünden gateway fetch çağrılarına bağlandı (saveMusicToLib/getAllMusicFromLib/getMusicFromLib/removeMusicFromLib/mirrorLocalMusicToGateway/refreshMusicLibrary; musicExtensionRequest ve probeMusicExtension silindi). Yerel IndexedDB birincil önbellek; gateway kapalıysa açık WARN, sessiz düşme yok. UI uzantı rozeti "Gateway Kalıcı Müzik (4100)". Kanıt: probe-gateway-music.mjs 8/8 PASS (boş katalog, kayıt, liste, data-URL okuma, id reddi, mime reddi, silme, yeniden boş).' },
@@ -2088,6 +2107,15 @@ const _getTurkeyDateParts = (date = new Date()) => {
 const _getTurkeyDateISO = (date = new Date()) => {
   const p = _getTurkeyDateParts(date);
   return `${p.year}-${p.month}-${p.day}`;
+};
+// v1.188: TR yerel saati (h23) — gazete doğrulama kapısının matine/mızıka ayrımı için.
+const _getTurkeyHour = (date = new Date()) => {
+  const value = new Intl.DateTimeFormat('tr-TR', {
+    timeZone: 'Europe/Istanbul',
+    hour: '2-digit',
+    hourCycle: 'h23',
+  }).format(date);
+  return Number(String(value).slice(0, 2)) % 24;
 };
 const _getCurrentMonthYearTR = () => new Intl.DateTimeFormat('tr-TR', {
   timeZone: 'Europe/Istanbul',
@@ -4616,12 +4644,15 @@ Google Search aracını gerçekten kullan. Cevabında arama sonucunda bulunan en
     const today = new Date().toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Istanbul' });
     const system = `Sen titiz bir haber doğrulama editörüsün. Bugünün tarihi: ${today}. Görevin, görseldeki haberi internette arayıp doğrulamaktır. Arama yapmadan cevap vermek YASAKTIR. Görseldeki ifadeleri kendi bilginle yorumlama veya tahmin etme; özel isimleri, kurum/fon/şirket adlarını ve sayıları yalnız güvenilir kaynaklarda geçtiği haliyle yaz.`;
     const task = `Bu görsel bir haber paylaşımı/ekran görüntüsü.\nADIM 1: Görseldeki başlık, spot ve tüm yazıları AYNEN çıkar (yorum yapma).\nADIM 2: Hangi olaydan söz edildiğini belirle ve İNTERNETTE ARA (Google Search).\nADIM 3: Güvenilir kaynaklarda (AA, İHA, DHA, resmî açıklamalar, büyük gazeteler) haberi doğrula. Görsel ifadesiyle kaynaklar çelişirse kaynakları esas al ve çelişkiyi yaz.\nÇIKTI (düz metin, tam bu başlıklarla):\nGÖRSELDEKİ YAZI: ...\nDOĞRULANMIŞ BİLGİLER: (madde madde; kim/ne/nerede/ne zaman/son durum; her maddenin sonunda kaynak adı)\nDOĞRULANAMAYANLAR: (varsa)\nDURUM: DOĞRULANDI | KISMEN | DOĞRULANAMADI`;
+    let failReason = 'internette kaynak bulunamadı';
     for (let attempt = 1; attempt <= 2; attempt++) {
       const extra = attempt === 2 ? '\nUYARI: Önceki denemede arama sonucu alınamadı. Mutlaka Google Search ile arama yap ve kaynaklara dayan.' : '';
       const payload = {
         contents: [{ role: 'user', parts: [{ inlineData: { mimeType: mediaItem.type || 'image/png', data: b64 } }, { text: task + extra }] }],
         systemInstruction: { parts: [{ text: system }] },
-        generationConfig: { temperature: 0.1, maxOutputTokens: 2000 },
+        // v1.188: doğrulamada düşünme (thinking) kapatılır; 2000 token'lık bütçe düşünme
+        // token'ları tarafından yenebiliyordu → 200 dönüyor ama metin/grounding boş kalıyordu.
+        generationConfig: { temperature: 0.1, maxOutputTokens: 4000, thinkingConfig: { thinkingBudget: 0 } },
         tools: [{ google_search: {} }]
       };
       try {
@@ -4629,6 +4660,7 @@ Google Search aracını gerçekten kullan. Cevabında arama sonucunda bulunan en
         if (!response) throw new Error('API yanıt döndürmedi');
         const data = await response.json();
         const candidate = data.candidates?.[0];
+        const usage = data.usageMetadata || {};
         const text = (candidate?.content?.parts || []).map(part => part?.text || '').join('').trim();
         const chunks = candidate?.groundingMetadata?.groundingChunks || [];
         const queries = candidate?.groundingMetadata?.webSearchQueries || [];
@@ -4637,10 +4669,29 @@ Google Search aracını gerçekten kullan. Cevabında arama sonucunda bulunan en
           addSystemLog(`✓ Haber internette doğrulandı (${chunks.length} kaynak, ${queries.length} arama): ${queries.slice(0, 2).join(' | ')}`, 'success');
           return { text, status, sources: chunks.map(c => ({ title: c.web?.title || '', uri: c.web?.uri || '' })).filter(c => c.uri) };
         }
-        addSystemLog(`Haber doğrulama ${attempt}. deneme: ${chunks.length === 0 ? 'arama sonucu/kaynak yok' : 'durum ' + (status || 'belirsiz')}.`, 'warn');
-      } catch (e) { addSystemLog(`Haber doğrulama ${attempt}. deneme hatası: ${e.message}`, 'warn'); }
+        // v1.188: gözlem boşluğu kapandı — gerçek mekanizma (finishReason/bütçe/kota) loglanır.
+        const finishReason = candidate?.finishReason || '';
+        addSystemLog(`Haber doğrulama ${attempt}. deneme: grounding=${chunks.length}, arama=${queries.length}, finishReason=${finishReason || 'yok'}, çıkışToken=${usage.candidatesTokenCount ?? '-'}, düşünmeToken=${usage.thoughtsTokenCount ?? '-'}.`, 'warn');
+        if ((finishReason === 'MAX_TOKENS' || finishReason === 'SAFETY') && !text) {
+          failReason = finishReason === 'MAX_TOKENS' ? 'model çıktı bütçesi tükendi (yanıt düşünme/biçim tokenlarına gitti, metin boş kaldı)' : 'yanıt güvenlik filtresiyle engellendi';
+          break;
+        }
+        failReason = chunks.length === 0 ? 'internette kaynak bulunamadı' : `model durumu ${status || 'belirsiz'} bildirdi`;
+      } catch (e) {
+        const msg = String(e?.message || e);
+        // v1.188: dürüst neden — fetchWithRetry 429/5xx yığını sonrası genel throw fırlatır;
+        // bu 'internette kaynak bulunamadı' değil kota/ağ sınırıdır. Kota durumunda ikinci
+        // deneme anlamsız (2 deneme × 5 istek = kota yakma); tek denemede çık.
+        if (/tüm denemeler başarısız/.test(msg)) {
+          failReason = 'API kota/ağ sınırı: doğrulama istekleri tekrarlanan HTTP 429/hata yüzünden cevap alamadı; kota açılınca yeniden deneyin';
+          break;
+        }
+        addSystemLog(`Haber doğrulama ${attempt}. deneme hatası: ${msg}`, 'warn');
+        failReason = msg;
+        break;
+      }
     }
-    return { text: '', unverified: true, reason: 'internette kaynak bulunamadı' };
+    return { text: '', unverified: true, reason: failReason };
   }
 
   static async analyzeContentForImage(inputData, inputType, config, imageIndex, totalImages, previousContext) {
@@ -11444,7 +11495,8 @@ export default function App() {
   // Takip kapsamı sabittir; günlük manşet kartları yalnız tarihli kaynaklardan gelir.
   // Mevcut iç kimlikleri koru; üç farklı görünen adı yalnız arayüzde biçimlendir.
   // v1.108: kullanıcı isteğiyle getirilmeyecek gazeteler (çözümleyici bu adları tanır ama asla kart/kuyruk üretmez).
-  const GAZETE_EXCLUDED = ['Sonsöz', 'Doğru Haber', 'Anayurt', 'Daily Sabah', 'Hürriyet Daily News'];
+  // v1.188: kullanıcı isteğiyle takipten çıkarma — Dokuz Sütun, Güneş, Yeni Yüzyıl.
+  const GAZETE_EXCLUDED = ['Sonsöz', 'Doğru Haber', 'Anayurt', 'Daily Sabah', 'Hürriyet Daily News', 'Dokuz Sütun', 'Güneş', 'Yeni Yüzyıl'];
   const GAZETE_TAKIP_LIST_ALL = [
     'Akşam', 'Analiz', 'Aydınlık', 'BirGün', 'Cumhuriyet', 'Diriliş Postası',
     'Doğru Haber', 'Dokuz Sütun', 'Dünya', 'Evrensel', 'Fanatik', 'Fotomaç',
@@ -12349,6 +12401,23 @@ export default function App() {
       { key: 'Aydınlık', url: 'https://www.aydinlik.com.tr/gazete-mansetleri', label: 'Aydınlık/Ana', minCount: 15 }
     ];
 
+    // v1.188: gün-önbelleği köprüsü — doğrulama başarılıysa gateway diske yazar (POST);
+    // kaynaklar sonradan bot korumasına düşerse AYNI günün kanıtlı listesi okunur (GET).
+    const gatewayBase = (() => {
+      try { if (typeof __OTONOM_GATEWAY__ === 'string' && __OTONOM_GATEWAY__) return String(__OTONOM_GATEWAY__).replace(/\/+$/, ''); } catch (e) {}
+      return 'http://127.0.0.1:4100';
+    })();
+    const loadGazeteManifestCache = async (date) => {
+      try {
+        const res = await fetch(`${gatewayBase}/api/gazete-manifest?date=${encodeURIComponent(date)}`, { signal });
+        if (!res.ok) return null;
+        const data = await res.json();
+        const manifest = data?.manifest;
+        if (manifest?.date !== date || !Array.isArray(manifest?.names) || !manifest.names.length) return null;
+        return manifest;
+      } catch (e) { ErrorHandler.silent(e); return null; }
+    };
+
     const sourceLists = new Map();
     const sourceDiagnostics = [];
     const status = [];
@@ -12358,7 +12427,11 @@ export default function App() {
       });
       let best = [];
       let latestDate = null;
+      // v1.188: Cloudflare/bot meydan okuma sayfaları gövde sayılır; gerçek
+      // nedeni mesajda taşıyabilmek için ayrıca işaretlenir.
+      let botBlocked = false;
       for (const body of bodies) {
+        if (/just a moment|challenges\.cloudflare|attention required|cf-chl/i.test(String(body).slice(0, 4096))) botBlocked = true;
         const names = extractExactDailyManifestNames(body, selectedDate, source.key);
         if (names.length > best.length) best = names;
         const bodyDate = gazeteDateFromPayload(body);
@@ -12371,13 +12444,14 @@ export default function App() {
         });
         bodyCount += alternatives.length;
         for (const body of alternatives) {
+          if (/just a moment|challenges\.cloudflare|attention required|cf-chl/i.test(String(body).slice(0, 4096))) botBlocked = true;
           const names = extractExactDailyManifestNames(body, selectedDate, source.key);
           if (names.length > best.length) best = names;
           const bodyDate = gazeteDateFromPayload(body);
           if (bodyDate && (!latestDate || bodyDate > latestDate)) latestDate = bodyDate;
         }
       }
-      return { source, names: best, bodyCount, latestDate };
+      return { source, names: best, bodyCount, latestDate, botBlocked };
     }));
 
     for (const [index, result] of results.entries()) {
@@ -12387,11 +12461,12 @@ export default function App() {
         sourceDiagnostics.push({ source: sources[index], bodyCount: 0, names: [], latestDate: null });
         continue;
       }
-      const { source, names, bodyCount, latestDate } = result.value;
+      const { source, names, bodyCount, latestDate, botBlocked } = result.value;
       sourceLists.set(source.key, names);
       sourceDiagnostics.push(result.value);
       const newestLabel = latestDate ? `;son-tarih=${latestDate}` : '';
-      status.push(`${source.label}:${names.length}${bodyCount ? '' : '/gövde-alınamadı'}${newestLabel}`);
+      const botLabel = botBlocked ? '/bot-koruma' : '';
+      status.push(`${source.label}:${names.length}${bodyCount ? '' : '/gövde-alınamadı'}${botLabel}${newestLabel}`);
     }
 
     // v1.187: Çapak (anchor) korundu — en az BIR bağımsız kaynak kendi
@@ -12401,7 +12476,10 @@ export default function App() {
     // kanıtlı ad üreten kısmi kaynaklardan TAMAMLANIR: her kaynak yalnız
     // kendi sayfasında kanıtlı adlarıyla katılır, kısmi kaynak artik yok
     // olmaz. Rastgele tek görsel yine kanıt sayılmaz.
-    const GAZETE_PARTIAL_MIN_NAMES = 3;
+    // v1.188: matine esnetmesi — bugün (TR takvimi) saat 08:00 ve sonrasında
+    // tamamlama eşiği 1'e iner; geçmiş tarihlerde ve gecede yine 3 kalır. Her
+    // katılan ad yine seçili tarihte kaynak sayfasında adı+tarihla kanıtlıdır.
+    const GAZETE_PARTIAL_MIN_NAMES = (selectedDate === _getTurkeyDateISO() && _getTurkeyHour() >= 8) ? 1 : 3;
     const anchorSources = sources.filter(item => (sourceLists.get(item.key) || []).length >= item.minCount);
     const partialSources = sources.filter(item => {
       const count = (sourceLists.get(item.key) || []).length;
@@ -12419,6 +12497,10 @@ export default function App() {
       const missingSourceLabels = sourceDiagnostics.filter(item => item.bodyCount === 0).map(item => item.source.label);
       if (!bodiesAvailable.length) {
         cause = 'Hiçbir kaynaktan okunabilir sayfa gövdesi alınamadı. Gazete uzantısı etkin mi ve uzantı ayarlarında CANVAS BAĞLANTISINI ONAR çalıştırıldı mı kontrol edin.';
+      } else if (sourceDiagnostics.some(item => item.botBlocked)) {
+        // v1.188: gerçek neden — kaynaklar bot koruması meydan okuması döndürdü;
+        // bu "yayım yok" değildir, mesaj çarpıtmasın.
+        cause = `Kaynak sunucuları bot koruması (Cloudflare) meydan okuma sayfası döndürdü; ${formatGazeteDateForMessage(selectedDate)} tarihli liste bu koşuda çekilemedi. Gündüz saatlerinde engel genellikle geçicidir; kaynak sayfalarını tarayıcıda bir kez açıp doğrulamayı geçirmek bu makinenin erişimini geri getirebilir. Yanlış veya eski liste gösterilmedi.`;
       } else if (latestKnownDate && latestKnownDate < selectedDate && missingSourceLabels.length) {
         cause = `Seçilen ${formatGazeteDateForMessage(selectedDate)} tarihli sayı doğrulanamadı. Erişilebilen kaynaktaki en yeni tarih ${latestLabel}; ayrıca şu kaynakların gövdesi alınamadı: ${missingSourceLabels.join(', ')}. Bağlantıyı onarın ve yeni sayı yayımlandıktan sonra yenileyin; eski tarihli liste gösterilmedi.`;
       } else if (latestKnownDate && latestKnownDate < selectedDate) {
@@ -12437,12 +12519,29 @@ export default function App() {
         }).join('; ');
         cause = `Kaynakların sayfaları alındı ancak ${formatGazeteDateForMessage(selectedDate)} tarihli sayılara henüz ulaşılamadı. Durum: ${perSource}. Gazeteler bu tarih için henüz yayımlanmamış olabilir; yayımlanır yayımlanmaz (genel olarak sabah saatleri) yenileyin. Eski veya yarım liste gösterilmedi.`;
       }
+      // v1.188: canlı doğrulama başarısızsa AYNI günün önceden doğrulanmış
+      // gateway önbelleği devreye girer (yalnız o tarihin kendi kanıtı; eski tarih yok).
+      const cached = await loadGazeteManifestCache(selectedDate);
+      if (cached?.names?.length) {
+        addSystemLog(`v1.188 kaynaklardan doğrulanamadı (${status.join(' | ')}); AYNI günün önceden doğrulanmış gün-önbelleği kullanıldı: ${cached.names.length} gazete.`, 'warn');
+        return { names: cached.names, source: cached.source || 'gün-önbelleği', status: [...status, 'gün-önbelleği:KULLANILDI'], sourceLists: new Map() };
+      }
       throw new Error(
         `GAZETE_MANIFEST_VERIFY: ${selectedDate} günlük gazete listesi doğrulanamadı. ${cause} Kaynak durumları: ${status.join(' | ')}.`
       );
     }
 
     addSystemLog(`v1.138 günlük manifest (${selectedDate}): ${status.join(' | ')}; birleşim=${names.length}.`, 'info');
+    // v1.188: doğrulanmış liste gateway gün-önbelleğine kaydedilir (en iyi çaba;
+    // hata sessiz geçer — önbellek isteğe bağlı güçlendirme, kapı değil).
+    try {
+      const cacheRes = await fetch(`${gatewayBase}/api/gazete-manifest`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ date: selectedDate, names, source, status }),
+      });
+      if (cacheRes.ok) addSystemLog(`v1.188 gün-önbelleğine kaydedildi (${names.length} gazete; bot koruması günlerinde aynı günün kanıtıyla devam sağlanacak).`, 'info');
+    } catch (e) { ErrorHandler.silent(e); }
     return { names, source, status, sourceLists };
   };
 

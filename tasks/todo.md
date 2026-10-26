@@ -46,16 +46,22 @@ Not: .env anahtarlar ASLA repoya yazılmaz.
 
 ---
 
-## DEVAM HATTI — yarın kaldığımız yerden (otta anınış 25/26 Ekim gecesi)
+## DEVAM HATTI — yarın kaldığımız yerden (güncellendi: 25 Ekim öğleden sonra v1.188)
 
-**Son sürüm:** v1.186 (`167c504`, push edildi). v1.184 (`f06885e`), v1.185 (`10271a4`) öcesinde pushlandı. Çalışan ağ: app :5173, gateway :4100 (/api/music canlı), analysis :4201, media :4202 — hepsi yukarı.
+**Son sürüm:** v1.188 (bu başlıkta push edildi; ÖZET/APP_VERSION/FIX_CHECKLIST/index.html/CHANGELOG birlikte artırıldı). Öncesinde v1.187 (`4aeb74c`), taşınabilir paket (`e1a5e6d`+`e28ee13`), CHANGELOG (`e40b245`) pushlandı. Çalışan ağ: app :5173, gateway :4100, analysis :4201, media :4202.
+
+**v1.188 içeriği (uygulandı):**
+0. **Takipten çıkarma:** Dokuz Sütun, Güneş, Yeni Yüzyıl → `GAZETE_EXCLUDED` (iç tanıma korunur, listede görünmez).
+1. **Gri gazete kök nedeni [kesin tanı]:** GazeteOku + Aydınlık Cloudflare bot koruması (403 "Just a moment", Jina reader dahil challenge; dün 200 idi → IP bazlı geçici engel). Gateway `/proxy` → 503 `CF_CHALLENGE` işareti; App `botBlocked` kaynakları "bot koruması" olarak dürüst raporlar (fail-closed aynen).
+2. **Gün-önbelleği:** doğrulanmış liste gateway `/api/gazete-manifest` POST ile `services/gateway/gazete/manifest-<tarih>.json` kaydı; bot koruması gününde GET ile **aynı günün kanıtı** devam eder (`.gitignore` girdisi eklendi — canlıda test için gateway restart ister). Matine esnetmesi: bugün TR saat ≥08:00 iken tamamlama eşiği 3→1.
+3. **Medya analizi HABER_DOGRULANAMADI:** iki arıza üst üste — (a) `gemini-2.5-flash` **düşünme (thinking) token'ları** maxOutputTokens:2000'i yiyip boş-200 üretiyordu; (b) 429 kota yığını "internette kaynak bulunamadı" diye çarpıtılıyordu [probe kanıtı: üç varyant da HTTP 429 "You exceeded your current quota"]. `verifyNewsFromImage`: thinkingBudget:0 + 4000 token; finishReason/çıkışToken/düşünmeToken tanı logları; 429 → "API kota/ağ sınırı" dürüst mesajı; kota durumunda 2. deneme atlanır. Fail-closed kapı aynen korunur.
 
 **Yarın yapılacaklar (öncelik sıralı):**
-0. **[TAMAMLANDI `e1a5e6d`] Taşınabilir paket:** `.env.example` (21 anahtar birebir, API adları boş, port/model önceden dolu), `KURULUM-PAKET.md` (Mac+Windows 8 adım + sık hatalar tablosu), `START-Windows.bat` / `START-Mac.sh` tek-komut launcher (env/node_modules kontrolü, spawn-all + web ayrı pencere, çıkışta taskkill). Kanıt: anahtar seti Compare-Object birebir eşit, .env ignore altında, push e1a5e6d.
-1. **Kullanıcı doğrulaması:** Ctrl+F5 → rozet Chatgpt_1.186; gazete SEÇ ekranını sabah yenilediğinde kaynaklar 25/26 Ekim sayılarını yayımladıysa liste doğrulanıyor mu → log satırlarını paylaşacak; hâlâ duruyorsa v1.186 mesajındaki per-kaynak tarih bilgisi tanıyı doğrudan verecek.
-2. **Müzik gateway onayı:** Müzik panelinde 'Gateway Kalıcı Müzik (4100)' rozeti + parça sayısı; bir üretim çalıştırıp BGM satırının "yerel kütüphaneye aynalandı" olduğunu ve titreşipsiz müzikli video çıktığını kontrol.
-3. **Firefox uzantısını kaldırma testi:** uzantı kapalı/kaldırılmışken gazete SEÇ + müzik + haber linki akışlarının yalnız gateway/yerel yollarla eksiksiz çalışması (v1.185'in asıl hedefi; kanıtlandı ama kullanıcı el çekişi ile teyit edilmeli).
-4. **Bilinen bekleyen küçük madde (acil değil):** MP4 analizinde saptanan kırmızı altyazı bandındaki cümle-ortaş kırıkları ("önünden başlayan yürüyüş," / "Aynı zamanda İstanbul, Ankara, Bursa ve diğer") — progressive altyazı sayfa bölmeleri karakter bütçesine göre kesiliyor; istenirse cümle-sınırı bölme düzeltmesi (v1.187 adayı).
-5. **⏰ HATIRLATMA (26 Ekim sabahı işlendi, v1.187 adayı):** Sabah her açılışta 4 sürecin elle başlatılmasından kurtulma — `npm run start:all` (spawn-all) ile gateway+analysis+media+web'İ tek komutta ayağa kaldır; istenirse Windows açılışına otomatik görev/başlatıcı kısayolu bağlanabilir. Bu sabah node süreçlerinin hepsi boşalmıştı (app:5173 + gateway:4100 yoktu); elle dört süreç yeniden başlatıldı, rozet Chatgpt_1.186 + "Gateway Kalıcı Müzik (4100)" rozeti canlıda doğrulandı. Ayrıca sekmeyi açılış yarışında gateway erişilemezse panelin ilk yüklemede rozet göstermediği gözlendi: YENİLE düğmesi rozeti getirdi — istenirse init'te gatewayMusicStatus tek yeniden deneme eklenebilir (KISS: YENİLE yeterliydi; gerekirse konuşalım).
+1. **Kota toplarınca doğrula:** Gemini günlük kotası bugün doldu (prob 429); kota açılınca kullanıcı haber resmini yeniden verip gerçek üretimde `verifyNewsFromImage` doğrulaması izlenir; hâlâ boş-200 olursa loglardaki finishReason/usage satırları tanıyı doğrudan verecek.
+2. **Kullanıcı doğrulaması:** Ctrl+F5 → rozet Chatgpt_1.188; gazete SEÇ ekranı sabah yenileme; bot koruması gününde "bot koruması" mesajı + gün-önbelleği devreye girmeli. Gateway restart (v1.188 kodu canlıda değil).
+3. **Analiz ve Nasıl Bir Ekonomi:** 3 kaynakta da seçili tarih kanıtı YOK (probe-gzt-detay: hep 404/fallback; gazeteoku/ayd listelerinde ad yok) — bugünkü koşuda gri kalır; bu ikisi için 4. kaynak tartışması ayrı karar.
+4. **Bilinen bekleyen küçük madde (acil değil):** MP4 kırmızı altyazı bandında cümle-ortaş kırıkları — cümle-sınırı bölme düzeltmesi (v1.189 adayı).
+5. **⏰ Sabah 4 süreç elle başlatma:** START-Windows.bat / npm run start:all ile tek komut; istenirse Windows açılışına otomatik görev.
+
 6. Git adayları (kalıcı): commit edilmeyi bekleyen iz görüntüsü yok; `OTONOM_1_105_Firefox.zip` ve `tasks/nefes-real-article.txt` bilinçli olarak untracked bırakıldı (kullanıcı verisi/analiz malzemesi).
 

@@ -134,6 +134,15 @@ const handlePageProxy = async incomingUrl => {
     return json(415, 'PROXY_UNSUPPORTED_CONTENT', `Desteklenmeyen içerik türü: ${contentType}`);
   }
   const payload = await readUpTo(upstream.body, PROXY_MAX_BYTES);
+  // v1.188: Cloudflare/bot meydan okuma sayfasını ham 200/403 yerine açık kodla işaretle;
+  // böylece gazete liste çekişi "yayım yok" değil "bot koruması" gerçek nedenini bilir.
+  const challengePeek = payload.slice(0, 4096).toString('utf8');
+  if ((upstream.status === 403 || upstream.status === 503) && /just a moment|challenges\.cloudflare|attention required|cf-chl/i.test(challengePeek)) {
+    return json(503, 'CF_CHALLENGE', 'Kaynak site bot koruması (Cloudflare) meydan okuması döndürdü; içerik çekişi engellendi.');
+  }
+  if (upstream.status === 403) {
+    return json(503, 'PROXY_UPSTREAM_FORBIDDEN', `Kaynak site 403 döndürdü (bot koruması olabilir): ${target.hostname}`);
+  }
   return new Response(payload, {
     status: upstream.status,
     statusText: upstream.statusText,
@@ -241,6 +250,60 @@ const handleMusicApi = async request => {
   return musicList();
 };
 
+// -- Günlük gazete manifest önbelleği (v1.188) ---------------------------------
+// Uygulama seçilen tarihi kaynaklardan başarıyla doğruladığında listeyi buraya
+// kaydeder (services/gateway/gazete/manifest-<tarih>.json). Kaynaklar sonradan
+// bot koruması/erişim engeline düşerse AYNI günün kanıtlı listesi hatırlanır.
+// Asla yanlış/eski tarihli liste sunulmaz: dosya adı tarihi denir, yalnız
+// o tarihin kendisi için okunabilir.
+const GAZETE_DIR = fileURLToPath(new URL('./gazete/', import.meta.url));
+const GAZETE_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const GAZETE_NAME_MAX = 60;
+const GAZETE_MANIFEST_MAX_NAMES = 80;
+const gazeteManifestPathFor = date => `${GAZETE_DIR}manifest-${date}.json`;
+
+const gazeteManifestGet = async incomingUrl => {
+  const url = new URL(`http://local${incomingUrl}`);
+  const date = String(url.searchParams.get('date') || '');
+  if (!GAZETE_DATE_RE.test(date)) return json(400, 'INVALID_GAZETE_DATE', 'date YYYY-MM-DD biçiminde olmalı.');
+  const file = gazeteManifestPathFor(date);
+  if (!existsSync(file)) return json(404, 'GAZETE_MANIFEST_CACHE_MISS', `${date} için önbelleğe alınmış doğrulanmış liste yok.`);
+  try {
+    const manifest = JSON.parse(readFileSync(file, 'utf8'));
+    return json(200, 'OK', 'ok', { date, manifest });
+  } catch (error) {
+    return json(500, 'GAZETE_CACHE_READ_FAILED', `Önbellek okunamadı: ${String(error?.message || error)}`);
+  }
+};
+
+const gazeteManifestPut = async request => {
+  if (request.method !== 'POST') return json(405, 'METHOD_NOT_ALLOWED', 'Manifest kaydı yalnızca POST kabul eder.');
+  let body;
+  try { body = JSON.parse((await readBody(request)).toString('utf8') || '{}'); } catch (_) {
+    return json(400, 'INVALID_GAZETE_JSON', 'Gövde JSON çözümlenemedi.');
+  }
+  const date = String(body?.date || '');
+  const source = String(body?.source || '').slice(0, 120);
+  const status = Array.isArray(body?.status) ? body.status.map(String).slice(0, 20) : [];
+  const rawNames = Array.isArray(body?.names) ? body.names : [];
+  if (!GAZETE_DATE_RE.test(date)) return json(400, 'INVALID_GAZETE_DATE', 'date YYYY-MM-DD biçiminde olmalı.');
+  if (!rawNames.length || rawNames.length > GAZETE_MANIFEST_MAX_NAMES) {
+    return json(400, 'INVALID_GAZETE_NAMES', `names 1..${GAZETE_MANIFEST_MAX_NAMES} adet gazete adı içermeli.`);
+  }
+  const clean = [...new Set(rawNames.filter(n => typeof n === 'string' && n.trim().length && n.length <= GAZETE_NAME_MAX).map(n => n.trim()))];
+  if (!clean.length) return json(400, 'INVALID_GAZETE_NAMES', 'names boş/geçersiz.');
+  mkdirSync(GAZETE_DIR, { recursive: true });
+  writeFileSync(gazeteManifestPathFor(date), JSON.stringify({
+    date, names: clean, source, status, savedAt: new Date().toISOString(),
+  }, null, 1));
+  return json(200, 'OK', 'ok', { saved: date, count: clean.length });
+};
+
+const handleGazeteManifestApi = async request => {
+  if (request.method === 'POST') return gazeteManifestPut(request);
+  return gazeteManifestGet(request.url);
+};
+
 // -- Alt servislere passthrough ----------------------------------------------
 const handlePassthrough = (name, port) => async request => {
   const targetPath = request.url || '/';
@@ -307,6 +370,13 @@ const server = createServer(async (request, response) => {
     // v1.185: kalıcı müzik deposu (uzantı IndexedDB yerine gateway diski).
     if (request.url.startsWith('/api/music')) {
       const upstream = await handleMusicApi(request);
+      response.writeHead(upstream.status, Object.fromEntries(upstream.headers));
+      response.end(Buffer.from(await upstream.arrayBuffer()));
+      return;
+    }
+    // v1.188: günlük gazete manifest önbelleği (doğrulanmış listenin diske kaydı).
+    if (request.url.startsWith('/api/gazete-manifest')) {
+      const upstream = await handleGazeteManifestApi(request);
       response.writeHead(upstream.status, Object.fromEntries(upstream.headers));
       response.end(Buffer.from(await upstream.arrayBuffer()));
       return;

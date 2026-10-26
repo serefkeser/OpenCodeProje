@@ -5,8 +5,36 @@ Görsel ve okunabilir sürüm kaydı. Sürüm 4'lü yama ile artar:
 `
 npx vite build` kanıtı → commit (Türkçe özel karakter yok) → push → **bu dosyaya da bir satır eklenir**.
 
-Uygulama içinde sürüm rozetinden de görülür: **OTONOM Chatgpt_1.187 • ONE-PAGE**.
+Uygulama içinde sürüm rozetinden de görülür: **OTONOM Chatgpt_1.188 • ONE-PAGE**.
 Kesin sürüm referansı `web/src/App.tsx` içinde `APP_VERSION`; burası insan-okuyan kopyasıdır.
+
+---
+
+## v1.188 — (25 Ekim 2026)
+**İki paket: (a) gri gazetelerin kalıcı çözümü + takipten 3 çıkarma, (b) medya analizi `HABER_DOGRULANAMADI` kök nedeni.**
+
+**Gri gazeteler [kesin tanı — 25 Ekim]:** GazeteOku + Aydınlık kaynakları bu makineden
+**Cloudflare bot koruması (403 "Just a moment")** döndürmeye başladı (Jina reader dahil
+aynı challenge; dün 200 idi → IP bazlı geçici engel). Kapı doğru DURDU ama mesaj
+"yayınlanmamış olabilir" diye görünüyordu. Çözüm üç katman:
+- `services/gateway/index.mjs /proxy`: CF meydan okuma sayfası → **503 `CF_CHALLENGE`**; 403 → `PROXY_UPSTREAM_FORBIDDEN`
+- `App.tsx fetchVerifiedGazeteManifest`: `botBlocked` kaynaklar mesajda **"bot koruması"** olarak gerçek adıyla raporlanır (fail-closed aynen; yanlış/eski liste yine gösterilmez)
+- **Gün-önbelleği:** doğrulanmış liste `/api/gazete-manifest` POST ile `services/gateway/gazete/manifest-<tarih>.json`'a yazılır; kaynaklar engellendiğinde GET ile **aynı günün kanıtı** devam eder (gerçekten yanlış tarihten koruma; `.gitignore` girdisi eklendi)
+- **Matine esnetmesi:** bugün (TR takvimi) saat ≥08:00 iken tamamlama eşiği 3→1; geçmiş tarih/gece aynen 3
+- Takipten çıkarıldı: **Dokuz Sütun, Güneş, Yeni Yüzyıl** (`GAZETE_EXCLUDED`)
+
+**Medya analizi haber doğrulama:** görsel verildiğinde `verifyNewsFromImage` istekleri
+200 dönüp **grounding boş** geliyordu → `HABER_DOGRULANAMADI`. Tanı: (1)
+`gemini-2.5-flash` **thinking token'ları `maxOutputTokens:2000` bütçesini yiyip**
+metni 0'a düşürüyor (200 + boş içerik); (2) kota döneminde **HTTP 429** yığını
+probda üç varyantta da doğrulandı (`You exceeded your current quota`) — bu
+"kaynak bulunamadı" diye çarpıtılıyordu. Çözüm: `thinkingBudget:0` +
+`maxOutputTokens:4000`; başarısız denemede `finishReason`/çıktı/düşünme token
+logları; **429 → "API kota/ağ sınırı" dürüst mesajı** + kota durumunda 2. deneme
+atlanır. Fail-closed kapı aynen: kaynak yoksa üretim yine DURUR.
+
+Künye: kanıt prob'ları `tasks/probe-gri-gazete*.mjs`, `tasks/probe-gzt-detay.mjs`,
+`tasks/probe-haber-verify.mjs`; `node --check` gateway ✓; `npx vite build` ✓.
 
 ---
 

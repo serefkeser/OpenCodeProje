@@ -34,3 +34,7 @@ coverage/
 .env.yedek*
 # v1.185: gateway müzik deposu kullanıcı verisi (yerel disk, git dışı)
 services/gateway/muzik/
+# v1.188: gunluk gazete manifest onbellegi (kullanici verisi, git disi)
+services/gateway/gazete/
+
+
