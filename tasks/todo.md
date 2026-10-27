@@ -46,16 +46,16 @@ Not: .env anahtarlar ASLA repoya yazılmaz.
 
 ---
 
-## DEVAM HATTI — yarın kaldığımız yerden (güncellendi: 27 Ekim v1.192)
+## DEVAM HATTI — yarın kaldığımız yerden (güncellendi: 27 Ekim v1.193)
 
-**Son sürüm:** v1.192 — (1) "Yeni Asya/Milli Gazete gelmemiş" kök nedeni çözüldü: backend aday
-çözücüsü gateway'i tanımıyordu (ölü localhost:3457; gerçek gateway __OTONOM_GATEWAY__ 4100) —
-adaylar artık vite define'dan okur + BİK/DB rescue backendFirst 16 sn. (2) Takip listesi
-kullanıcının 31'lik sırasında; Günboyu çıkarıldı. (3) Analiz +BİK. (4) 429 kapısı:
-başarılı istekte temizlenir. (5) 7 bilgi-log warn→info. Öncesinde v1.191 (`d191380`) — BİK
-4. ana kaynak + dijitalbasin 3 gazete; v1.190 (`3f3ff06`) — RECORDER GUARD + canary;
-v1.189 (`981c6e5`) — evrensel.net; v1.188 (`bdb46ab`) — CF gün-önbelleği + matine.
-Çalışan ağ: app :5173, gateway :4100 (GATEWAY_PORT root .env), analysis :4201, media :4202.
+**Son sürüm:** v1.193 — ELLE KAPAK YÜKLEME: grid/tekli karttan amber "Kapak Yükle"
+butonu; IndexedDB persist (GAZETE_MANUAL_<tarih>_<ad>) + hydrate ile yenilemeyi geçer;
+akış/karşılaştırma/Crop otomatik; sources 'Elle/Yükleme' dürüst etiketi.
+Öncesinde v1.192 (`dcce10a`) — backend adayı gateway (ölü 3457 kök nedeni), kullanıcı
+31 sırası + Günboyu çıkarıldı, Analiz +BİK, 429 başarıda kapı temizlik, 7 bilgi-log;
+v1.191 (`d191380`) — BİK 4. ana kaynak + dijitalbasin 3 gazete; v1.190 (`3f3ff06`) —
+RECORDER GUARD + canary. Çalışan ağ: app :5173 (assistant başlattı — `npm run start:web`),
+gateway :4100, analysis :4201, media :4202 (`npm run start:all` — spawn-all web'i kapsamıyor).
 
 **v1.188 içeriği (uygulandı):**
 0. **Takipten çıkarma:** Dokuz Sütun, Güneş, Yeni Yüzyıl → `GAZETE_EXCLUDED` (iç tanıma korunur, listede görünmez).

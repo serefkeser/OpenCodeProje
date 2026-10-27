@@ -10,6 +10,25 @@ Kesin sürüm referansı `web/src/App.tsx` içinde `APP_VERSION`; burası insan-
 
 ---
 
+## v1.193 — (27 Ekim 2026, özellik: ELLE KAPAK YÜKLEME)
+**Kullanıcı talebi: çekilemeyen gazetelere elle kapak yükleme; diğer gazeteler gibi davranış.**
+
+- **Grid karta 3. ikon (amber, UploadCloud)** + tekli görünümde "Kapak Yükle" butonu —
+  placeholder kartlarda da görünür; hangi gazeteyse o yüklendikten sonra düzgün akış alır.
+- **Persist:** IndexedDB (`AssetManagerService.saveMedia('GAZETE_MANUAL_<tarih>_<ad>')`) —
+  yenileme/oturum sonrası kapak `hydrateManualGazeteCovers` ile geri gelir.
+  GAZETE_CACHE localStorage dataURL yasağı aynen korunur.
+- **Akış:** kapak `applyManualGazeteCover` ile candidate head'e girer (revision++,
+  placeholder sona düşer). Tık→video akışı `_gazeteImageLock`, çift-karşılaştırma,
+  Crop, Tam Sayfa Ekle — **kod değişikliği olmadan** o kapağı kullanır.
+- **Dürüstlük:** sources'a `Elle/Yükleme`, system log + amber vurgu; kapak kullanıcı
+  beyanıdır, "kaynakta doğrulanmış" denmez. Kapak yüklendiği tarihe bağlanır.
+  Doğrulama: image/*, 8 KB min, 12 MB max, compressImage max 1080px.
+
+Kanıt: `npx vite build` ✓ (5.27 s); tık/akış canlı süreçte kullanıcı onayı ile doğrulanabilir.
+
+---
+
 ## v1.192 — (27 Ekim 2026, BUGFIX+İSTEK paketi)
 **"Yeni Asya ve Milli Gazete gelmemiş" kök nedeni + kullanıcı sıralama/Analiz/BİK + hızlandırma.**
 

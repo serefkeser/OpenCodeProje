@@ -1,16 +1,20 @@
 // ============================================================================
-// OTONOM Chatgpt_1.192 — SÜRÜM BAŞLIĞI (her değişiklikte burayı, APP_VERSION'ı ve SÜRÜM NOTLARI'nı birlikte artır)
+// OTONOM Chatgpt_1.193 — SÜRÜM BAŞLIĞI (her değişiklikte burayı, APP_VERSION'ı ve SÜRÜM NOTLARI'nı birlikte artır)
 // Program menüsündeki rozet APP_VERSION.toBadge() ile bu sürümden otomatik üretilir.
-// v1.192 ÖZET: (1) "Yeni Asya ve Milli Gazete gelmemiş" kök neden — fetchViaOtonomGazeteBackend
-// aday çözücüsü gateway'i tanımıyordu (REACT_APP_BACKEND_URL tanımsız; aday yalnız ölü
-// localhost:3457). BİK gövdesi gateway /proxy'den 8.16 sn'de geliyor (probe-v192-latency)
-// ama taşıma süreleri yetişemez → manifest'te "BİK:0/gövde-alınamadı"; dijitalbasin Jina
-// markdown'a düşer → extract 0. Düzeltme (backend adayına __OTONOM_GATEWAY__ + backendTimeoutMs
-// seçeneği + BİK/DB rescue backendFirst 16 sn). (2) Takip listesi kullanıcı sırasıyla dizildi
-// (31 gazete) + Günboyu çıkarıldı (GAZETE_EXCLUDED'a da). (3) Analiz'e bik:true (BİK kartı
-// 20/20 alt-tarihli kanıt). (4) Hızlandırma: 429 sonrası başarılı istek sonraki-video 3 dk
-// kapısını temizler. (5) 7 bilgilendirme warn→info. Fail-closed mantığı, diğer kaynaklar,
-// rekorder, MP4 SON KONTROL ve v1.191 kodu aynen. Kanıt: probes + vite build.
+// v1.193 ÖZET: Kullanıcı talebi — ELLE KAPAK YÜKLEME. Sistemin çekemediği gazeteye
+// kullanıcı kendi kapak görselini yükler; kart diğerleri gibi davranır (tık → video
+// akışı; seç → iki gazete karşılaştırması; Crop; Tam Sayfa Ekle — kod değişkeni YOK,
+// mevcut img akışı otomatik). (1) Grid karta 3. ikon "Kapak Yükle" + tekli görünümde
+// "Kapak Yükle" butonu; tek gizli file input (image/*). (2) handleManualGazeteCoverUpload
+// — görsel doğrulama (image/*, 8 KB-12 MB), NetworkUtils.compressImage (max 1080),
+// IndexedDB persist AssetManagerService.saveMedia(GAZETE_MANUAL_<tarih>_<ad>) — localStorage
+// dataURL yasağı aynen (GAZETE_CACHE yalnız uzak URL). (3) hydrateManualGazeteCovers —
+// buildGazeteCards sonrası IndexedDB'den tarih+ada eşleşen kapaklar candidate head'ine
+// girer (applyManualGazeteCover; revision++, placeholder sona düşer) ve yenilemeyi geçin
+// geri gelir. (4) Dürüstlük: sources + 'Elle/Yükleme', manualCover bayrağı, buton amber
+// renkte; sistem bu kapağı "kaynakta doğrulanmış" demez — kullanıcı beyanıdır.
+// Kapak yüklendiği tarifa bağlanır (günlük manşet gibi). Fail-closed akış, fetch zinciri,
+// cache kuralları, recorder aynen. Kanıt: npx vite build.
 // v1.192: (1) _readOtonomRuntimeBackendCandidates artık __OTONOM_GATEWAY__ adayı
 // ekler (root .env GATEWAY_PORT'tan config-driven; hardcode yok; 3457 son aday kalır).
 // (2) fetchGazeteSourceTextsFast son-kurtarma backend çağrısı options.backendTimeoutMs
@@ -266,7 +270,7 @@ const { Download, RotateCcw, UploadCloud, Music, Trash2, Volume2, Clock, Loader2
 // M1: CONSTANTS & CONFIG
 // ============================================================================
 const APP_VERSION = {
-  major: 1, minor: 192, hotfix: 'Chatgpt_1.192',
+  major: 1, minor: 193, hotfix: 'Chatgpt_1.193',
   short() { return `${this.major}.${this.minor}`; },
   toString() { return `OTONOM Chatgpt_${this.major}.${this.minor}`; },
   toBadge() { return `${this.toString()} • One-Page`; }
@@ -1367,6 +1371,7 @@ const collectUltimateCoverReferences = async (jobState) => {
 const useDebounce = (value, delay = 300) => { const [debounced, setDebounced] = useState(value); useEffect(() => { const timer = setTimeout(() => setDebounced(value), delay); return () => clearTimeout(timer); }, [value, delay]); return debounced; };
 
 const FIX_CHECKLIST = Object.freeze([
+  { version: '1.193', key: 'MANUAL_GAZETE_COVER_UPLOAD', text: 'Kullanıcı talebi: çekilemeyen gazetelere elle kapak yükleme + diğer gazeteler gibi akış. (1) Grid karta 3. ikon (UploadCloud, amber) + tekli görünümde Kapak Yükle butonu; tek gizli file input, hedef ad ref içinde. (2) handleManualGazeteCoverUpload: image/* + 8 KB min + 12 MB max doğrulama, NetworkUtils.compressImage (max 1080), IndexedDB persist AssetManagerService.saveMedia(GAZETE_MANUAL_<tarih>_<normalize-ad>) — GAZETE_CACHE localStorage dataURL yasağı AYNEN korunur. (3) applyManualGazeteCover doyurucu yoldan dataURL candidate headine girer (createGazeteVariants uzak URL patternini reddettiği için doğrudan apply; revision++, placeholder sona düşer) — tık-akışı (_gazeteImageLock), çift-karşılaştırma, Crop, Tam Sayfa Ekle kod değişikliği olmadan çalışır. (4) hydrateManualGazeteCovers buildGazeteCards sonrası IndexedDB-deki yazar; yenileme sonrası kapak geri gelir; kendi kendini revision-döngüsünden korur (manualCover + aynı src guard). (5) Dürüstlük: sources Elle/Yükleme + system log + amber buton; kapak kullanıcı beyanıdır, sistem kaynak-doğrulanmış demez. Kapak yüklendiği tarihe bağlanır. Fail-closed, fetch, cache LRU, recorder dokunmadı. Kanıt: npx vite build + canlı süreç (ports auto).' },
   { version: '1.192', key: 'BACKEND_GATEWAY_CANDIDATE_AND_LIST_ORDER', text: 'Kullanıcı raporu: Yeni Asya ve Milli Gazete gelmemiş — kök neden kanıtla tespit edildi: fetchViaOtonomGazeteBackend aday çözücüsü gateway-ü tanımıyordu; REACT_APP_BACKEND_URL hiçbir yerde tanımsız, aday listesi pratikte yalnız ölü localhost:3457 idi; gerçek gateway (127.0.0.1:4100) yalnız vite define __OTONOM_GATEWAY__ içinde. BİK gövdesi gateway /proxy üzerinden 8.16 sn geliyor (probe-v192-latency) ama tüm taşıma süreleri (4.5/5.0/1.6 sn) BİK-e yetişemez → 13:35 manifest BİK/İlkSayfalar:0/gövde-alınamadı; dijitalbasin Jina markdown-a düşer → extract 0. Düzeltme: (1) _readOtonomRuntimeBackendCandidates __OTONOM_GATEWAY__ adayını ekler (root .env GATEWAY_PORT config-driven; 3457 son aday); (2) fetchGazeteSourceTextsFast son-kurtarma backend options.backendTimeoutMs okur; (3) fetchIndividualGazeteCandidates BİK+DijitalBasin kaynakları backendFirst+16 sn. Kullanıcı istekleri: (4) takip listesi kullanıcının verdiği 31 girişlik sırayla dizildi, Günboyu listeden çıkarıldı ve GAZETE_EXCLUDED-a eklendi (v1.188 örneği); (5) Analiz-e bik:true — BİK 20/20 alt-tarihli kart kanıtlı (probe-bik-count); (6) hızlandırma: HTTP 429 sonrasında başarıya ulaşan istek 3 dakikalık sonraki-video kapısını temizler (401/403 kapısı açılmaz) — bu koşuda kapı 14:19:57-e silahlı kalıyordu; (7) bilgilendirme vendorları (v1.150 KAYNAK KİLİDİ ×2, v1.150 SAHNE KİLİDİ, v1.84 CAPTURE, v1.83 GOLDEN MASTER ×2, MP4 hızlı-mod atlandı, FFmpeg exit(0)) warn-to-info — davranış değişmiyor; MP4 SON KONTROL decoder gerçek doğrulama, aynen. Kanıt: probe-v192-live.elastic (BİK 200 ✓ 20 YYN + DB 3× SSR), probe-v192-latency (gecikme), 13:35 manifest durumu + npx vite build ✓.' },
   { version: '1.191', key: 'BIK_AND_DIGITALBASIN_SIX_GAZETE_SOURCES', text: 'Kullanıcı kaynak teklifi (dijitalbasin + BİK linkleri) ölçüldü ve entegre edildi: (1) BİK İlk Sayfalar (gazete.bik.gov.tr/Uygulamalar/GazeteIlkSayfalar?kapsam=yaygin) — 20 kart SSR\'de figcaption ad + alt tarih ("26 Ekim 2026 - ... tarihli X gazetesi ilk sayfası") taşıyor [probe-bik-count kanıtı: 20/20 tarihli]; 4. ana kaynak eklendi (minCount 15) ve kart-başına alt-tarih kanıtı ZORUNLU kılındı; Korkusuz/Milli Gazete/Yeni Asya + Cumhuriyet/Sözcü/Hürriyet/Karar/BirGün/Dünya vb. adları bu kaynaktan doğrulanır. (2) dijitalbasin.com Read/331 (Evrensel), Read/504 (Gazete Pencere), Read/321 (Diriliş Postası) — SSR publication-name + publication-date kanıtlı [probe-db kanıtı: 3× 26 Ekim 2026]; kapak GetPublicationDisplay?publicationId= JPEG\'inden kurulur; SSR date eşleşmezse ne ad ne kapak verilir (fail-closed aynen). fetchIndividualGazeteCandidates +BİK/+DijitalBasin kapak yolları; extractExactGazeteHeroCandidate BİK tam çözünürlük YYN-*.jpg izleme; isLikelyGazeteImage +dijitalbasin pattern. Mevcut GZT/GazeteOku/Aydınlık/Evrensel-kendi yolları ve fail-closed mantığı değişmedi. Kanıt: tasks/probe-v191-*.mjs + npx vite build ✓.' },
   { version: '1.190', key: 'RECORDER_SILENT_DEATH_GUARD_AND_CANARY', text: 'Kullanıcı FAILED logu teşhisi: "RENDER FINALIZE HATASI: Video oluşturulamadı (0 Bayt)" kök nedeni dead-recorder — MediaRecorder render sırasında SESSİZCE inaktif oldu (finalize önü recorder.stop() çağıran kod yolu yok; onerror/onstop/track-onended izleyici hiç kurulmamıştı), 265.21 sn boyunca ölü kayda sahne çizimi yapıldı ve finalize\'de state=inactive + 0 parça ile belirsiz hata raporlandı [log kanıtı: 13:02:12.685 state=inactive, 13:02:12.702 "Blob hazırlanıyor (0 parça)"]. RECORDER GUARD uygulandı: recorder.start sonrası recorder.onerror + video/audio track onended gözleyicileri ölümü SEBEP + SANİYE + PARÇA SAYISI ile loglar; nextFrame içindeki canari her ~5 sn recorder.state yoklar, inaktifse render ANINDA RENDER_RECORDER_DEAD ile durur (ölü kayda dakikalar harcanmaz); blob finalize\'deki 0 Bayt hatası artık ölüm kanıtını taşır. Sessiz düşüş yok; boş video asla kabul edilmez (fail-closed aynen). Etkilenen: executeRender recorder kurulumu + nextFrame + finalize blob/dosya dalları; render planı, ses miksajı, GOLDEN MASTER testi, watchdog ve gazete kaynakları değişmedi. Kanıt: kullanıcı FAILED logu + kod taraması + npx vite build ✓.' },
@@ -10154,6 +10159,9 @@ export default function App() {
     trigger: ''
   });
   const gazeteItemsRef = useRef([]);
+  // v1.193: elle kapak yükleme — hedef gazete adı + gizli file input ref'i.
+  const gazeteManualUploadTargetRef = useRef('');
+  const gazeteManualCoverInputRef = useRef(null);
   const gazeteLoadingRef = useRef(false);
   const uiProcessingRef = useRef(false);
   const [gazeteDate, setGazeteDate] = useState(() => _getTurkeyDateISO());
@@ -12989,6 +12997,83 @@ export default function App() {
       revision: (item.revision || 0) + 1
     };
   };
+
+  // ===== v1.193: ELLE KAPAK YÜKLEME =====
+  // Kullanıcı, sistemin çekemediği gazeteye kendi kapak görselini yükler; kart
+  // diğerleri gibi akış/karşılaştırma/crop kullanır. Kapak IndexedDB'ye
+  // AssetManagerService.saveMedia ile kalıcı yazılır (localStorage dataURL yasağı
+  // aynen: GAZETE_CACHE yalnız uzak URL'ler tutar). Fail-closed dürüstlüğü:
+  // source etiketi 'Elle/Yükleme' — sistem bu kapağı "kaynakta doğrulanmış" demez.
+  const gazeteManualMediaId = (date, name) => `GAZETE_MANUAL_${String(date || '').replace(/[^0-9-]/g, '')}_${normalizeGazeteText(name)}`;
+  const applyManualGazeteCover = (item, dataUrl) => ({
+    ...item,
+    fullCandidates: [dataUrl, ...uniqueGazeteUrls(item.fullCandidates || []).filter(url => url !== dataUrl)],
+    thumbCandidates: [dataUrl, ...uniqueGazeteUrls(item.thumbCandidates || []).filter(url => url !== dataUrl)],
+    rawCandidates: [dataUrl, ...uniqueGazeteUrls(item.rawCandidates || []).filter(url => url !== dataUrl)],
+    fullSrc: dataUrl,
+    thumbSrc: dataUrl,
+    resolvedFull: '',
+    resolvedThumb: '',
+    sources: uniqueGazeteUrls([...(item.sources || []), 'Elle/Yükleme']),
+    manualCover: true,
+    loaded: false,
+    verified: true,
+    verifiedDate: item.requestedDate,
+    revision: (item.revision || 0) + 1
+  });
+  const hydrateManualGazeteCovers = async (items) => {
+    if (!Array.isArray(items) || !items.length) return;
+    for (const item of items) {
+      try {
+        const stored = await AssetManagerService.loadMedia(gazeteManualMediaId(item.requestedDate, item.name));
+        if (!stored) continue;
+        setGazeteItems(prev => prev.map(it => (
+          it.name === item.name && it.requestedDate === item.requestedDate && !(it.manualCover && it.thumbSrc === stored)
+            ? applyManualGazeteCover(it, stored)
+            : it
+        )));
+      } catch (e) { ErrorHandler.silent(e); }
+    }
+  };
+  const handleManualGazeteCoverUpload = async (name) => {
+    if (!name) return;
+    const item = (gazeteItemsRef.current || []).find(entry => entry.name === name);
+    if (!item) { addSystemLog(`✗ ${name}: kart bulunamadı; kapak yüklenmedi.`, 'error'); return; }
+    const input = gazeteManualCoverInputRef.current;
+    if (!input) return;
+    gazeteManualUploadTargetRef.current = name;
+    input.value = '';
+    input.click();
+  };
+  const handleGazeteManualCoverFile = async (event) => {
+    const name = gazeteManualUploadTargetRef.current;
+    const file = event.target.files?.[0];
+    if (!name || !file) return;
+    if (!file.type || !file.type.startsWith('image/')) {
+      addSystemLog(`✗ ${name}: kapak yüklemesi reddedildi — dosya görsel değil (${file.type || 'bilinmiyor'}).`, 'error');
+      return;
+    }
+    if (file.size < 8 * 1024) {
+      addSystemLog(`✗ ${name}: kapak yüklemesi reddedildi — görsel okunamayacak kadar küçük (${Math.round(file.size / 1024)} KB).`, 'error');
+      return;
+    }
+    if (file.size > 12 * 1024 * 1024) {
+      addSystemLog(`✗ ${name}: kapak yüklemesi reddedildi — dosya 12 MB sınırını aşıyor (${Math.round(file.size / 1024 / 1024)} MB).`, 'error');
+      return;
+    }
+    try {
+      const dataUrl = await NetworkUtils.compressImage(file);
+      if (!dataUrl || !dataUrl.startsWith('data:image/')) throw new Error('görsel dataURL üretilemedi');
+      const item = (gazeteItemsRef.current || []).find(entry => entry.name === name);
+      const date = item?.requestedDate || gazeteDate || _getTurkeyDateISO();
+      await AssetManagerService.saveMedia(gazeteManualMediaId(date, name), dataUrl);
+      setGazeteItems(prev => prev.map(entry => entry.name === name ? applyManualGazeteCover(entry, dataUrl) : entry));
+      addSystemLog(`✓ ${gazeteDisplayName(name)}: kapak elle yüklendi (${formatGazeteDateForMessage(date)}) ve IndexedDB'ye saklandı; akış/karşılaştırma bu kapağı kullanacak.`, 'success');
+    } catch (e) {
+      ErrorHandler.log(e, `${name} elle kapak yükleme`);
+      addSystemLog(`✗ ${name}: kapak yüklenemedi (${e?.message || e}).`, 'error');
+    }
+  };
   const stopGazeteBackgroundRetry = () => {
     const state = gazeteBackgroundRetryRef.current;
     if (state?.timer) {
@@ -13137,6 +13222,9 @@ export default function App() {
       addSystemLog(`Gazete sırası sabitlendi: doğrulanan kaynak listesi ${activeNames.length} gazeteyi ana sıralama listesine göre dizdi.`, 'info');
       const cards = buildGazeteCards(selectedDate, activeNames);
       setGazeteItems(cards);
+      // v1.193: kullanıcının daha önce elle yüklediği kapaklar (IndexedDB'den)
+      // kartlara geri yüklenir — yenilemeden sonra da sürdürülmüş olur.
+      hydrateManualGazeteCovers(cards);
 
       addSystemLog(
         `✓ v1.87 EXACT MANIFEST: ${selectedDate} için ${activeNames.length} gazete ${manifest.source} günlük listelerinden doğrulandı. ` +
@@ -15053,6 +15141,8 @@ export default function App() {
                       </div>
                     )}
                     {gazeteGalleryView === 'grid' ? (
+                      <div>
+                      <input ref={gazeteManualCoverInputRef} type="file" accept="image/*" className="hidden" onChange={handleGazeteManualCoverFile} />
                       <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2 max-h-[50vh] overflow-y-auto p-1">
                         {gazeteItems.map((item, idx) => (
                           <div key={`${item.name}-${item.revision || 0}`} data-gazete-name={item.name} className="group relative bg-slate-800/50 rounded-xl overflow-hidden border border-slate-700/50 hover:border-emerald-500/50 transition-all cursor-pointer"
@@ -15073,9 +15163,11 @@ export default function App() {
                             <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col gap-1">
                               <button onClick={(e) => { e.stopPropagation(); openCropModal(item.resolvedFull || item.resolvedThumb || item.fullSrc || item.thumbSrc, item.name); }} className="bg-indigo-600 hover:bg-indigo-500 text-white p-1 rounded-md shadow-lg" title="Crop yap"><Scissors size={10} /></button>
                               <button onClick={(e) => { e.stopPropagation(); addFullImageToMedia(item.resolvedFull || item.resolvedThumb || item.fullSrc || item.thumbSrc, item.name); }} className="bg-emerald-600 hover:bg-emerald-500 text-white p-1 rounded-md shadow-lg" title="Tam sayfa ekle"><Check size={10} /></button>
+                              <button onClick={(e) => { e.stopPropagation(); handleManualGazeteCoverUpload(item.name); }} className={`p-1 rounded-md shadow-lg text-white ${item.manualCover ? 'bg-amber-400 text-black' : 'bg-amber-500 hover:bg-amber-400 text-black'}`} title={item.manualCover ? 'Kapak elle yüklendi — değiştir' : 'Kapak elle yükle'}><UploadCloud size={10} /></button>
                             </div>
                           </div>
                         ))}
+                      </div>
                       </div>
                     ) : (
                       <div className="relative">
@@ -15088,6 +15180,8 @@ export default function App() {
                           <div className="flex items-center gap-2">
                             <button onClick={() => openCropModal(gazeteItems[gazeteCurrentIdx]?.resolvedFull || gazeteItems[gazeteCurrentIdx]?.resolvedThumb || gazeteItems[gazeteCurrentIdx]?.fullSrc || gazeteItems[gazeteCurrentIdx]?.thumbSrc, gazeteItems[gazeteCurrentIdx]?.name)} className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-indigo-500/20 transition-all active:scale-95"><Scissors size={14} /> Crop Yap</button>
                             <button onClick={() => addFullImageToMedia(gazeteItems[gazeteCurrentIdx]?.resolvedFull || gazeteItems[gazeteCurrentIdx]?.resolvedThumb || gazeteItems[gazeteCurrentIdx]?.fullSrc || gazeteItems[gazeteCurrentIdx]?.thumbSrc, gazeteItems[gazeteCurrentIdx]?.name)} className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-emerald-500/20 transition-all active:scale-95"><Check size={14} /> Tam Sayfa Ekle</button>
+                            <input ref={gazeteManualCoverInputRef} type="file" accept="image/*" className="hidden" onChange={handleGazeteManualCoverFile} />
+                            <button onClick={() => handleManualGazeteCoverUpload(gazeteItems[gazeteCurrentIdx]?.name)} className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-lg transition-all active:scale-95 ${gazeteItems[gazeteCurrentIdx]?.manualCover ? 'bg-amber-400 text-black' : 'bg-amber-500 hover:bg-amber-400 text-black'}`} title={gazeteItems[gazeteCurrentIdx]?.manualCover ? 'Kapak elle yüklendi — değiştir' : 'Kapak elle yükle'}><UploadCloud size={14} /> {gazeteItems[gazeteCurrentIdx]?.manualCover ? 'Kapak Değiştir' : 'Kapak Yükle'}</button>
                           </div>
                         </div>
                         <div className="relative bg-black/50 rounded-xl overflow-hidden border border-slate-700/50">
