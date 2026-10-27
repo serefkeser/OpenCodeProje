@@ -10,6 +10,32 @@ Kesin sürüm referansı `web/src/App.tsx` içinde `APP_VERSION`; burası insan-
 
 ---
 
+## v1.192 — (27 Ekim 2026, BUGFIX+İSTEK paketi)
+**"Yeni Asya ve Milli Gazete gelmemiş" kök nedeni + kullanıcı sıralama/Analiz/BİK + hızlandırma.**
+
+- **Kök neden (kanıt):** `fetchViaOtonomGazeteBackend` aday çözücüsü gateway'i tanımıyordu —
+  `REACT_APP_BACKEND_URL` tanımsız, aday listesi pratikte yalnız ölü `localhost:3457`;
+  gerçek gateway (127.0.0.1:4100) yalnız vite define `__OTONOM_GATEWAY__`'de. BİK gövdesi
+  gateway `/proxy`'den **8.16 sn**'de geliyor [probe-v192-latency] ama taşıma penceleri
+  (4.5/5.0/1.6 sn) yetişemez → 13:35 manifest "BİK/İlkSayfalar:0/gövde-alınamadı";
+  dijitalbasin Jina/markdown'a düşer → `.publication-name` yok → extract 0.
+  Çözüm: aday çözer `__OTONOM_GATEWAY__` (root .env GATEWAY_PORT; hardcode yok) +
+  `backendTimeoutMs` seçeneği + BİK/DijitalBasin rescue'da `backendFirst` 16 sn.
+- **Takip listesi:** kullanıcının verdiği 31 gazete sırasıyla dizildi; **Günboyu** çıkarıldı
+  (`GAZETE_EXCLUDED` + v1.188 örneği). SEÇ ekranı + `stableGazeteOrder` otomatik uyar.
+- **Analiz gazetesi:** BİK'ten gelir (`bik: true` — BİK 20/20 alt-tarihli ANALİZ kartı kanıtlı).
+- **Hızlandırma:** HTTP 429 koruması — geçici nedenle silahlanan 3 dk kapı, istek BETS
+  başarılı döndüğünde temizlenir (401/403 kapısı açılmaz). Önceki koşuda kapı 14:19:57'ye
+  silahlı kalmıştı.
+- **7 bilgilendirme warn→info** (v1.150 KİT ×2, SAHNE KİLİDİ, v1.84 CAPTURE, v1.83 ×2,
+  MP4 hızlı-mod atlandı, FFmpeg exit(0)) — davranış değişmez. MP4 SON KONTROL decoder
+  gerçek doğrulama (donuk kare engeli) — dokunulmadı.
+
+Kanıt: `tasks/probe-v192-live.elastic.mjs`, `tasks/probe-v192-latency.mjs`,
+`manifest-2026-10-26.json` 13:35 durumu; `npx vite build` ✓.
+
+---
+
 ## v1.191 — (26 Ekim 2026 akşam, kükreş)
 **Kullanıcı kaynak teklifi: BİK + dijitalbasin — 6 gazete isim+kapak entegrasyonu.**
 

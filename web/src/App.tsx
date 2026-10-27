@@ -1,6 +1,24 @@
 // ============================================================================
-// OTONOM Chatgpt_1.191 — SÜRÜM BAŞLIĞI (her değişiklikte burayı, APP_VERSION'ı ve SÜRÜM NOTLARI'nı birlikte artır)
+// OTONOM Chatgpt_1.192 — SÜRÜM BAŞLIĞI (her değişiklikte burayı, APP_VERSION'ı ve SÜRÜM NOTLARI'nı birlikte artır)
 // Program menüsündeki rozet APP_VERSION.toBadge() ile bu sürümden otomatik üretilir.
+// v1.192 ÖZET: (1) "Yeni Asya ve Milli Gazete gelmemiş" kök neden — fetchViaOtonomGazeteBackend
+// aday çözücüsü gateway'i tanımıyordu (REACT_APP_BACKEND_URL tanımsız; aday yalnız ölü
+// localhost:3457). BİK gövdesi gateway /proxy'den 8.16 sn'de geliyor (probe-v192-latency)
+// ama taşıma süreleri yetişemez → manifest'te "BİK:0/gövde-alınamadı"; dijitalbasin Jina
+// markdown'a düşer → extract 0. Düzeltme (backend adayına __OTONOM_GATEWAY__ + backendTimeoutMs
+// seçeneği + BİK/DB rescue backendFirst 16 sn). (2) Takip listesi kullanıcı sırasıyla dizildi
+// (31 gazete) + Günboyu çıkarıldı (GAZETE_EXCLUDED'a da). (3) Analiz'e bik:true (BİK kartı
+// 20/20 alt-tarihli kanıt). (4) Hızlandırma: 429 sonrası başarılı istek sonraki-video 3 dk
+// kapısını temizler. (5) 7 bilgilendirme warn→info. Fail-closed mantığı, diğer kaynaklar,
+// rekorder, MP4 SON KONTROL ve v1.191 kodu aynen. Kanıt: probes + vite build.
+// v1.192: (1) _readOtonomRuntimeBackendCandidates artık __OTONOM_GATEWAY__ adayı
+// ekler (root .env GATEWAY_PORT'tan config-driven; hardcode yok; 3457 son aday kalır).
+// (2) fetchGazeteSourceTextsFast son-kurtarma backend çağrısı options.backendTimeoutMs
+// okur (sabit 1600 BİK'e yetişemezdi). (3) fetchIndividualGazeteCandidates'ın BİK +
+// DijitalBasin kaynakları backendFirst:true + backendTimeoutMs:16000 (SSR HTML en hızlı
+// taşıma; markdown'a düşme yok). v1.191 extract dalları + fail-closed mantığı + gün-önbelleği
+// + matine + diğer kaynaklar AYNEN. Kanıt: probe-v192-live.elastic (BİK 200 ✓ 20 YYN +
+// DB 3× SSR ✓), probe-v192-latency (gecikme tablosu), manifest-2026-10-26 13:35 durumu + vite build.
 // v1.191 ÖZET: Kullanici kaynak teklifi ölçüldü ve entegre edildi — (1) BİK İlk Sayfalar
 // (gazete.bik.gov.tr kapsam=yaygin): 20 kart SSR'de ad (figcaption) + tarih (alt:
 // "26 Ekim 2026 - ... tarihli X gazetesi ilk sayfası") taşıyor [probe-bik-count: 20/20];
@@ -248,7 +266,7 @@ const { Download, RotateCcw, UploadCloud, Music, Trash2, Volume2, Clock, Loader2
 // M1: CONSTANTS & CONFIG
 // ============================================================================
 const APP_VERSION = {
-  major: 1, minor: 191, hotfix: 'Chatgpt_1.191',
+  major: 1, minor: 192, hotfix: 'Chatgpt_1.192',
   short() { return `${this.major}.${this.minor}`; },
   toString() { return `OTONOM Chatgpt_${this.major}.${this.minor}`; },
   toBadge() { return `${this.toString()} • One-Page`; }
@@ -433,6 +451,10 @@ const _readOtonomRuntimeBackendCandidates = () => {
       } catch (e) {}
     });
   } catch (e) {}
+  // v1.192: OTONOM gateway adayı — vite define (root .env GATEWAY_PORT) ile üretilen
+  // tek doğruluk kaynağı; eski localhost:3457 adayı BÜYÜK ORANLA ölü olduğundan artık
+  // sürme son kurtarma olsa da arkamda olduğu için başa konuyor, genelleştirilmiş.
+  try { add(typeof __OTONOM_GATEWAY__ === 'string' ? __OTONOM_GATEWAY__ : ''); } catch (e) {}
   // Desktop/local köprü çalışan kurulumlarda son aday.
   add('http://localhost:3457');
   return values;
@@ -1345,6 +1367,7 @@ const collectUltimateCoverReferences = async (jobState) => {
 const useDebounce = (value, delay = 300) => { const [debounced, setDebounced] = useState(value); useEffect(() => { const timer = setTimeout(() => setDebounced(value), delay); return () => clearTimeout(timer); }, [value, delay]); return debounced; };
 
 const FIX_CHECKLIST = Object.freeze([
+  { version: '1.192', key: 'BACKEND_GATEWAY_CANDIDATE_AND_LIST_ORDER', text: 'Kullanıcı raporu: Yeni Asya ve Milli Gazete gelmemiş — kök neden kanıtla tespit edildi: fetchViaOtonomGazeteBackend aday çözücüsü gateway-ü tanımıyordu; REACT_APP_BACKEND_URL hiçbir yerde tanımsız, aday listesi pratikte yalnız ölü localhost:3457 idi; gerçek gateway (127.0.0.1:4100) yalnız vite define __OTONOM_GATEWAY__ içinde. BİK gövdesi gateway /proxy üzerinden 8.16 sn geliyor (probe-v192-latency) ama tüm taşıma süreleri (4.5/5.0/1.6 sn) BİK-e yetişemez → 13:35 manifest BİK/İlkSayfalar:0/gövde-alınamadı; dijitalbasin Jina markdown-a düşer → extract 0. Düzeltme: (1) _readOtonomRuntimeBackendCandidates __OTONOM_GATEWAY__ adayını ekler (root .env GATEWAY_PORT config-driven; 3457 son aday); (2) fetchGazeteSourceTextsFast son-kurtarma backend options.backendTimeoutMs okur; (3) fetchIndividualGazeteCandidates BİK+DijitalBasin kaynakları backendFirst+16 sn. Kullanıcı istekleri: (4) takip listesi kullanıcının verdiği 31 girişlik sırayla dizildi, Günboyu listeden çıkarıldı ve GAZETE_EXCLUDED-a eklendi (v1.188 örneği); (5) Analiz-e bik:true — BİK 20/20 alt-tarihli kart kanıtlı (probe-bik-count); (6) hızlandırma: HTTP 429 sonrasında başarıya ulaşan istek 3 dakikalık sonraki-video kapısını temizler (401/403 kapısı açılmaz) — bu koşuda kapı 14:19:57-e silahlı kalıyordu; (7) bilgilendirme vendorları (v1.150 KAYNAK KİLİDİ ×2, v1.150 SAHNE KİLİDİ, v1.84 CAPTURE, v1.83 GOLDEN MASTER ×2, MP4 hızlı-mod atlandı, FFmpeg exit(0)) warn-to-info — davranış değişmiyor; MP4 SON KONTROL decoder gerçek doğrulama, aynen. Kanıt: probe-v192-live.elastic (BİK 200 ✓ 20 YYN + DB 3× SSR), probe-v192-latency (gecikme), 13:35 manifest durumu + npx vite build ✓.' },
   { version: '1.191', key: 'BIK_AND_DIGITALBASIN_SIX_GAZETE_SOURCES', text: 'Kullanıcı kaynak teklifi (dijitalbasin + BİK linkleri) ölçüldü ve entegre edildi: (1) BİK İlk Sayfalar (gazete.bik.gov.tr/Uygulamalar/GazeteIlkSayfalar?kapsam=yaygin) — 20 kart SSR\'de figcaption ad + alt tarih ("26 Ekim 2026 - ... tarihli X gazetesi ilk sayfası") taşıyor [probe-bik-count kanıtı: 20/20 tarihli]; 4. ana kaynak eklendi (minCount 15) ve kart-başına alt-tarih kanıtı ZORUNLU kılındı; Korkusuz/Milli Gazete/Yeni Asya + Cumhuriyet/Sözcü/Hürriyet/Karar/BirGün/Dünya vb. adları bu kaynaktan doğrulanır. (2) dijitalbasin.com Read/331 (Evrensel), Read/504 (Gazete Pencere), Read/321 (Diriliş Postası) — SSR publication-name + publication-date kanıtlı [probe-db kanıtı: 3× 26 Ekim 2026]; kapak GetPublicationDisplay?publicationId= JPEG\'inden kurulur; SSR date eşleşmezse ne ad ne kapak verilir (fail-closed aynen). fetchIndividualGazeteCandidates +BİK/+DijitalBasin kapak yolları; extractExactGazeteHeroCandidate BİK tam çözünürlük YYN-*.jpg izleme; isLikelyGazeteImage +dijitalbasin pattern. Mevcut GZT/GazeteOku/Aydınlık/Evrensel-kendi yolları ve fail-closed mantığı değişmedi. Kanıt: tasks/probe-v191-*.mjs + npx vite build ✓.' },
   { version: '1.190', key: 'RECORDER_SILENT_DEATH_GUARD_AND_CANARY', text: 'Kullanıcı FAILED logu teşhisi: "RENDER FINALIZE HATASI: Video oluşturulamadı (0 Bayt)" kök nedeni dead-recorder — MediaRecorder render sırasında SESSİZCE inaktif oldu (finalize önü recorder.stop() çağıran kod yolu yok; onerror/onstop/track-onended izleyici hiç kurulmamıştı), 265.21 sn boyunca ölü kayda sahne çizimi yapıldı ve finalize\'de state=inactive + 0 parça ile belirsiz hata raporlandı [log kanıtı: 13:02:12.685 state=inactive, 13:02:12.702 "Blob hazırlanıyor (0 parça)"]. RECORDER GUARD uygulandı: recorder.start sonrası recorder.onerror + video/audio track onended gözleyicileri ölümü SEBEP + SANİYE + PARÇA SAYISI ile loglar; nextFrame içindeki canari her ~5 sn recorder.state yoklar, inaktifse render ANINDA RENDER_RECORDER_DEAD ile durur (ölü kayda dakikalar harcanmaz); blob finalize\'deki 0 Bayt hatası artık ölüm kanıtını taşır. Sessiz düşüş yok; boş video asla kabul edilmez (fail-closed aynen). Etkilenen: executeRender recorder kurulumu + nextFrame + finalize blob/dosya dalları; render planı, ses miksajı, GOLDEN MASTER testi, watchdog ve gazete kaynakları değişmedi. Kanıt: kullanıcı FAILED logu + kod taraması + npx vite build ✓.' },
   { version: '1.189', key: 'EVRENSEL_OWN_SITE_4TH_MANIFEST_SOURCE', text: 'Kullanıcı talebi: GazeteOku/Aydınlık engelini (Cloudflare interaktif Turnstile) FlareSolverr ile aşma denendi — headless, görünür mod ve tabs_till_verify kapsamında Turnstile geçilmedi [probe kanıtı: her varyant 0 kart, clearance cookie yok]; bu araç app koduna entegre edilmedi (ölü kod olurdu) ve kullanıcıdan kaldırılışı önerildi. Başarılı yol: evrensel.net kendi arşiv sayfası /gazete?date=YYYY-MM-DD seçili tarihi SSR ile veriyor [probe kanıtı: 2026-10-26 metni + 80 manşet img + EVRENSELİ MANŞETİ bölümü + /haber/ linki]. fetchVerifiedGazeteManifest 4. kaynak eklendi: Evrensel/kendi (minCount: 1 — yalnız kendi adını besler; tarih + MANŞETİ + /images/.../dosya/ görseli zorunlu; tarih eşleşmezse hiç ad verilmez, fail-closed aynen). Diğer kaynakların yolları değişmedi; toplama sitelerdeki CF engeli kalktığında Dünya/Tavır/Gazete Pencere otomatik döner. Kanıt: node --check, curl probes, npx vite build ✓.' },
@@ -2447,6 +2470,20 @@ const armOtonomNextVideoApiCooldown = (reason = 'API hatası') => {
   addSystemLog(`⏳ API hata aralığı koruması: ${reason}. Sonraki video ${new Date(until).toLocaleTimeString('tr-TR')} saatinden önce başlamayacak (3 dk; son hatadan itibaren).`, 'warn');
   return until;
 };
+// v1.192: koruma kapısının temizleyicisi — yalnız GEÇİCİ nedenlerle (429/5xx/ağ
+// hatası) silahlanmış kapıyı, istek sonunda BETS BAŞARILDIĞINDA açar. 401/403
+// yetki hatalarının kapısı burada AÇILMAZ (yetkinlik sorunudır, yoğunluk değil).
+const clearOtonomNextVideoApiCooldownOnSuccess = () => {
+  try {
+    const until = Number(SafeStorage.getItem(OTONOM_NEXT_VIDEO_API_COOLDOWN_UNTIL_KEY)) || 0;
+    if (!until || until <= Date.now()) return;
+    const reason = String(SafeStorage.getItem(OTONOM_NEXT_VIDEO_API_COOLDOWN_REASON_KEY) || '');
+    if (/401|403/i.test(reason)) return;
+    SafeStorage.setItem(OTONOM_NEXT_VIDEO_API_COOLDOWN_UNTIL_KEY, '0');
+    SafeStorage.removeItem?.(OTONOM_NEXT_VIDEO_API_COOLDOWN_REASON_KEY);
+    addSystemLog('✓ API hata aralığı koruması temizlendi: istek başarılı döndü; sonraki video bekletilmez.', 'info');
+  } catch (e) { ErrorHandler.silent(e); }
+};
 const NetworkUtils = {
   fetchWithRetry: async (url, options, retries = 5) => {
     const baseDelay = 1000; const maxDelay = 30000;
@@ -2455,7 +2492,7 @@ const NetworkUtils = {
       const jitter = Math.random() * 500; const totalDelay = delay + jitter;
       try {
         const res = await fetch(url, options);
-        if (res.ok) return res;
+        if (res.ok) { clearOtonomNextVideoApiCooldownOnSuccess(); return res; }
         if (res.status === 403) { armOtonomNextVideoApiCooldown('HTTP 403 erişim reddi'); throw new Error('HTTP_FAIL_403'); }
         if (res.status === 400 || res.status === 404) throw new Error(`HTTP_FAIL_${res.status}`);
         if (res.status === 401) {
@@ -3213,7 +3250,7 @@ const _runFfmpegCommand = async (ffmpeg, outputName, ...args) => {
         const probeBlob = await _readFfmpegOutputBlob(ffmpeg, outputName);
         await _inspectMp4Container(probeBlob);
         await _verifyInstagramCfrMp4(probeBlob);
-        addSystemLog('FFmpeg exit(0) döndürdü; çıktı fiziksel MP4 + 30 CFR doğrulamasını geçtiği için başarı kabul edildi.', 'warn');
+        addSystemLog('FFmpeg exit(0) döndürdü; çıktı fiziksel MP4 + 30 CFR doğrulamasını geçtiği için başarı kabul edildi.', 'info');
         return;
       } catch (probeErr) {
         throw new Error(`FFmpeg exit(0) fakat çıktı geçersiz: ${probeErr.message}`);
@@ -7823,7 +7860,7 @@ const RenderWorkerService = {
         canvasCaptureMode === 'manual'
           ? `✓ v1.84 CAPTURE: captureStream(0)+requestFrame manuel 30 FPS yolu etkin.`
           : `✓ v1.84 CAPTURE: requestFrame kullanilamadi/zorlanmadi; captureStream(${FPS}) otomatik FPS yolu etkin.`,
-        canvasCaptureMode === 'manual' ? 'success' : 'warn'
+        canvasCaptureMode === 'manual' ? 'success' : 'info'
       );
 
       let videoFileHandle = null;
@@ -7918,7 +7955,7 @@ const RenderWorkerService = {
         const lockedGazetteSceneImage = !hasDedicatedTextVisual && lockedGazetteCover ? lockedGazetteCover : null;
         const sceneImageData = lockedGazetteSceneImage || jobData.assets.images[i];
         if (lockedGazetteSceneImage && jobData.assets.images[i] !== lockedGazetteSceneImage) {
-          addSystemLog(`v1.150 SAHNE KAYNAK KİLİDİ: Sahne ${i + 1}/${jobData.script.videoSlides.length} eski asset yerine ${jobData.config._gazeteSourceLock || jobData.config.sourceName} gerçek ilk sayfasını kullanacak.`, 'warn');
+          addSystemLog(`v1.150 SAHNE KAYNAK KİLİDİ: Sahne ${i + 1}/${jobData.script.videoSlides.length} eski asset yerine ${jobData.config._gazeteSourceLock || jobData.config.sourceName} gerçek ilk sayfasını kullanacak.`, 'info');
           jobData.assets.images[i] = lockedGazetteSceneImage;
         }
         let sImg = null;
@@ -8302,7 +8339,7 @@ const RenderWorkerService = {
           } catch (metadataError) {
             const metadataMessage = String(metadataError?.message || metadataError);
             if (/^scene-variation-(metadata|loadeddata)-timeout$/.test(metadataMessage)) {
-              addSystemLog(`MP4 SON KONTROL: ek decoder metadata kontrolü hızlı modda atlandı (${metadataMessage}); üretim gereksiz bekletilmiyor.`, 'warn');
+              addSystemLog(`MP4 SON KONTROL: ek decoder metadata kontrolü hızlı modda atlandı (${metadataMessage}); üretim gereksiz bekletilmiyor.`, 'info');
               return { ok: true, skipped: true, duration: Number(video.duration || 0), reason: metadataMessage };
             }
             throw metadataError;
@@ -8422,7 +8459,7 @@ const RenderWorkerService = {
               if (renderTrueEndSec) _pendingRenderTrueEnd = { size: file.size, sec: renderTrueEndSec };
               const variation = await verifyGazeteSceneVariation(file);
               if (!variation.ok) throw new Error(`GAZETE_SCENE_FREEZE: çıktı kareleri değişmiyor (MAD=${Number(variation.maxMad || 0).toFixed(2)}). Donmuş video kaydedilmedi.`);
-              if (!variation.skipped) addSystemLog(`✓ v1.83 GOLDEN MASTER TEST: gazete sahne değişimi doğrulandı (MAD=${variation.maxMad.toFixed(2)}, bölgesel=${Number(variation.maxRegionalMad || 0).toFixed(2)}, zaman kanıtı=${variation.verifiedFrames || 0} kare).`, 'success'); else addSystemLog(`v1.83 GOLDEN MASTER TEST: decoder kontrolü atlandı (${variation.reason || 'uygulanamaz'}); render akışı devam ediyor.`, 'warn');
+              if (!variation.skipped) addSystemLog(`✓ v1.83 GOLDEN MASTER TEST: gazete sahne değişimi doğrulandı (MAD=${variation.maxMad.toFixed(2)}, bölgesel=${Number(variation.maxRegionalMad || 0).toFixed(2)}, zaman kanıtı=${variation.verifiedFrames || 0} kare).`, 'success'); else addSystemLog(`v1.83 GOLDEN MASTER TEST: decoder kontrolü atlandı (${variation.reason || 'uygulanamaz'}); render akışı devam ediyor.`, 'info');
               addSystemLog(`RENDER FINALIZE: dosya doğrulandı (${(file.size / 1024 / 1024).toFixed(2)} MB); akış ${Math.round(performance.now() - finalizeStartedAt)} ms içinde tamamlandı.`, 'success');
               renderFinalizedOk = true;
               finish(null, { url: ObjectURLManager.create(file), blobType: file.type, fileHandle: videoFileHandle });
@@ -8477,7 +8514,7 @@ const RenderWorkerService = {
               if (renderTrueEndSec) _pendingRenderTrueEnd = { size: blob.size, sec: renderTrueEndSec };
               const variation = await verifyGazeteSceneVariation(blob);
               if (!variation.ok) throw new Error(`GAZETE_SCENE_FREEZE: çıktı kareleri değişmiyor (MAD=${Number(variation.maxMad || 0).toFixed(2)}). Donmuş video COMPLETED kabul edilmedi.`);
-              if (!variation.skipped) addSystemLog(`✓ v1.83 GOLDEN MASTER TEST: gazete sahne değişimi doğrulandı (MAD=${variation.maxMad.toFixed(2)}, bölgesel=${Number(variation.maxRegionalMad || 0).toFixed(2)}, zaman kanıtı=${variation.verifiedFrames || 0} kare).`, 'success'); else addSystemLog(`v1.83 GOLDEN MASTER TEST: decoder kontrolü atlandı (${variation.reason || 'uygulanamaz'}); render akışı devam ediyor.`, 'warn');
+              if (!variation.skipped) addSystemLog(`✓ v1.83 GOLDEN MASTER TEST: gazete sahne değişimi doğrulandı (MAD=${variation.maxMad.toFixed(2)}, bölgesel=${Number(variation.maxRegionalMad || 0).toFixed(2)}, zaman kanıtı=${variation.verifiedFrames || 0} kare).`, 'success'); else addSystemLog(`v1.83 GOLDEN MASTER TEST: decoder kontrolü atlandı (${variation.reason || 'uygulanamaz'}); render akışı devam ediyor.`, 'info');
               addSystemLog(`RENDER FINALIZE: Blob hazır (${(blob.size / 1024 / 1024).toFixed(2)} MB); finalizasyon ${Math.round(performance.now() - finalizeStartedAt)} ms sürdü.`, 'success');
               finish(null, { url: ObjectURLManager.create(blob), blobType: blob.type });
             } catch (err) { addSystemLog(`RENDER FINALIZE HATASI: ${err?.message || err}`, 'error'); finish(err); }
@@ -8818,7 +8855,7 @@ class WorkflowCoordinator {
         });
         if (this.state.assets.thumbnail !== lockedImage) {
           this.state.assets.thumbnail = lockedImage;
-          addSystemLog(`v1.150 KAYNAK KİLİDİ: "${this.state.config.sourceName}" kapak görseli checkpoint'ten bağımsız gerçek gazete sayfasına sabitlendi.`, 'warn');
+          addSystemLog(`v1.150 KAYNAK KİLİDİ: "${this.state.config.sourceName}" kapak görseli checkpoint'ten bağımsız gerçek gazete sayfasına sabitlendi.`, 'info');
         }
         if (Array.isArray(this.state.script?.imageBlocks)) {
           this.state.script.imageBlocks = this.state.script.imageBlocks.map(block => ({
@@ -11571,17 +11608,21 @@ export default function App() {
   // === GAZETE TAKİP FONKSİYONLARI ===
   // Takip kapsamı sabittir; günlük manşet kartları yalnız tarihli kaynaklardan gelir.
   // Mevcut iç kimlikleri koru; üç farklı görünen adı yalnız arayüzde biçimlendir.
-  // v1.108: kullanıcı isteğiyle getirilmeyecek gazeteler (çözümleyici bu adları tanır ama asla kart/kuyruk üretmez).
+  // v1.108: kullanıcı isteğiyle getirilmeyen gazeteler (çözümleyici bu adları tanır ama asla kart/kuyruk üretmez).
   // v1.188: kullanıcı isteğiyle takipten çıkarma — Dokuz Sütun, Güneş, Yeni Yüzyıl.
-  const GAZETE_EXCLUDED = ['Sonsöz', 'Doğru Haber', 'Anayurt', 'Daily Sabah', 'Hürriyet Daily News', 'Dokuz Sütun', 'Güneş', 'Yeni Yüzyıl'];
+  // v1.192: kullanıcı isteğiyle takipten çıkarma — Günboyu; TAKİP LİSTESİ SIRASINDA kullanıcı verdiği sıra.
+  const GAZETE_EXCLUDED = ['Sonsöz', 'Doğru Haber', 'Anayurt', 'Daily Sabah', 'Hürriyet Daily News', 'Dokuz Sütun', 'Güneş', 'Yeni Yüzyıl', 'Günboyu'];
   const GAZETE_TAKIP_LIST_ALL = [
-    'Akşam', 'Analiz', 'Aydınlık', 'BirGün', 'Cumhuriyet', 'Diriliş Postası',
-    'Doğru Haber', 'Dokuz Sütun', 'Dünya', 'Evrensel', 'Fanatik', 'Fotomaç',
-    'Gazete Pencere', 'Günboyu', 'Güneş', 'Hürriyet', 'Karar', 'Korkusuz',
-    'Milat', 'Milliyet', 'Milli Gazete', 'Nasıl Bir Ekonomi', 'Nefes', 'Posta',
-    'Sabah', 'Sonsöz', 'Sözcü', 'Takvim', 'Tavır Gazetesi', 'Türkiye',
-    'Türkgün', 'Yeni Asya', 'Yeni Birlik', 'Yeni Mesaj', 'Yeni Şafak',
-    'Yeni Yüzyıl', 'Yeniçağ'
+    // v1.192 kullanıcı sırası — SEÇ ekranı ve üretim sıralaması (stableGazeteOrder) bu diziden gelir.
+    'BirGün', 'Sabah', 'Evrensel', 'Yeni Şafak', 'Fanatik', 'Fotomaç',
+    'Yeniçağ', 'Nasıl Bir Ekonomi', 'Hürriyet', 'Korkusuz', 'Milliyet',
+    'Yeni Mesaj', 'Yeni Birlik', 'Yeni Asya', 'Türkiye', 'Türkgün',
+    'Aydınlık', 'Takvim', 'Tavır Gazetesi', 'Sözcü', 'Posta', 'Nefes',
+    'Milat', 'Milli Gazete', 'Akşam', 'Cumhuriyet', 'Diriliş Postası',
+    'Analiz', 'Gazete Pencere', 'Dünya', 'Karar',
+    // Ekranda görünmeyen tanınan adlar (tarihî ad çözümlemesi için korunur):
+    'Doğru Haber', 'Dokuz Sütun', 'Günboyu', 'Güneş', 'Sonsöz',
+    'Daily Sabah', 'Hürriyet Daily News', 'Anayurt', 'Yeni Yüzyıl'
   ];
   const GAZETE_TAKIP_LIST = GAZETE_TAKIP_LIST_ALL.filter(name => !GAZETE_EXCLUDED.includes(name));
   const GAZETE_DISPLAY_NAMES = {
@@ -11619,7 +11660,9 @@ export default function App() {
   const GAZETE_RECOGNIZE_LIST = [...GAZETE_TAKIP_LIST_ALL, 'Daily Sabah', 'Hürriyet Daily News', 'Anayurt'];
   const GAZETE_META = {
     'Akşam': { ayd: 'aksam', go: 'aksam-gazetesi-manseti', gzt: 'aksam-gazetesi' },
-    'Analiz': { ayd: 'analiz', gzt: 'analiz-gazetesi' },
+    // v1.192: BİK kanıtı — ANALİZ kartı 20/20 alt-tarihli (probe-bik-count); Korkusuz/
+    // Milli Gazete/Yeni Asya ile aynı BİK ad-dogrulama + kapak yolu.
+    'Analiz': { ayd: 'analiz', gzt: 'analiz-gazetesi', bik: true },
     'Aydınlık': { ayd: 'aydinlik-gazetesi', go: 'aydinlik-gazetesi-manseti', gzt: 'aydinlik-gazetesi' },
     'BirGün': { ayd: 'birgun', go: 'birgun-gazetesi-manseti', gzt: 'birgun-gazetesi' },
     'Cumhuriyet': { ayd: 'cumhuriyet', go: 'cumhuriyet-gazetesi-manseti', gzt: 'cumhuriyet-gazetesi' },
@@ -12175,9 +12218,11 @@ export default function App() {
     }
 
     // Backend-first olmayan genel kaynaklarda backend en son kurtarma yolu olabilir.
+    // v1.192: backendTimeoutMs seçenekten okunur; BİK gibi yavaş (8-9 sn) kaynaklar
+    // bu pencereye sığar. Sabit 1600, yavaş kaynakları matematiksel olarak yetişemez kılmıştı.
     if (!bodies.length && !options?.backendFirst) {
       try {
-        const backendBodies = await fetchViaOtonomGazeteBackend(cleanTargetUrl, signal, 1600);
+        const backendBodies = await fetchViaOtonomGazeteBackend(cleanTargetUrl, signal, options?.backendTimeoutMs || 1600);
         backendBodies.forEach(addBody);
       } catch (e) {
         if (e?.name === 'AbortError' && signal?.aborted) throw e;
@@ -12818,10 +12863,10 @@ export default function App() {
     const sources = [];
     const already = new Set();
 
-    const pushSource = (url, label) => {
+    const pushSource = (url, label, fetchOptions) => {
       if (!url || already.has(url)) return;
       already.add(url);
-      sources.push({ url, label });
+      sources.push({ url, label, fetchOptions });
     };
 
     // v1.85 STRICT SOURCE POLICY:
@@ -12841,10 +12886,14 @@ export default function App() {
     }
     // v1.191: BİK İlk Sayfalar — kapsam=yaygin günün kartlarını SSR ile verir;
     // alt metni "GG Ay Yıl - ... tarihli <ad> gazetesi ilk sayfası" = ad+tarih kesin kanıt.
-    if (meta.bik) pushSource('https://gazete.bik.gov.tr/Uygulamalar/GazeteIlkSayfalar?kapsam=yaygin', 'BİK/İlkSayfalar');
+    // v1.192: BİK gövdesi yalnız gateway /proxy'den 8-9 sn'de gelir; backendFirst +
+    // 16 sn penceresi olmadan rescue yolları da boşa düşer (must zaaf).
+    if (meta.bik) pushSource('https://gazete.bik.gov.tr/Uygulamalar/GazeteIlkSayfalar?kapsam=yaygin', 'BİK/İlkSayfalar', { backendFirst: true, backendTimeoutMs: 16000 });
     // v1.191: dijitalbasin — Read sayfası SSR'de publication-name + publication-date
     // taşır; tarih seçili tarihe eşleşmezse kapak kurulmaz (fail-closed aynen).
-    if (meta.db) pushSource(`https://www.dijitalbasin.com/Read/${meta.db}`, 'DijitalBasin/Read');
+    // v1.192: backendFirst ile SSR HTML en hızlı yoldan gelir (1-2 sn); markdown
+    // taşımalara düşme riski kalır.
+    if (meta.db) pushSource(`https://www.dijitalbasin.com/Read/${meta.db}`, 'DijitalBasin/Read', { backendFirst: true, backendTimeoutMs: 16000 });
 
     const candidates = [];
     for (const source of sources) {
@@ -12852,7 +12901,11 @@ export default function App() {
 
       const texts = await fetchGazeteSourceTextsFast(source.url, signal, passIndex, {
         fastRetry: !!options?.fastRetry,
-        forceFallbacks: source.label === 'GZT/Detay'
+        forceFallbacks: source.label === 'GZT/Detay',
+        // v1.192: BİK/DijitalBasin kaynakları backend'i ÖNCE kullanır (hızlı ve
+        // gerçek SSR HTML); diğer kaynaklar eski davranışı korur.
+        backendFirst: source.fetchOptions?.backendFirst === true,
+        backendTimeoutMs: source.fetchOptions?.backendTimeoutMs || undefined
       });
 
       for (const body of texts) {
