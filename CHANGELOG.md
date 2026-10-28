@@ -10,6 +10,15 @@ Kesin sürüm referansı `web/src/App.tsx` içinde `APP_VERSION`; burası insan-
 
 ---
 
+## v1.197 — (29 Ekim 2026, BUGFIX: TTS GÜNLÜK KOTA DEFTERİ + HIZLI DÜRÜST DURUŞ)
+**Canlı log + prob kök nedeni kesinleştirdi: TTS 429'lar günlük kota — ücretsiz katmanda model başına 10 istek/GÜN (3 model = 30/gün), yenilenme ~10:00 TR.**
+
+- **Kanıt:** 429 gövdesi `quotaId: GenerateRequestsPerDayPerProjectPerModel-FreeTier`, `quotaValue: "10"`, `retryDelay: "33699s"` (9 sa 21 dk) — `tasks/probe-v197-429body.out.txt`.
+- **Anlamı:** bekleyerek toparlanamaz; dünkü çoklu koşular bütçeyi tüketti. 30 sn'lik toparlanma denemesi (v1.196) bu pencerede beyhudeler.
+- **Düzeltme:** (1) `fetchWithRetry` son 429'da gövdeden `retryDelay` okur → `HTTP_FAIL_429;retryDelay=Xs;perDay=1`; (2) `generateAudio` günlük sinyalde modeli **TTS günlük kota defterine** yazar (localStorage, anahtar parmak iziyle bağlı) ve beklemeden sonraki canlı modele geçer; tüm modeller döndüyse istek hiç açılmadan dürüst hata; (3) **iş akışı başlangıç kapısı:** ses isteyen video koşusu, defter doluysa analiz/görsel kotası yakılmadan baştan durur; (4) RPM penceresi (≤5 dk) için 3/6 sn + 30 sn davranışı korunur.
+- **Fail-closed aynen:** sessiz atlama yok; her düşüş sebep adıyla günlükte.
+- **Kanıt:** `probe-v197-429body`, `npx vite build` ✓.
+
 ## v1.196 — (28 Ekim 2026, BUGFIX: SON SÖZ TTS KOTA TOPARLANMASI)
 **Kullanıcı FAILED raporu: "Son Söz seslendirmesi üretilemedi; video render durduruldu."**
 

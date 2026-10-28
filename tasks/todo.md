@@ -46,14 +46,18 @@ Not: .env anahtarlar ASLA repoya yazılmaz.
 
 ---
 
-## DEVAM HATTI — yarın kaldığımız yerden (güncellendi: 28 Ekim v1.196)
+## DEVAM HATTI — yarın kaldığımız yerden (güncellendi: 29 Ekim v1.197)
 
-**Son sürüm:** v1.196 — SON SÖZ TTS KOTA TOPARLANMASI: kullanıcı FAILED raporu
-("Son Söz seslendirmesi üretilemedi") kök nedeni kanıtla çözüldü — RPM kota
-penceresi (probe-v196-tts 3 dk sonra 3 model de PASS); generateAudio artık
-denemeler arası 3/6 sn + 429'da 30 sn bekleyip 4. toparlanma denemesi yapıyor
-(fail-closed aynen); fetchWithRetry HTTP_FAIL_429 durumunu koruyor; boş yanıtta
-finishReason tanı logu. Öncesinde v1.195 (`b6f7f41`) — PONYTAIL-AUDIT: 10 düzeltme
+**Son sürüm:** v1.197 — TTS GÜNLÜK KOTA DEFTERİ + HIZLI DÜRÜST DURUŞ: canlı log +
+probe-v197-429body TTS 429-ların günlük kota olduğunu kesinleştirdi (ücretsiz
+katman: model başına 10 istek/GÜN, 3 model = 30/gün; yenilenme ~10:00 TR).
+fetchWithRetry retryDelay okuyup HTTP_FAIL_429;perDay=1 fırlatır; generateAudio
+günlük modeli deftere yazıp beklemesiz canlı modele geçer; tüm modeller döndüyse
+istek açılmadan dürüst hata; iş akışı BAŞINDA defter doluysa koşu analiz/görsel
+kotası yakılmadan durur (fail-closed aynen). Önceki: v1.196 (`4577b80`) — SON SÖZ
+TTS KOTA TOPARLANMASI: denemeler arası 3/6 sn + 429'da 30 sn toparlanma denemesi,
+fetchWithRetry HTTP_FAIL_429 durum koruması, finishReason tanı logu. v1.195
+(`b6f7f41`) — PONYTAIL-AUDIT: 10 düzeltme
 (2 MUST + 4 SHOULD + 4 NICE): media TTS fail-closed (502), readJson destroy, ölü
 haber_saas_sistemiii.tsx silindi + README canlı kodu tarif ediyor, App.tsx ölü
 3457 adayları/ölü sabitler kaldırıldı, veri yollarında silent→log, üç serviste

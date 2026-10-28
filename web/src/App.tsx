@@ -1,6 +1,25 @@
 // ============================================================================
-// OTONOM Chatgpt_1.196 — SÜRÜM BAŞLIĞI (her değişiklikte burayı, APP_VERSION'ı ve SÜRÜM NOTLARI'nı birlikte artır)
+// OTONOM Chatgpt_1.197 — SÜRÜM BAŞLIĞI (her değişiklikte burayı, APP_VERSION'ı ve SÜRÜM NOTLARI'nı birlikte artır)
 // Program menüsündeki rozet APP_VERSION.toBadge() ile bu sürümden otomatik üretilir.
+// v1.197 ÖZET: Kullanıcı canlı logu (00:20-00:23) + iki prob kök nedeni KESİNLEŞTİRDİ:
+// TTS 429'lar RPM değil GÜNLÜK kota — 429 gövdesi: quotaId
+// GenerateRequestsPerDayPerProjectPerModel-FreeTier, quotaValue "10" (ücretsiz
+// katmanda model başına 10 istek/GÜN), retryDelay "33699s" ≈ 9 sa 21 dk (gece yarısı
+// Pasifik ≈ ~10:00 TR yenilenir) [kanıt: probe-v197-429body]. Dünkü çoklu koşular
+// 3 modelin 3×10=30 istek/gün bütçesini tüketti; 30 sn toparlanma beklemesi bu
+// pencerede beyhudeler. Düzeltme: (1) fetchWithRetry son 429'da gövdeden retryDelay
+// okur, HTTP_FAIL_429;retryDelay=Xs;perDay=1 olarak fırlatır (bilgi kaybı sıfır).
+// (2) generateAudio günlük sinyalde modeli TTS GÜNLÜK KOTA DEFTERİNE yazar
+// (localStorage ns_ttsQuotaLedger, anahtar parmak iziyle bağlı) ve BEKLEMEDEN
+// sonraki canlı modele geçer (her modelin günlük kotası ayrıdır); tüm modeller
+// gün-bitikse istek HİÇ açılmadan dürüst hata logu + null (fail-closed aynen).
+// (3) İş akışı BAŞLANGIÇ kapısı: defterde tüm modeller gün-bitikse (ses isteyen
+// video koşusunda) koşu daha analiz/görsel kotası yakılmadan dürüst hatayla durur.
+// (4) RPM penceresi (≤5 dk) için mevcut 3/6 sn + 30 sn toparlanma davranışı korunur.
+// (5) 30 sn toparlanma denemesi gün-biti modelleri atlayıp canlı modeli seçer.
+// Fail-closed ilkesi aynen: sessiz atlama yok, her düşüş sebep adıyla günlükte.
+// YORUMLA/gazete/render/cache/recorder aynen. Kanıt: probe-v197-429body (429 gövde
+// yapısı), npx vite build ✓.
 // v1.196 ÖZET: Kullanıcı FAILED raporu — "Son Söz seslendirmesi üretilemedi; video
 // render durduruldu". Kök neden (kanıt: koşu Son Söz'e kadar geldi = önceki analiz/
 // görsel/sahne TTS'leri başarılı; 3 dk sonraki probe-v196-tts üç TTS modelini de
@@ -318,7 +337,7 @@ const { Download, RotateCcw, UploadCloud, Music, Trash2, Volume2, Clock, Loader2
 // M1: CONSTANTS & CONFIG
 // ============================================================================
 const APP_VERSION = {
-  major: 1, minor: 196, hotfix: 'Chatgpt_1.196',
+  major: 1, minor: 197, hotfix: 'Chatgpt_1.197',
   short() { return `${this.major}.${this.minor}`; },
   toString() { return `OTONOM Chatgpt_${this.major}.${this.minor}`; },
   toBadge() { return `${this.toString()} • One-Page`; }
@@ -1415,6 +1434,7 @@ const collectUltimateCoverReferences = async (jobState) => {
 const useDebounce = (value, delay = 300) => { const [debounced, setDebounced] = useState(value); useEffect(() => { const timer = setTimeout(() => setDebounced(value), delay); return () => clearTimeout(timer); }, [value, delay]); return debounced; };
 
 const FIX_CHECKLIST = Object.freeze([
+  { version: '1.197', key: 'TTS_DAILY_QUOTA_LEDGER_AND_FAIL_FAST', text: 'Kullanıcı canlı logu (00:20-00:23) + probe-v197-429body: TTS 429-lar GÜNLÜK kota — 429 gövdesi quotaId GenerateRequestsPerDayPerProjectPerModel-FreeTier, quotaValue 10 (ücretsiz katmanda model başına 10 istek/GÜN), retryDelay 33699s (~9 sa 21 dk; gece yarısı Pasifik ~10:00 TR yenilenir). Dünkü çoklu koşular 3×10=30 istek/gün bütçesini tüketti; 30 sn toparlanma penceresi beyhudeler. Düzeltme: (1) fetchWithRetry son 429-da gövdeden retryDelay okur, HTTP_FAIL_429;retryDelay=Xs;perDay=1 fırlatır. (2) generateAudio günlük sinyalde modeli TTS GÜNLÜK KOTA DEFTERİNE yazar (localStorage ns_ttsQuotaLedger, anahtar parmak iziyle bağlı; anahtar değişince geçersiz) ve BEKLEMEDEN sonraki canlı modele geçer (her modelin günlük kotası ayrı); tüm modeller gün-bitikse istek hiç açılmadan dürüst hata + null. (3) İş akışı BAŞLANGIÇ kapısı: ses isteyen video koşusunda defterde tüm modeller gün-bitikse koşu analiz/görsel kotası yakılmadan dürüst hatayla durur. (4) RPM penceresi (≤5 dk) için 3/6 sn + 30 sn toparlanma korunur; 30 sn denemesi gün-biti modelleri atlayıp canlı modeli seçer. Fail-closed aynen: sessiz atlama yok. Kanıt: probe-v197-429body, npx vite build ✓.' },
   { version: '1.196', key: 'TTS_QUOTA_WINDOW_RECOVERY', text: 'Kullanıcı FAILED raporu: "Son Söz seslendirmesi üretilemedi; video render durduruldu". Kök neden kanıtla: koşu Son Söz-e kadar geldi (önceki analiz/görsel/sahne TTS-leri başarılı) = gateway sağlıklı; 3 dk sonra probe-v196-tts üç TTS modelini de PASS etti (178/148/141 KB) = model/kota o anda dip değil. Arıza penceresi: RPM kota dibi — Son Söz koşunun SON TTS-i olduğu için 6 hızlı deneme (fetchWithRetry iç bekleme ~1-2 sn + model zinciri arası 0 sn) aynı dakika penceresinde 429-a çarptı; fetchWithRetry tükenen 429-u generic "tüm denemeler başarısız" olarak yutuyordu. Düzeltme: (1) generateAudio denemeler arası 3/6 sn bekleme; HTTP 429 sinyalinde 30 sn bekleyip 4. kota toparlanma denemesi (fail-closed korunur — o da düşerse null → Son Söz fail-stop aynen). (2) fetchWithRetry lastStatus korur: tükenen 429/5xx penceresinde HTTP_FAIL_429 fırlatır (bilgi kaybı kapanır); 401/403/404 davranışı aynen. (3) Boş TTS yanıtında finishReason/blockReason/model tanı logu (v1.188 deseni). Fail-closed ilkesi, sessiz atlama yine yok. Kanıt: probe-v196-tts (3× PASS), npx vite build ✓.' },
   { version: '1.195', key: 'PONYTAIL_AUDIT_TEN_FIXES', text: 'Kullanıcı onayı ("hepsini sırasıyla yap"): ponytail-audit bulgularının 10\'u da uygulandı. (1) MUST media TTS fail-closed: boş Gemini ses yanıtı HTTP 502 + attempts kanıtı; ok:true+audio:null sessiz düşüşü kaldırıldı. (2) MUST media readJson 50 MB üstünde reject+destroy+return (analysis ile birebir; bellek şişmesi fix). (3) SHOULD ölü kök kopya haber_saas_sistemiii.tsx (2.49 MB, hiçbir referans yok) git rm; README canlı kodu (web/src/App.tsx) ve start komutlarını tarif eder. (4) SHOULD ölü localhost:3457: _readOtonomRuntimeBackendCandidates son adayı, GAZETE_PROXY_ENDPOINTS ölü sabiti + OTONOM_BACKEND/OTONOM_BACKEND_CANDIDATES kullanılmayan sabitler ve _fetchPhotoDataUrl proxy adayı silindi; boş aday listesi fetchViaOtonomGazeteBackend guard\u0029ıyla dürüst "backend yok" der. (5) SHOULD veri yollarında ErrorHandler.silent → ErrorHandler.log: _flushJobState, clearJob, saveMusicToLib yerel+gateway, migrateLegacyMusicLibraries, getMusicFromLib yerel+gateway, removeMusicFromLib yerel+gateway, hydrateManualGazeteCovers — arızalar artık sistem günlüğünde. (6) SHOULD CORS allowlist: gateway/analysis/media yalnız .env CORS_ORIGIN kökenlerini yankılar (varsayılan http://localhost:5173,http://127.0.0.1:5173); izinsiz köken ACAO almaz → drive-by kota tüketimi kapanır; gateway\u0029de send() tek noktadan eski ACAO\u0029yu siler. (7) NICE package.json 1.195.0 + README APP_VERSION senkron. (8) NICE scripts/test-services.mjs 11 ışın smoke test (health/404/400/CORS izin-izinli/413; test portları 4301-4303, kota harcamaz). (9) NICE spawn-all çökmede 3 sn × 3 sınırlı yeniden başlatma + tükenme logu. (10) NICE MAX_BODY_BYTES ortak sabit (.env; varsayılan 100 MB, üç servis). YORUMLA/gazete/render/cache/recorder AYNEN. Kanıt: node --check ×3, node scripts/test-services.mjs 11/11 PASS, npx vite build ✓.' },
   { version: '1.194', key: 'GAZETE_HEADLINE_READ_THEN_SPEAK', text: 'Kullanıcı talebi: gazete akışında başlıklar okunurken iki ayrı başlık tek bozuk cümleye bağlanıyor ve içerik uyduruluyor. Kök neden: analyzeContentForImage şeması gazeteBasliklari ister ama prompt başlık çıkarma kuralı içermiyordu; spokenText (baslik + aciklama) birebir birleştiriliyordu. Düzeltme: (1) sysPrompta GAZETE BAŞLIK OKUMA VE SESLENDİRME KURALLARI eklendi — önce oku (harfiyen, tek başlık/madde, iki başlığı birleştirme yasak), sonra anla ve seslendir; skor/rakam/isim birebir; kesik başlıkta uydurma yasak; aciklama yalnız görselde yazan spotla sınırlı, yoksa boş. (2) Medya parça metnine gazete kuralı atfı. (3) spokenText birleştirmesi normalize edildi (boşluk/nokta temizliği; boş açıklamada yalnız başlık). (4) Karşılaştırma manşet okuma promptuna her başlık TEK madde eklendi. YORUMLA/elle-kapak/cache/recorder aynen. Kanıt: npx vite build.' },
@@ -2555,7 +2575,22 @@ const NetworkUtils = {
           addSystemLog('Gemini API HTTP 401: yetkilendirme reddedildi. Otomatik tekrar yapılmayacak; API anahtarı/proje erişimi kontrol edilmeli. Anahtar loglanmadı.', 'error');
           throw new Error('HTTP_FAIL_401: Gemini API yetkilendirmesi reddedildi. API anahtarının geçerliliğini ve doğru proje/API erişimini kontrol edin.');
         }
-        if (res.status === 429 || res.status >= 500) { lastStatus = res.status; armOtonomNextVideoApiCooldown(`HTTP ${res.status} yanıtı`); addSystemLog(`Yavaşlık (HTTP ${res.status}). Yeniden deneme (${i + 1}/${retries}) - ${(totalDelay / 1000).toFixed(1)}sn...`, "warn"); await new Promise(r => setTimeout(r, totalDelay)); continue; }
+        if (res.status === 429 || res.status >= 500) {
+          lastStatus = res.status;
+          armOtonomNextVideoApiCooldown(`HTTP ${res.status} yanıtı`);
+          if (res.status === 429 && i === retries - 1) {
+            // v1.197: 429 gövdesi RetryInfo.retryDelay taşır (kanıt: probe-v197-429body —
+            // günlük kota için 33699s); son denemede gövde okunup durum bilgi kaybı
+            // olmadan fırlatılır → çağıran RPM/günlük ayrımı yapabilir.
+            let retryDelaySec = 0;
+            try { retryDelaySec = Number(/"retryDelay":\s*"(\d+(?:\.\d+)?)s"/.exec(await res.text())?.[1] || 0); } catch (e) {}
+            const perDayTag = retryDelaySec > 300 ? ';perDay=1' : '';
+            throw new Error(`HTTP_FAIL_429;retryDelay=${retryDelaySec}s${perDayTag}: fetchWithRetry denemeleri tükendi (son durum 429${retryDelaySec ? `, kota penceresi ${Math.max(1, Math.round(retryDelaySec / 60))} dk` : ''}).`);
+          }
+          addSystemLog(`Yavaşlık (HTTP ${res.status}). Yeniden deneme (${i + 1}/${retries}) - ${(totalDelay / 1000).toFixed(1)}sn...`, "warn");
+          await new Promise(r => setTimeout(r, totalDelay));
+          continue;
+        }
         throw new Error(`HTTP Error ${res.status}`);
       } catch (err) {
         if (err.message.startsWith('HTTP_FAIL_')) throw err;
@@ -5545,6 +5580,44 @@ Return ONLY the translated quote. No labels, no explanation.
 // ============================================================================
 // M6: MEDIA SYNTHESIS
 // ============================================================================
+// v1.197: TTS GÜNLÜK KOTA DEFTERİ — ücretsiz katmanda TTS kotası model başına
+// 10 istek/GÜN'dür (kanıt: probe-v197-429body — quotaId
+// GenerateRequestsPerDayPerProjectPerModel-FreeTier, quotaValue "10",
+// retryDelay "33699s" ≈ 9 sa 21 dk; gece yarısı Pasifik ≈ ~10:00 TR'de yenilenir).
+// Gün-biti penceresinde bekleyerek toparlanamaz; defter sayesinde (1) zincir
+// gün-biti modeli BOŞA isteğe açılmaz, (2) bütün modeller döndüyse istek hiç
+// açılmadan dürüst null/error döner, (3) iş akışı BAŞINDA mahkûm koşu
+// analiz/görsel kotası yakılmadan durdurulur. Anahtar değişirse (fp farklı)
+// defter otomatik geçersiz olur.
+const TTS_MODEL_CHAIN = ['gemini-3.1-flash-tts-preview', 'gemini-3.8-flash-tts', 'gemini-3.8-flash-lite-tts'];
+const TTS_QUOTA_LEDGER_KEY = 'ns_ttsQuotaLedger';
+const _ttsDayDead = { models: {} }; // model -> untilMs (bellek içi ayna)
+const _ttsKeyFingerprint = () => { try { return String(apiKey || '').slice(0, 8) || 'none'; } catch (e) { return 'none'; } };
+const _ttsMarkDayDead = (model, untilMs) => {
+  _ttsDayDead.models[model] = untilMs;
+  try { SafeStorage.setItem(TTS_QUOTA_LEDGER_KEY, JSON.stringify({ fp: _ttsKeyFingerprint(), models: _ttsDayDead.models })); } catch (e) {}
+};
+const _ttsDayDeadUntil = model => {
+  const now = Date.now();
+  if (_ttsDayDead.models[model] > now) return _ttsDayDead.models[model];
+  try {
+    const parsed = SafeStorage.getItem(TTS_QUOTA_LEDGER_KEY) ? JSON.parse(SafeStorage.getItem(TTS_QUOTA_LEDGER_KEY)) : null;
+    if (parsed?.fp === _ttsKeyFingerprint() && parsed?.models?.[model] > now) {
+      _ttsDayDead.models[model] = parsed.models[model];
+      return parsed.models[model];
+    }
+  } catch (e) {}
+  return 0;
+};
+const _ttsAllModelsDayDead = () => TTS_MODEL_CHAIN.every(m => _ttsDayDeadUntil(m) > Date.now());
+const _ttsQuotaInfoFromError = message => {
+  const m = /retryDelay=(\d+(?:\.\d+)?)s/.exec(String(message || ''));
+  if (!m) return null;
+  const retryDelaySec = Number(m[1]);
+  return { retryDelaySec, perDay: retryDelaySec > 300 }; // >5 dk pencere = günlük kota
+};
+const _ttsFormatRenewal = untilMs => { try { return new Date(untilMs).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }); } catch (e) { return String(untilMs); } };
+
 class MediaSynthesisService {
   // Sıfır maliyet görsel yedeği: Wikipedia (tr) sayfa görseli + Commons bitmap araması.
   // AI görsel kotası bittiğinde devreye girer; anahtar/faturalandırma gerektirmez.
@@ -5738,19 +5811,33 @@ class MediaSynthesisService {
     // null dönüyordu ve Son Söz fail-stop tetikleniyordu. Güncel zincir gerçek istekle
     // doğrulandı: 3.1-flash-tts-preview → OK 77KB, 3.8-flash-tts → OK 73KB,
     // 3.8-flash-lite-tts → OK 70KB (hepsi ücretsiz katmanda ses üretti).
-    const TTS_MODELS = ['gemini-3.1-flash-tts-preview', 'gemini-3.8-flash-tts', 'gemini-3.8-flash-lite-tts'];
-    // v1.196: kota toparlanma zinciri — FAILED koşusunda Son Söz 6 hızlı denemede
-    // düştü (RPM 429 penceresi ~60 sn; fetchWithRetry yalnız ~1-2 sn bekliyordu),
-    // 3 dk sonraki probe-v196-tts üç modeli de PASS etti → kota penceresi kanıtı.
-    // Artık: denemeler arası 3/6 sn bekleme + HTTP 429 sinyalinde 30 sn bekleyip
-    // 4. (son) deneme. Fail-closed korunur: toparlanma denemesi de düşerse null.
+    // v1.196/v1.197: kota farkında deneme zinciri. v1.196: denemeler arası 3/6 sn
+    // bekleme + 429'da 30 sn toparlanma denemesi. v1.197: 429 gövdesindeki
+    // retryDelay okunur; günlük kota (>5 dk pencere) sinyalinde model deftere
+    // "gün-biti" yazılır, BEKLEME YAPILMADAN sonraki canlı modele geçilir; tüm
+    // modeller gün-bitikse istek hiç açılmadan dürüst null döner (fail-closed).
     const TTS_QUOTA_RECOVERY_ATTEMPT = 3;
     const maxRetries = 2;
     let sawQuota = false;
+    const triedModels = new Set();
+    // v1.197 giriş kapısı: bütün modeller gün-biti defterindeyse hiç istek açma.
+    if (TTS_MODEL_CHAIN.every(m => _ttsDayDeadUntil(m) > Date.now())) {
+      const untilMs = Math.max(...TTS_MODEL_CHAIN.map(m => _ttsDayDeadUntil(m)));
+      addSystemLog(`TTS günlük ücretsiz kotası tüm modellerde dolu (ücretsiz katman: model başına 10 istek/gün); kota ~${_ttsFormatRenewal(untilMs)} (TR) yenilenir. Boşa istek açılmadı.`, 'error');
+      return null;
+    }
+    const pickLiveModel = startOffset => {
+      for (let k = 0; k < TTS_MODEL_CHAIN.length; k++) {
+        const candidate = TTS_MODEL_CHAIN[(startOffset + k) % TTS_MODEL_CHAIN.length];
+        if (!triedModels.has(candidate) && _ttsDayDeadUntil(candidate) <= Date.now()) { triedModels.add(candidate); return candidate; }
+      }
+      return null;
+    };
     for (let attempt = 0; attempt <= maxRetries + 1; attempt++) {
       const isQuotaRecoveryAttempt = attempt === TTS_QUOTA_RECOVERY_ATTEMPT;
       if (isQuotaRecoveryAttempt && !sawQuota) break;
-      const model = TTS_MODELS[attempt % TTS_MODELS.length];
+      const model = pickLiveModel(isQuotaRecoveryAttempt ? 0 : attempt);
+      if (!model) { addSystemLog('TTS: denenebilir canlı model kalmadı; zincir durduruldu.', 'warn'); break; }
       if (attempt > 0) {
         const delayMs = isQuotaRecoveryAttempt ? 30000 : (attempt === maxRetries ? 6000 : 3000);
         addSystemLog(`TTS ${Math.round(delayMs / 1000)} sn bekleniyor${isQuotaRecoveryAttempt ? ' (kota penceresi toparlansın)' : ''}...`, isQuotaRecoveryAttempt ? 'warn' : 'info');
@@ -5853,11 +5940,27 @@ class MediaSynthesisService {
           addSystemLog(`TTS durduruldu: Gemini HTTP ${String(e.message).match(/^HTTP_FAIL_(401|403)/)?.[1]} yetkilendirme hatası. Ek TTS denemeleri yapılmayacak.`, 'error');
           throw new Error(`GEMINI_AUTH_FAILED: TTS yetkilendirmesi reddedildi. ${e.message}`);
         }
-        if (/HTTP_FAIL_429|HTTP Error 429/.test(String(e?.message || e))) sawQuota = true;
+        if (/HTTP_FAIL_429|HTTP Error 429/.test(String(e?.message || e))) {
+          sawQuota = true;
+          const quotaInfo = _ttsQuotaInfoFromError(e?.message);
+          if (quotaInfo?.perDay) {
+            // v1.197: günlük kota penceresi (saatler) — beklemek beyhude; deftere
+            // yaz ve sonraki CANLI modele geç (her modelin günlük kotası ayrıdır).
+            const untilMs = Date.now() + Math.min(quotaInfo.retryDelaySec, 86400) * 1000;
+            _ttsMarkDayDead(model, untilMs);
+            addSystemLog(`TTS ${model} GÜNLÜK kotası doldu (ücretsiz katman: model başına 10 istek/gün); kota ~${_ttsFormatRenewal(untilMs)} (TR) yenilenir — beklemeden sonraki model deneniyor.`, 'error');
+            continue;
+          }
+        }
         addSystemLog(`TTS deneme ${attempt + 1} hatası: ${e.message}`, 'warn');
       }
     }
-    addSystemLog('TTS tüm denemeler başarısız.', 'error');
+    if (TTS_MODEL_CHAIN.every(m => _ttsDayDeadUntil(m) > Date.now())) {
+      const untilMs = Math.max(...TTS_MODEL_CHAIN.map(m => _ttsDayDeadUntil(m)));
+      addSystemLog(`TTS günlük ücretsiz kotası TÜM modellerde doldu (ücretsiz katman: model başına 10 istek/gün); kota ~${_ttsFormatRenewal(untilMs)} (TR) yenilenir. Bu pencerede ses üretimi yapılamaz.`, 'error');
+    } else {
+      addSystemLog('TTS tüm denemeler başarısız.', 'error');
+    }
     return null;
   }
 }
@@ -11508,6 +11611,20 @@ export default function App() {
         const targetFiles = files || uiState.selectedMediaFiles;
         if (targetFiles && targetFiles.length > 0) { inputData = targetFiles; inputType = 'media'; }
         else throw new Error("En az bir dosya seçin.");
+      }
+      // v1.197: TTS günlük kota kapısı — tüm TTS modellerinin ücretsiz günlük kotası
+      // (model başına 10 istek/gün; kanıt: probe-v197-429body) dolduysa koşuyu
+      // BAŞTAN dürüstçe durdur: analiz/görsel kotası ve dakikalar boşa yakılmaz.
+      // Kota defteri anahtar parmak iziyle bağlıdır; anahtar değişince geçersizleşir.
+      if (
+        outType === 'video' &&
+        String(prefs?.narratorVoice || '') !== 'none' &&
+        runConfig.tip !== 'guzel_soz' &&
+        !runConfig._muteNarration &&
+        _ttsAllModelsDayDead()
+      ) {
+        const untilMs = Math.max(...TTS_MODEL_CHAIN.map(m => _ttsDayDeadUntil(m)));
+        throw new Error(`TTS günlük ücretsiz kotası tüm modellerde dolu (ücretsiz katman: model başına 10 istek/gün); kota ~${_ttsFormatRenewal(untilMs)} (TR) yenilenir. Video üretimi başlatılmadı — fail-closed, boşa kota yakma yok.`);
       }
       await workflowRef.current.startWorkflow(inputData, inputType, runConfig, prefs, canvasRef);
       return workflowRef.current?.state?.status === 'COMPLETED';
