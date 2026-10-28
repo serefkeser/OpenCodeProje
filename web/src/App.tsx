@@ -1,6 +1,19 @@
 // ============================================================================
-// OTONOM Chatgpt_1.195 — SÜRÜM BAŞLIĞI (her değişiklikte burayı, APP_VERSION'ı ve SÜRÜM NOTLARI'nı birlikte artır)
+// OTONOM Chatgpt_1.196 — SÜRÜM BAŞLIĞI (her değişiklikte burayı, APP_VERSION'ı ve SÜRÜM NOTLARI'nı birlikte artır)
 // Program menüsündeki rozet APP_VERSION.toBadge() ile bu sürümden otomatik üretilir.
+// v1.196 ÖZET: Kullanıcı FAILED raporu — "Son Söz seslendirmesi üretilemedi; video
+// render durduruldu". Kök neden (kanıt: koşu Son Söz'e kadar geldi = önceki analiz/
+// görsel/sahne TTS'leri başarılı; 3 dk sonraki probe-v196-tts üç TTS modelini de
+// PASS etti 178/148/141 KB): RPM kota penceresi — koşunun SON TTS'i kota dibinde
+// 6 HIZLI denemede (fetchWithRetry iç bekleme ~1-2 sn + zincir arası bekleme 0)
+// 429'a çarpıp düştü; generic 'tüm denemeler başarısız' mesajı 429 durumunu
+// yutuyordu. Düzeltme: (1) generateAudio denemeler arası 3/6 sn bekleme + HTTP 429
+// sinyalinde 30 sn bekleyip 4. kota toparlanma denemesi (fail-closed korunur:
+// o da düşerse null → Son Söz fail-stop aynen). (2) fetchWithRetry tükenen
+// 429/5xx penceresinde son durumu korur (HTTP_FAIL_429) — bilgi kaybı kapanır;
+// mevcut HTTP_FAIL_401/403/404 davranışı aynen. (3) Boş TTS yanıtında
+// finishReason/blockReason tanı logu (v1.188 deseni). YORUMLA/gazete/render/
+// cache/recorder aynen. Kanıt: probe-v196-tts (3× PASS), npx vite build ✓.
 // v1.195 ÖZET: PONYTAIL-AUDIT düzeltmeleri (kullanıcı "hepsini sırasıyla yap" dedi).
 // Audit tüm repoyu denetledi; 2 MUST + 4 SHOULD + 4 NICE bulgunun 10'u da uygulandı:
 // (1) MUST media TTS fail-closed: boş Gemini ses yanıtı artık HTTP 502 (eski davranış
@@ -305,7 +318,7 @@ const { Download, RotateCcw, UploadCloud, Music, Trash2, Volume2, Clock, Loader2
 // M1: CONSTANTS & CONFIG
 // ============================================================================
 const APP_VERSION = {
-  major: 1, minor: 195, hotfix: 'Chatgpt_1.195',
+  major: 1, minor: 196, hotfix: 'Chatgpt_1.196',
   short() { return `${this.major}.${this.minor}`; },
   toString() { return `OTONOM Chatgpt_${this.major}.${this.minor}`; },
   toBadge() { return `${this.toString()} • One-Page`; }
@@ -1402,6 +1415,7 @@ const collectUltimateCoverReferences = async (jobState) => {
 const useDebounce = (value, delay = 300) => { const [debounced, setDebounced] = useState(value); useEffect(() => { const timer = setTimeout(() => setDebounced(value), delay); return () => clearTimeout(timer); }, [value, delay]); return debounced; };
 
 const FIX_CHECKLIST = Object.freeze([
+  { version: '1.196', key: 'TTS_QUOTA_WINDOW_RECOVERY', text: 'Kullanıcı FAILED raporu: "Son Söz seslendirmesi üretilemedi; video render durduruldu". Kök neden kanıtla: koşu Son Söz-e kadar geldi (önceki analiz/görsel/sahne TTS-leri başarılı) = gateway sağlıklı; 3 dk sonra probe-v196-tts üç TTS modelini de PASS etti (178/148/141 KB) = model/kota o anda dip değil. Arıza penceresi: RPM kota dibi — Son Söz koşunun SON TTS-i olduğu için 6 hızlı deneme (fetchWithRetry iç bekleme ~1-2 sn + model zinciri arası 0 sn) aynı dakika penceresinde 429-a çarptı; fetchWithRetry tükenen 429-u generic "tüm denemeler başarısız" olarak yutuyordu. Düzeltme: (1) generateAudio denemeler arası 3/6 sn bekleme; HTTP 429 sinyalinde 30 sn bekleyip 4. kota toparlanma denemesi (fail-closed korunur — o da düşerse null → Son Söz fail-stop aynen). (2) fetchWithRetry lastStatus korur: tükenen 429/5xx penceresinde HTTP_FAIL_429 fırlatır (bilgi kaybı kapanır); 401/403/404 davranışı aynen. (3) Boş TTS yanıtında finishReason/blockReason/model tanı logu (v1.188 deseni). Fail-closed ilkesi, sessiz atlama yine yok. Kanıt: probe-v196-tts (3× PASS), npx vite build ✓.' },
   { version: '1.195', key: 'PONYTAIL_AUDIT_TEN_FIXES', text: 'Kullanıcı onayı ("hepsini sırasıyla yap"): ponytail-audit bulgularının 10\'u da uygulandı. (1) MUST media TTS fail-closed: boş Gemini ses yanıtı HTTP 502 + attempts kanıtı; ok:true+audio:null sessiz düşüşü kaldırıldı. (2) MUST media readJson 50 MB üstünde reject+destroy+return (analysis ile birebir; bellek şişmesi fix). (3) SHOULD ölü kök kopya haber_saas_sistemiii.tsx (2.49 MB, hiçbir referans yok) git rm; README canlı kodu (web/src/App.tsx) ve start komutlarını tarif eder. (4) SHOULD ölü localhost:3457: _readOtonomRuntimeBackendCandidates son adayı, GAZETE_PROXY_ENDPOINTS ölü sabiti + OTONOM_BACKEND/OTONOM_BACKEND_CANDIDATES kullanılmayan sabitler ve _fetchPhotoDataUrl proxy adayı silindi; boş aday listesi fetchViaOtonomGazeteBackend guard\u0029ıyla dürüst "backend yok" der. (5) SHOULD veri yollarında ErrorHandler.silent → ErrorHandler.log: _flushJobState, clearJob, saveMusicToLib yerel+gateway, migrateLegacyMusicLibraries, getMusicFromLib yerel+gateway, removeMusicFromLib yerel+gateway, hydrateManualGazeteCovers — arızalar artık sistem günlüğünde. (6) SHOULD CORS allowlist: gateway/analysis/media yalnız .env CORS_ORIGIN kökenlerini yankılar (varsayılan http://localhost:5173,http://127.0.0.1:5173); izinsiz köken ACAO almaz → drive-by kota tüketimi kapanır; gateway\u0029de send() tek noktadan eski ACAO\u0029yu siler. (7) NICE package.json 1.195.0 + README APP_VERSION senkron. (8) NICE scripts/test-services.mjs 11 ışın smoke test (health/404/400/CORS izin-izinli/413; test portları 4301-4303, kota harcamaz). (9) NICE spawn-all çökmede 3 sn × 3 sınırlı yeniden başlatma + tükenme logu. (10) NICE MAX_BODY_BYTES ortak sabit (.env; varsayılan 100 MB, üç servis). YORUMLA/gazete/render/cache/recorder AYNEN. Kanıt: node --check ×3, node scripts/test-services.mjs 11/11 PASS, npx vite build ✓.' },
   { version: '1.194', key: 'GAZETE_HEADLINE_READ_THEN_SPEAK', text: 'Kullanıcı talebi: gazete akışında başlıklar okunurken iki ayrı başlık tek bozuk cümleye bağlanıyor ve içerik uyduruluyor. Kök neden: analyzeContentForImage şeması gazeteBasliklari ister ama prompt başlık çıkarma kuralı içermiyordu; spokenText (baslik + aciklama) birebir birleştiriliyordu. Düzeltme: (1) sysPrompta GAZETE BAŞLIK OKUMA VE SESLENDİRME KURALLARI eklendi — önce oku (harfiyen, tek başlık/madde, iki başlığı birleştirme yasak), sonra anla ve seslendir; skor/rakam/isim birebir; kesik başlıkta uydurma yasak; aciklama yalnız görselde yazan spotla sınırlı, yoksa boş. (2) Medya parça metnine gazete kuralı atfı. (3) spokenText birleştirmesi normalize edildi (boşluk/nokta temizliği; boş açıklamada yalnız başlık). (4) Karşılaştırma manşet okuma promptuna her başlık TEK madde eklendi. YORUMLA/elle-kapak/cache/recorder aynen. Kanıt: npx vite build.' },
   { version: '1.193', key: 'MANUAL_GAZETE_COVER_UPLOAD', text: 'Kullanıcı talebi: çekilemeyen gazetelere elle kapak yükleme + diğer gazeteler gibi akış. (1) Grid karta 3. ikon (UploadCloud, amber) + tekli görünümde Kapak Yükle butonu; tek gizli file input, hedef ad ref içinde. (2) handleManualGazeteCoverUpload: image/* + 8 KB min + 12 MB max doğrulama, NetworkUtils.compressImage (max 1080), IndexedDB persist AssetManagerService.saveMedia(GAZETE_MANUAL_<tarih>_<normalize-ad>) — GAZETE_CACHE localStorage dataURL yasağı AYNEN korunur. (3) applyManualGazeteCover doyurucu yoldan dataURL candidate headine girer (createGazeteVariants uzak URL patternini reddettiği için doğrudan apply; revision++, placeholder sona düşer) — tık-akışı (_gazeteImageLock), çift-karşılaştırma, Crop, Tam Sayfa Ekle kod değişikliği olmadan çalışır. (4) hydrateManualGazeteCovers buildGazeteCards sonrası IndexedDB-deki yazar; yenileme sonrası kapak geri gelir; kendi kendini revision-döngüsünden korur (manualCover + aynı src guard). (5) Dürüstlük: sources Elle/Yükleme + system log + amber buton; kapak kullanıcı beyanıdır, sistem kaynak-doğrulanmış demez. Kapak yüklendiği tarihe bağlanır. Fail-closed, fetch, cache LRU, recorder dokunmadı. Kanıt: npx vite build + canlı süreç (ports auto).' },
@@ -2525,6 +2539,7 @@ const clearOtonomNextVideoApiCooldownOnSuccess = () => {
 const NetworkUtils = {
   fetchWithRetry: async (url, options, retries = 5) => {
     const baseDelay = 1000; const maxDelay = 30000;
+    let lastStatus = 0; // v1.196: tükenen 429/5xx penceresi bilgi kaybına gidiyordu
     for (let i = 0; i < retries; i++) {
       const delay = Math.min(baseDelay * Math.pow(2, i), maxDelay);
       const jitter = Math.random() * 500; const totalDelay = delay + jitter;
@@ -2540,7 +2555,7 @@ const NetworkUtils = {
           addSystemLog('Gemini API HTTP 401: yetkilendirme reddedildi. Otomatik tekrar yapılmayacak; API anahtarı/proje erişimi kontrol edilmeli. Anahtar loglanmadı.', 'error');
           throw new Error('HTTP_FAIL_401: Gemini API yetkilendirmesi reddedildi. API anahtarının geçerliliğini ve doğru proje/API erişimini kontrol edin.');
         }
-        if (res.status === 429 || res.status >= 500) { armOtonomNextVideoApiCooldown(`HTTP ${res.status} yanıtı`); addSystemLog(`Yavaşlık (HTTP ${res.status}). Yeniden deneme (${i + 1}/${retries}) - ${(totalDelay / 1000).toFixed(1)}sn...`, "warn"); await new Promise(r => setTimeout(r, totalDelay)); continue; }
+        if (res.status === 429 || res.status >= 500) { lastStatus = res.status; armOtonomNextVideoApiCooldown(`HTTP ${res.status} yanıtı`); addSystemLog(`Yavaşlık (HTTP ${res.status}). Yeniden deneme (${i + 1}/${retries}) - ${(totalDelay / 1000).toFixed(1)}sn...`, "warn"); await new Promise(r => setTimeout(r, totalDelay)); continue; }
         throw new Error(`HTTP Error ${res.status}`);
       } catch (err) {
         if (err.message.startsWith('HTTP_FAIL_')) throw err;
@@ -2549,6 +2564,10 @@ const NetworkUtils = {
         await new Promise(r => setTimeout(r, totalDelay));
       }
     }
+    // v1.196: son durum korunur (ör. HTTP_FAIL_429) — çağıran kota toparlanma
+    // denemesini bu sinyalle kurar; eskiden generic 'tüm denemeler başarısız'
+    // iletisi 429/5xx ayrımını yutuyordu.
+    if (lastStatus) throw new Error(`HTTP_FAIL_${lastStatus}: fetchWithRetry denemeleri tükendi (son durum ${lastStatus}).`);
     throw new Error('fetchWithRetry: tüm denemeler başarısız');
   },
   loadImage: (src) => new Promise((resolve) => { if (!src) return resolve(null); if (typeof src !== 'string') { console.warn('loadImage: src string değil', typeof src); return resolve(null); } const img = new Image(); if (src.startsWith('http')) img.crossOrigin = "Anonymous"; img.onload = () => resolve(img); img.onerror = () => resolve(null); img.src = src; }),
@@ -5720,12 +5739,27 @@ class MediaSynthesisService {
     // doğrulandı: 3.1-flash-tts-preview → OK 77KB, 3.8-flash-tts → OK 73KB,
     // 3.8-flash-lite-tts → OK 70KB (hepsi ücretsiz katmanda ses üretti).
     const TTS_MODELS = ['gemini-3.1-flash-tts-preview', 'gemini-3.8-flash-tts', 'gemini-3.8-flash-lite-tts'];
+    // v1.196: kota toparlanma zinciri — FAILED koşusunda Son Söz 6 hızlı denemede
+    // düştü (RPM 429 penceresi ~60 sn; fetchWithRetry yalnız ~1-2 sn bekliyordu),
+    // 3 dk sonraki probe-v196-tts üç modeli de PASS etti → kota penceresi kanıtı.
+    // Artık: denemeler arası 3/6 sn bekleme + HTTP 429 sinyalinde 30 sn bekleyip
+    // 4. (son) deneme. Fail-closed korunur: toparlanma denemesi de düşerse null.
+    const TTS_QUOTA_RECOVERY_ATTEMPT = 3;
     const maxRetries = 2;
-    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    let sawQuota = false;
+    for (let attempt = 0; attempt <= maxRetries + 1; attempt++) {
+      const isQuotaRecoveryAttempt = attempt === TTS_QUOTA_RECOVERY_ATTEMPT;
+      if (isQuotaRecoveryAttempt && !sawQuota) break;
       const model = TTS_MODELS[attempt % TTS_MODELS.length];
+      if (attempt > 0) {
+        const delayMs = isQuotaRecoveryAttempt ? 30000 : (attempt === maxRetries ? 6000 : 3000);
+        addSystemLog(`TTS ${Math.round(delayMs / 1000)} sn bekleniyor${isQuotaRecoveryAttempt ? ' (kota penceresi toparlansın)' : ''}...`, isQuotaRecoveryAttempt ? 'warn' : 'info');
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+      }
       try {
         if (attempt === 0) addSystemLog(`Ses sentezleniyor (${voice} / ${model}): "${cleanText.substring(0, 40)}..."`, 'info');
-        else addSystemLog(`TTS deneme ${attempt + 1}/${maxRetries + 1} (model: ${model})...`, 'info');
+        else if (isQuotaRecoveryAttempt) addSystemLog(`TTS kota toparlanma denemesi (30 sn bekleme sonrası; model: ${model})...`, 'info');
+        else addSystemLog(`TTS deneme ${attempt + 1} (model: ${model})...`, 'info');
         const payload = { model, contents: [{ parts: [{ text: cleanText }] }], generationConfig: { responseModalities: ["AUDIO"], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } } } };
         const ttsController = new AbortController();
         const ttsTimeout = setTimeout(() => ttsController.abort(), 45000);
@@ -5736,11 +5770,17 @@ class MediaSynthesisService {
           if (ttsController.signal.aborted) throw new Error(`TTS API 45 sn içinde yanıt vermedi (${voice} / ${model}); yeniden deneme kuyruğuna geçiliyor.`);
           throw ttsError;
         } finally { clearTimeout(ttsTimeout); }
-        if (!r || !r.ok) { if (r) PerformanceTelemetry.finishResponse(r, null, false, `HTTP ${r.status}`); addSystemLog(`TTS API yanıt hatası (${model}): ${r?.status || 'undefined'}`, 'warn'); continue; }
+        if (!r || !r.ok) { if (r) PerformanceTelemetry.finishResponse(r, null, false, `HTTP ${r.status}`); if (r?.status === 429) sawQuota = true; addSystemLog(`TTS API yanıt hatası (${model}): ${r?.status || 'undefined'}`, 'warn'); continue; }
         const d = await r.json();
         PerformanceTelemetry.finishResponse(r, d, r.ok);
         const b64Data = d.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-        if (!b64Data) { addSystemLog('TTS API boş ses döndürdü.', 'warn'); continue; }
+        if (!b64Data) {
+          // v1.196: boş yanıt kök nedeni görünür olsun (v1.188 tanı deseni).
+          const finishReason = d?.candidates?.[0]?.finishReason || 'belirtilmedi';
+          const blockReason = d?.promptFeedback?.blockReason || d?.candidates?.[0]?.content?.blockedReason || '';
+          addSystemLog(`TTS API boş ses döndürdü (finishReason: ${finishReason}${blockReason ? `, blockReason: ${blockReason}` : ''}, model: ${model}) — sonraki deneme.`, 'warn');
+          continue;
+        }
         let sampleRate = 24000;
         const binaryStr = atob(b64Data);
         const pcmBytes = new Uint8Array(binaryStr.length);
@@ -5813,10 +5853,11 @@ class MediaSynthesisService {
           addSystemLog(`TTS durduruldu: Gemini HTTP ${String(e.message).match(/^HTTP_FAIL_(401|403)/)?.[1]} yetkilendirme hatası. Ek TTS denemeleri yapılmayacak.`, 'error');
           throw new Error(`GEMINI_AUTH_FAILED: TTS yetkilendirmesi reddedildi. ${e.message}`);
         }
+        if (/HTTP_FAIL_429|HTTP Error 429/.test(String(e?.message || e))) sawQuota = true;
         addSystemLog(`TTS deneme ${attempt + 1} hatası: ${e.message}`, 'warn');
-        if (attempt === maxRetries) { addSystemLog('TTS tüm denemeler başarısız.', 'error'); return null; }
       }
     }
+    addSystemLog('TTS tüm denemeler başarısız.', 'error');
     return null;
   }
 }

@@ -46,14 +46,20 @@ Not: .env anahtarlar ASLA repoya yazılmaz.
 
 ---
 
-## DEVAM HATTI — yarın kaldığımız yerden (güncellendi: 28 Ekim v1.195)
+## DEVAM HATTI — yarın kaldığımız yerden (güncellendi: 28 Ekim v1.196)
 
-**Son sürüm:** v1.195 — PONYTAIL-AUDIT: 10 düzeltme uygulandı (2 MUST + 4 SHOULD +
-4 NICE): media TTS fail-closed (502), readJson destroy, ölü haber_saas_sistemiii.tsx
-silindi + README canlı kodu tarif ediyor, App.tsx ölü 3457 adayları/ölü sabitler
-kaldırıldı, veri yollarında silent→log, üç serviste CORS allowlist (CORS_ORIGIN),
-package.json/README sürüm senkronu, scripts/test-services.mjs (11/11 PASS),
-spawn-all sınırlı yeniden başlatma, MAX_BODY_BYTES ortak sabit. Öncesinde v1.194
+**Son sürüm:** v1.196 — SON SÖZ TTS KOTA TOPARLANMASI: kullanıcı FAILED raporu
+("Son Söz seslendirmesi üretilemedi") kök nedeni kanıtla çözüldü — RPM kota
+penceresi (probe-v196-tts 3 dk sonra 3 model de PASS); generateAudio artık
+denemeler arası 3/6 sn + 429'da 30 sn bekleyip 4. toparlanma denemesi yapıyor
+(fail-closed aynen); fetchWithRetry HTTP_FAIL_429 durumunu koruyor; boş yanıtta
+finishReason tanı logu. Öncesinde v1.195 (`b6f7f41`) — PONYTAIL-AUDIT: 10 düzeltme
+(2 MUST + 4 SHOULD + 4 NICE): media TTS fail-closed (502), readJson destroy, ölü
+haber_saas_sistemiii.tsx silindi + README canlı kodu tarif ediyor, App.tsx ölü
+3457 adayları/ölü sabitler kaldırıldı, veri yollarında silent→log, üç serviste
+CORS allowlist (CORS_ORIGIN), package.json/README sürüm senkronu,
+scripts/test-services.mjs (11/11 PASS), spawn-all sınırlı yeniden başlatma,
+MAX_BODY_BYTES ortak sabit. Öncesinde v1.194
 (`c7a6cae`) — BAŞLIK OKUMA/SESLENDİRME: gazete tıklama akışında
 analyzeContentForImage prompt'una "önce oku (harfiyen, tek başlık/madde) → anla →
 seslendir" kuralları; skor/rakam birebir; uydurma yasak; spokenText birleştirmesi

@@ -10,6 +10,13 @@ Kesin sürüm referansı `web/src/App.tsx` içinde `APP_VERSION`; burası insan-
 
 ---
 
+## v1.196 — (28 Ekim 2026, BUGFIX: SON SÖZ TTS KOTA TOPARLANMASI)
+**Kullanıcı FAILED raporu: "Son Söz seslendirmesi üretilemedi; video render durduruldu."**
+
+- **Kök neden (kanıt):** koşu Son Söz'e kadar geldi → önceki tüm TTS/analiz/görsel çağrıları başarılı, gateway sağlıklı; 3 dk sonra `probe-v196-tts` üç TTS modelini de PASS etti (178/148/141 KB) → arıza penceresi RPM kota dibi. Son Söz koşunun **son** TTS'i olduğu için 6 hızlı deneme (fetchWithRetry iç bekleme ~1-2 sn + zincir arası 0 sn) aynı dakika penceresinde 429'a çarptı; generic hata mesajı 429 durumunu yutuyordu.
+- **Düzeltme:** (1) `generateAudio` denemeler arası 3/6 sn bekleme + 429 sinyalinde 30 sn bekleyip 4. toparlanma denemesi; (2) `fetchWithRetry` tükenen 429/5xx penceresinde son durumu korur (`HTTP_FAIL_429`) — bilgi kaybı kapanır; (3) boş TTS yanıtında finishReason/blockReason tanı logu. **Fail-closed aynen:** toparlanma da düşerse Son Söz yine dürüstçe fail-stop yapar.
+- **Kanıt:** probe-v196-tts (3× PASS), `npx vite build` ✓.
+
 ## v1.195 — (28 Ekim 2026, PONYTAIL-AUDIT: 10 DÜZELTME)
 **Kullanıcı onayı: audit bulgularının hepsi sırasıyla uygulandı (2 MUST + 4 SHOULD + 4 NICE).**
 
