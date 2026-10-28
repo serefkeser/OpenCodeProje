@@ -1,13 +1,15 @@
 // ============================================================================
-// OTONOM v1.172 — ANALYSIS MİKRO SERVİS (port: ANALYSIS_PORT / 4201)
+// OTONOM v1.195 — ANALYSIS MİKRO SERVİS (port: ANALYSIS_PORT / 4201)
 // Sorumluluk: Metin + görsel analiz. Provider zinciri:
 //   OpenRouter → Groq → NVIDIA → Gemini. Modeller .env'den okunur.
 // Uç noktalar: POST /api/analysis/text, POST /api/analysis/vision, GET /health
+// v1.195: CORS allowlist (CORS_ORIGIN) + gövde sınırı MAX_BODY_BYTES.
 // ============================================================================
 import { createServer } from 'node:http';
 
 const PORT = Number(process.env.ANALYSIS_PORT || 4201);
 const HOST = process.env.HOST || '127.0.0.1';
+const MAX_BODY_BYTES = Number(process.env.MAX_BODY_BYTES || 100e6);
 const OPENROUTER_API_KEY = String(process.env.OPENROUTER_API_KEY || '');
 const GROQ_API_KEY = String(process.env.GROQ_API_KEY || '');
 const NVIDIA_API_KEY = String(process.env.NVIDIA_API_KEY || '');
@@ -19,21 +21,30 @@ const MODELS = {
   gemini: { text: 'gemini-2.5-flash' },
 };
 
-const CORS_HEADERS = {
-  'access-control-allow-origin': '*',
+const CORS_BASE_HEADERS = {
   'access-control-allow-methods': 'GET, POST, OPTIONS',
   'access-control-allow-headers': 'content-type, accept',
 };
+// v1.195: CORS allowlist — yalnız güvenilen yerel kökenler yankılanır; izinsiz
+// köken ACAO almaz (drive-by kota tüketimine karşı, media servisiyle aynı kurallar).
+const CORS_ALLOWED_ORIGINS = String(process.env.CORS_ORIGIN || 'http://localhost:5173,http://127.0.0.1:5173')
+  .split(',').map(s => s.trim()).filter(Boolean);
+const corsHeaders = request => {
+  const origin = String(request?.headers?.origin || '');
+  return (origin && CORS_ALLOWED_ORIGINS.includes(origin))
+    ? { ...CORS_BASE_HEADERS, 'access-control-allow-origin': origin }
+    : { ...CORS_BASE_HEADERS };
+};
 
-const writeJson = (status, nodeResponse, body) => {
-  nodeResponse.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', ...CORS_HEADERS });
+const writeJson = (status, nodeResponse, body, request) => {
+  nodeResponse.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', ...corsHeaders(request) });
   nodeResponse.end(JSON.stringify(body));
 };
 
 const readJson = request => new Promise((resolve, reject) => {
   const chunks = [];
   let size = 0;
-  request.on('data', c => { size += c.length; if (size > 50e6) { reject(Object.assign(new Error('REQUEST_TOO_LARGE'), { status: 413 })); request.destroy(); return; } chunks.push(c); });
+  request.on('data', c => { size += c.length; if (size > MAX_BODY_BYTES) { reject(Object.assign(new Error('REQUEST_TOO_LARGE'), { status: 413 })); request.destroy(); return; } chunks.push(c); });
   request.on('end', () => {
     try { resolve(chunks.length ? JSON.parse(Buffer.concat(chunks).toString('utf8')) : {}); }
     catch (e) { reject(Object.assign(new Error('INVALID_JSON'), { status: 400 })); }
@@ -119,12 +130,12 @@ const runChain = async (key, args) => {
 
 const server = createServer(async (request, response) => {
   try {
-    if (request.method === 'OPTIONS') return response.writeHead(204, CORS_HEADERS).end();
+    if (request.method === 'OPTIONS') return response.writeHead(204, corsHeaders(request)).end();
     if (request.url === '/health' && request.method === 'GET') {
       return writeJson(200, response, {
         ok: true, service: 'analysis', models: MODELS,
         keys: { openrouter: Boolean(OPENROUTER_API_KEY), groq: Boolean(GROQ_API_KEY), nvidia: Boolean(NVIDIA_API_KEY), gemini: Boolean(GEMINI_API_KEY) },
-      });
+      }, request);
     }
     const isText = request.url === '/api/analysis/text';
     const isVision = request.url === '/api/analysis/vision';
@@ -138,14 +149,14 @@ const server = createServer(async (request, response) => {
         maxTokens: body.maxTokens,
         model: body.model,
       };
-      if (!args.prompt) return writeJson(400, response, { ok: false, code: 'PROMPT_REQUIRED' });
-      if (isVision && !args.images?.length) return writeJson(400, response, { ok: false, code: 'IMAGES_REQUIRED' });
+      if (!args.prompt) return writeJson(400, response, { ok: false, code: 'PROMPT_REQUIRED' }, request);
+      if (isVision && !args.images?.length) return writeJson(400, response, { ok: false, code: 'IMAGES_REQUIRED' }, request);
       const result = await runChain(isVision ? 'vision' : 'text', args);
-      return writeJson(200, response, { ok: true, ...result });
+      return writeJson(200, response, { ok: true, ...result }, request);
     }
-    return writeJson(404, response, { ok: false, code: 'NOT_FOUND', message: 'Analysis API yolu bulunamadı.' });
+    return writeJson(404, response, { ok: false, code: 'NOT_FOUND', message: 'Analysis API yolu bulunamadı.' }, request);
   } catch (error) {
-    return writeJson(error?.status || 500, response, { ok: false, code: error?.message || 'SERVER_ERROR', attempts: error?.attempts });
+    return writeJson(error?.status || 500, response, { ok: false, code: error?.message || 'SERVER_ERROR', attempts: error?.attempts }, request);
   }
 });
 

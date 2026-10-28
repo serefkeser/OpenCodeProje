@@ -46,18 +46,25 @@ Not: .env anahtarlar ASLA repoya yazılmaz.
 
 ---
 
-## DEVAM HATTI — yarın kaldığımız yerden (güncellendi: 28 Ekim v1.194)
+## DEVAM HATTI — yarın kaldığımız yerden (güncellendi: 28 Ekim v1.195)
 
-**Son sürüm:** v1.194 — BAŞLIK OKUMA/SESLENDİRME: gazete tıklama akışında
+**Son sürüm:** v1.195 — PONYTAIL-AUDIT: 10 düzeltme uygulandı (2 MUST + 4 SHOULD +
+4 NICE): media TTS fail-closed (502), readJson destroy, ölü haber_saas_sistemiii.tsx
+silindi + README canlı kodu tarif ediyor, App.tsx ölü 3457 adayları/ölü sabitler
+kaldırıldı, veri yollarında silent→log, üç serviste CORS allowlist (CORS_ORIGIN),
+package.json/README sürüm senkronu, scripts/test-services.mjs (11/11 PASS),
+spawn-all sınırlı yeniden başlatma, MAX_BODY_BYTES ortak sabit. Öncesinde v1.194
+(`c7a6cae`) — BAŞLIK OKUMA/SESLENDİRME: gazete tıklama akışında
 analyzeContentForImage prompt'una "önce oku (harfiyen, tek başlık/madde) → anla →
 seslendir" kuralları; skor/rakam birebir; uydurma yasak; spokenText birleştirmesi
-normalize. Öncesinde v1.193 (`3dc515b`) — ELLE KAPAK YÜKLEME: grid/tekli karttan
+normalize. v1.193 — ELLE KAPAK YÜKLEME: grid/tekli karttan
 amber "Kapak Yükle" butonu; IndexedDB persist (GAZETE_MANUAL_<tarih>_<ad>) + hydrate
 ile yenilemeyi geçer; akış/karşılaştırma/Crop otomatik; sources 'Elle/Yükleme' dürüst
 etiketi. v1.192 (`dcce10a`) — backend adayı gateway (ölü 3457 kök nedeni), kullanıcı
 31 sırası + Günboyu çıkarıldı, Analiz +BİK, 429 başarıda kapı temizlik, 7 bilgi-log.
 Çalışan ağ: app :5173 (`npm run start:web`), gateway :4100, analysis :4201,
 media :4202 (`npm run start:all` — spawn-all web'i kapsamıyor).
+Bekleyen canlı doğrulama: v1.194 başlık okuması Fotomaç tipi koşuda dinlenecek.
 
 **v1.188 içeriği (uygulandı):**
 0. **Takipten çıkarma:** Dokuz Sütun, Güneş, Yeni Yüzyıl → `GAZETE_EXCLUDED` (iç tanıma korunur, listede görünmez).

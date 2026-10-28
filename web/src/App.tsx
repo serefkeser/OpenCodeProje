@@ -1,6 +1,28 @@
 // ============================================================================
-// OTONOM Chatgpt_1.194 — SÜRÜM BAŞLIĞI (her değişiklikte burayı, APP_VERSION'ı ve SÜRÜM NOTLARI'nı birlikte artır)
+// OTONOM Chatgpt_1.195 — SÜRÜM BAŞLIĞI (her değişiklikte burayı, APP_VERSION'ı ve SÜRÜM NOTLARI'nı birlikte artır)
 // Program menüsündeki rozet APP_VERSION.toBadge() ile bu sürümden otomatik üretilir.
+// v1.195 ÖZET: PONYTAIL-AUDIT düzeltmeleri (kullanıcı "hepsini sırasıyla yap" dedi).
+// Audit tüm repoyu denetledi; 2 MUST + 4 SHOULD + 4 NICE bulgunun 10'u da uygulandı:
+// (1) MUST media TTS fail-closed: boş Gemini ses yanıtı artık HTTP 502 (eski davranış
+// ok:true+audio:null sessiz düşüşüydü). (2) MUST media readJson 50 MB üstünde akışı
+// destroy+return (analysis ile aynı; bellek şişmesi fix). (3) SHOULD kökteki ölü
+// haber_saas_sistemiii.tsx (2.49 MB) git rm + README artık canlı kodu (web/src/App.tsx)
+// tarif ediyor. (4) SHOULD App.tsx'teki ölü localhost:3457 adayları kaldırıldı
+// (_readOtonomRuntimeBackendCandidates son adayı, GAZETE_PROXY_ENDPOINTS ölü sabiti
+// ve OTONOM_BACKEND/OTONOM_BACKEND_CANDIDATES kullanılmayan sabitler silindi;
+// _fetchPhotoDataUrl proxy adaylarından 3457 çıkarıldı). (5) SHOULD veri üreten
+// yollarda ErrorHandler.silent → ErrorHandler.log (kullanıcı günlüğüne düşer):
+// _flushJobState, clearJob, saveMusicToLib (yerel+gateway), migrateLegacyMusicLibraries,
+// getMusicFromLib (yerel+gateway), removeMusicFromLib (yerel+gateway),
+// hydrateManualGazeteCovers. (6) SHOULD CORS allowlist: üç serviste de yalnız
+// .env CORS_ORIGIN kökenleri yankılanır (varsayılan localhost/127.0.0.1:5173);
+// izinsiz köken ACAO almaz — drive-by kota tüketimi kapanır. (7) NICE package.json
+// + README APP_VERSION ile senkron. (8) NICE scripts/test-services.mjs: 11 ışın
+// smoke test (health/404/400/CORS/413; kota harcamaz). (9) NICE spawn-all çöken
+// servisi 3 sn arayla en fazla 3 kez yeniden başlatır. (10) NICE MAX_BODY_BYTES
+// ortak sabit (.env'den; üç serviste aynı). YORUMLA/gazete/render/cache/recorder
+// akışları AYNEN. Kanıt: node --check ×3 + node scripts/test-services.mjs 11/11 PASS
+// + npx vite build ✓.
 // v1.194 ÖZET: Kullanıcı talebi — gazete akışında başlık okuma/seslendirme HATALIYDI
 // ("Beşiktaş Başakşehir'i 2-0 yendi Trabzon'un ki..." tipi: iki ayrı başlık tek bozuk
 // cümleye bağlanmış, kafadan içerik). Kök neden: gazete kartına tıklama akışında
@@ -29,7 +51,7 @@
 // Kapak yüklendiği tarifa bağlanır (günlük manşet gibi). Fail-closed akış, fetch zinciri,
 // cache kuralları, recorder aynen. Kanıt: npx vite build.
 // v1.192: (1) _readOtonomRuntimeBackendCandidates artık __OTONOM_GATEWAY__ adayı
-// ekler (root .env GATEWAY_PORT'tan config-driven; hardcode yok; 3457 son aday kalır).
+// ekler (root .env GATEWAY_PORT'tan config-driven; hardcode yok; v1.195: 3457 adayı tamamen kaldırıldı).
 // (2) fetchGazeteSourceTextsFast son-kurtarma backend çağrısı options.backendTimeoutMs
 // okur (sabit 1600 BİK'e yetişemezdi). (3) fetchIndividualGazeteCandidates'ın BİK +
 // DijitalBasin kaynakları backendFirst:true + backendTimeoutMs:16000 (SSR HTML en hızlı
@@ -283,7 +305,7 @@ const { Download, RotateCcw, UploadCloud, Music, Trash2, Volume2, Clock, Loader2
 // M1: CONSTANTS & CONFIG
 // ============================================================================
 const APP_VERSION = {
-  major: 1, minor: 194, hotfix: 'Chatgpt_1.194',
+  major: 1, minor: 195, hotfix: 'Chatgpt_1.195',
   short() { return `${this.major}.${this.minor}`; },
   toString() { return `OTONOM Chatgpt_${this.major}.${this.minor}`; },
   toBadge() { return `${this.toString()} • One-Page`; }
@@ -469,15 +491,12 @@ const _readOtonomRuntimeBackendCandidates = () => {
     });
   } catch (e) {}
   // v1.192: OTONOM gateway adayı — vite define (root .env GATEWAY_PORT) ile üretilen
-  // tek doğruluk kaynağı; eski localhost:3457 adayı BÜYÜK ORANLA ölü olduğundan artık
-  // sürme son kurtarma olsa da arkamda olduğu için başa konuyor, genelleştirilmiş.
+  // tek doğruluk kaynağı. v1.195: ölü localhost:3457 adayı kaldırıldı (hiçbir
+  // kurulumda dinlenmiyordu; audit SHOULD-4). Boş aday listesi yukarıdaki guard'la
+  // dürüstçe "backend yok" der (fail-closed).
   try { add(typeof __OTONOM_GATEWAY__ === 'string' ? __OTONOM_GATEWAY__ : ''); } catch (e) {}
-  // Desktop/local köprü çalışan kurulumlarda son aday.
-  add('http://localhost:3457');
   return values;
 };
-const OTONOM_BACKEND_CANDIDATES = _readOtonomRuntimeBackendCandidates();
-const OTONOM_BACKEND = OTONOM_BACKEND_CANDIDATES[0] || '';
 const _gazeteProxyEndpointsForBase = (base) => ({
   proxy: `${base}/proxy`,
   apiProxy: `${base}/api/proxy`,
@@ -487,7 +506,6 @@ const _gazeteProxyEndpointsForBase = (base) => ({
   yenimesaj: `${base}/yenimesaj`,
   gzt: `${base}/gzt`
 });
-const GAZETE_PROXY_ENDPOINTS = _gazeteProxyEndpointsForBase(OTONOM_BACKEND || 'http://localhost:3457');
 const _isCanvasHttps = typeof window !== 'undefined' && window.location?.protocol === 'https:';
 // v1.176: yerel sayfa proxy'si artık KENDİ gateway'imizde (root .env → GATEWAY_PORT,
 // vite define; /proxy route'unda server-side fetch → CORS orada yok). Eski
@@ -1384,6 +1402,7 @@ const collectUltimateCoverReferences = async (jobState) => {
 const useDebounce = (value, delay = 300) => { const [debounced, setDebounced] = useState(value); useEffect(() => { const timer = setTimeout(() => setDebounced(value), delay); return () => clearTimeout(timer); }, [value, delay]); return debounced; };
 
 const FIX_CHECKLIST = Object.freeze([
+  { version: '1.195', key: 'PONYTAIL_AUDIT_TEN_FIXES', text: 'Kullanıcı onayı ("hepsini sırasıyla yap"): ponytail-audit bulgularının 10\'u da uygulandı. (1) MUST media TTS fail-closed: boş Gemini ses yanıtı HTTP 502 + attempts kanıtı; ok:true+audio:null sessiz düşüşü kaldırıldı. (2) MUST media readJson 50 MB üstünde reject+destroy+return (analysis ile birebir; bellek şişmesi fix). (3) SHOULD ölü kök kopya haber_saas_sistemiii.tsx (2.49 MB, hiçbir referans yok) git rm; README canlı kodu (web/src/App.tsx) ve start komutlarını tarif eder. (4) SHOULD ölü localhost:3457: _readOtonomRuntimeBackendCandidates son adayı, GAZETE_PROXY_ENDPOINTS ölü sabiti + OTONOM_BACKEND/OTONOM_BACKEND_CANDIDATES kullanılmayan sabitler ve _fetchPhotoDataUrl proxy adayı silindi; boş aday listesi fetchViaOtonomGazeteBackend guard\u0029ıyla dürüst "backend yok" der. (5) SHOULD veri yollarında ErrorHandler.silent → ErrorHandler.log: _flushJobState, clearJob, saveMusicToLib yerel+gateway, migrateLegacyMusicLibraries, getMusicFromLib yerel+gateway, removeMusicFromLib yerel+gateway, hydrateManualGazeteCovers — arızalar artık sistem günlüğünde. (6) SHOULD CORS allowlist: gateway/analysis/media yalnız .env CORS_ORIGIN kökenlerini yankılar (varsayılan http://localhost:5173,http://127.0.0.1:5173); izinsiz köken ACAO almaz → drive-by kota tüketimi kapanır; gateway\u0029de send() tek noktadan eski ACAO\u0029yu siler. (7) NICE package.json 1.195.0 + README APP_VERSION senkron. (8) NICE scripts/test-services.mjs 11 ışın smoke test (health/404/400/CORS izin-izinli/413; test portları 4301-4303, kota harcamaz). (9) NICE spawn-all çökmede 3 sn × 3 sınırlı yeniden başlatma + tükenme logu. (10) NICE MAX_BODY_BYTES ortak sabit (.env; varsayılan 100 MB, üç servis). YORUMLA/gazete/render/cache/recorder AYNEN. Kanıt: node --check ×3, node scripts/test-services.mjs 11/11 PASS, npx vite build ✓.' },
   { version: '1.194', key: 'GAZETE_HEADLINE_READ_THEN_SPEAK', text: 'Kullanıcı talebi: gazete akışında başlıklar okunurken iki ayrı başlık tek bozuk cümleye bağlanıyor ve içerik uyduruluyor. Kök neden: analyzeContentForImage şeması gazeteBasliklari ister ama prompt başlık çıkarma kuralı içermiyordu; spokenText (baslik + aciklama) birebir birleştiriliyordu. Düzeltme: (1) sysPrompta GAZETE BAŞLIK OKUMA VE SESLENDİRME KURALLARI eklendi — önce oku (harfiyen, tek başlık/madde, iki başlığı birleştirme yasak), sonra anla ve seslendir; skor/rakam/isim birebir; kesik başlıkta uydurma yasak; aciklama yalnız görselde yazan spotla sınırlı, yoksa boş. (2) Medya parça metnine gazete kuralı atfı. (3) spokenText birleştirmesi normalize edildi (boşluk/nokta temizliği; boş açıklamada yalnız başlık). (4) Karşılaştırma manşet okuma promptuna her başlık TEK madde eklendi. YORUMLA/elle-kapak/cache/recorder aynen. Kanıt: npx vite build.' },
   { version: '1.193', key: 'MANUAL_GAZETE_COVER_UPLOAD', text: 'Kullanıcı talebi: çekilemeyen gazetelere elle kapak yükleme + diğer gazeteler gibi akış. (1) Grid karta 3. ikon (UploadCloud, amber) + tekli görünümde Kapak Yükle butonu; tek gizli file input, hedef ad ref içinde. (2) handleManualGazeteCoverUpload: image/* + 8 KB min + 12 MB max doğrulama, NetworkUtils.compressImage (max 1080), IndexedDB persist AssetManagerService.saveMedia(GAZETE_MANUAL_<tarih>_<normalize-ad>) — GAZETE_CACHE localStorage dataURL yasağı AYNEN korunur. (3) applyManualGazeteCover doyurucu yoldan dataURL candidate headine girer (createGazeteVariants uzak URL patternini reddettiği için doğrudan apply; revision++, placeholder sona düşer) — tık-akışı (_gazeteImageLock), çift-karşılaştırma, Crop, Tam Sayfa Ekle kod değişikliği olmadan çalışır. (4) hydrateManualGazeteCovers buildGazeteCards sonrası IndexedDB-deki yazar; yenileme sonrası kapak geri gelir; kendi kendini revision-döngüsünden korur (manualCover + aynı src guard). (5) Dürüstlük: sources Elle/Yükleme + system log + amber buton; kapak kullanıcı beyanıdır, sistem kaynak-doğrulanmış demez. Kapak yüklendiği tarihe bağlanır. Fail-closed, fetch, cache LRU, recorder dokunmadı. Kanıt: npx vite build + canlı süreç (ports auto).' },
   { version: '1.192', key: 'BACKEND_GATEWAY_CANDIDATE_AND_LIST_ORDER', text: 'Kullanıcı raporu: Yeni Asya ve Milli Gazete gelmemiş — kök neden kanıtla tespit edildi: fetchViaOtonomGazeteBackend aday çözücüsü gateway-ü tanımıyordu; REACT_APP_BACKEND_URL hiçbir yerde tanımsız, aday listesi pratikte yalnız ölü localhost:3457 idi; gerçek gateway (127.0.0.1:4100) yalnız vite define __OTONOM_GATEWAY__ içinde. BİK gövdesi gateway /proxy üzerinden 8.16 sn geliyor (probe-v192-latency) ama tüm taşıma süreleri (4.5/5.0/1.6 sn) BİK-e yetişemez → 13:35 manifest BİK/İlkSayfalar:0/gövde-alınamadı; dijitalbasin Jina markdown-a düşer → extract 0. Düzeltme: (1) _readOtonomRuntimeBackendCandidates __OTONOM_GATEWAY__ adayını ekler (root .env GATEWAY_PORT config-driven; 3457 son aday); (2) fetchGazeteSourceTextsFast son-kurtarma backend options.backendTimeoutMs okur; (3) fetchIndividualGazeteCandidates BİK+DijitalBasin kaynakları backendFirst+16 sn. Kullanıcı istekleri: (4) takip listesi kullanıcının verdiği 31 girişlik sırayla dizildi, Günboyu listeden çıkarıldı ve GAZETE_EXCLUDED-a eklendi (v1.188 örneği); (5) Analiz-e bik:true — BİK 20/20 alt-tarihli kart kanıtlı (probe-bik-count); (6) hızlandırma: HTTP 429 sonrasında başarıya ulaşan istek 3 dakikalık sonraki-video kapısını temizler (401/403 kapısı açılmaz) — bu koşuda kapı 14:19:57-e silahlı kalıyordu; (7) bilgilendirme vendorları (v1.150 KAYNAK KİLİDİ ×2, v1.150 SAHNE KİLİDİ, v1.84 CAPTURE, v1.83 GOLDEN MASTER ×2, MP4 hızlı-mod atlandı, FFmpeg exit(0)) warn-to-info — davranış değişmiyor; MP4 SON KONTROL decoder gerçek doğrulama, aynen. Kanıt: probe-v192-live.elastic (BİK 200 ✓ 20 YYN + DB 3× SSR), probe-v192-latency (gecikme), 13:35 manifest durumu + npx vite build ✓.' },
@@ -2654,7 +2673,7 @@ class AssetManagerService {
       const tx = db.transaction(STORE_JOBS, 'readwrite');
       tx.objectStore(STORE_JOBS).put(AssetManagerService._lightJobSnapshot(job));
       return await new Promise(resolve => { tx.oncomplete = () => resolve(true); tx.onerror = () => resolve(false); tx.onabort = () => resolve(false); });
-    } catch (e) { return false; }
+    } catch (e) { ErrorHandler.log(e, 'Job durum yazımı (IndexedDB) başarısız'); return false; }
   }
   static async saveJobState(jobData) {
     if (AssetManagerService.writesFrozen) return false;
@@ -2671,7 +2690,7 @@ class AssetManagerService {
     return true;
   }
   static async getPendingJob() { try { const db = await this.getDB(); const tx = db.transaction(STORE_JOBS, 'readonly'); const req = tx.objectStore(STORE_JOBS).getAll(); return new Promise(r => req.onsuccess = () => { const jobs = req.result || []; const pending = jobs.find(j => j.status !== 'COMPLETED' && j.status !== 'FAILED'); r(pending || null); }); } catch (e) { return null; } }
-  static async clearJob(jobId) { try { const db = await this.getDB(); const tx = db.transaction(STORE_JOBS, 'readwrite'); tx.objectStore(STORE_JOBS).delete(jobId); return new Promise(r => { tx.oncomplete = () => r(true); tx.onerror = () => r(false); tx.onabort = () => r(false); }); } catch(e) { ErrorHandler.silent(e); return false; } }
+  static async clearJob(jobId) { try { const db = await this.getDB(); const tx = db.transaction(STORE_JOBS, 'readwrite'); tx.objectStore(STORE_JOBS).delete(jobId); return new Promise(r => { tx.oncomplete = () => r(true); tx.onerror = () => r(false); tx.onabort = () => r(false); }); } catch(e) { ErrorHandler.log(e, 'Job silme (IndexedDB) başarısız'); return false; } }
   static async getAllMusicLocal() { try { const db = await this.getDB(); const tx = db.transaction(LIB_STORE, 'readonly'); const req = tx.objectStore(LIB_STORE).getAll(); return new Promise(r => req.onsuccess = () => r(req.result || [])); } catch (e) { return []; } }
   static async saveMusicToLib(musicObj) {
     let localOk = false;
@@ -2680,7 +2699,7 @@ class AssetManagerService {
       const tx = db.transaction(LIB_STORE, 'readwrite');
       tx.objectStore(LIB_STORE).put(musicObj);
       localOk = await new Promise(r => { tx.oncomplete = () => r(true); tx.onerror = () => r(false); tx.onabort = () => r(false); });
-    } catch (e) { ErrorHandler.silent(e); }
+    } catch (e) { ErrorHandler.log(e, 'Müzik yerel kaydı (IndexedDB) başarısız'); }
 
     // v1.185: Uzantı deposu yerine gateway servisinin kalıcı diskine aynala.
     // Gateway hatası yerel çalışan akışı ASLA bozmaz.
@@ -2692,7 +2711,7 @@ class AssetManagerService {
         gatewayOk = !!gw.ok;
         if (!gw.ok) gatewayError = gw.error || '';
       }
-    } catch (e) { gatewayError = e?.message || String(e); ErrorHandler.silent(e); }
+    } catch (e) { gatewayError = e?.message || String(e); ErrorHandler.log(e, 'Müzik gateway kaydı başarısız'); }
     if (!gatewayOk && musicObj?.id && musicObj?.data) console.warn(`[AssetManager] Gateway müzik kaydı başarısız (id=${musicObj.id}): ${gatewayError}`);
     return localOk || gatewayOk;
   }
@@ -2745,10 +2764,10 @@ class AssetManagerService {
               migrated++;
             }
           }
-        } catch (e) { ErrorHandler.silent(e); }
+        } catch (e) { ErrorHandler.log(e, `Müzik göçü okuma başarısız (${dbName})`); }
       }
       return migrated;
-    } catch (e) { ErrorHandler.silent(e); return 0; }
+    } catch (e) { ErrorHandler.log(e, 'Müzik göçü (IndexedDB) başarısız'); return 0; }
   }
   static async getMusicFromLib(id) {
     try {
@@ -2757,14 +2776,14 @@ class AssetManagerService {
       const req = tx.objectStore(LIB_STORE).get(id);
       const localTrack = await new Promise(r => { req.onsuccess = () => r(req.result || null); req.onerror = () => r(null); });
       if (localTrack?.data) return localTrack;
-    } catch (e) { ErrorHandler.silent(e); }
+    } catch (e) { ErrorHandler.log(e, 'Müzik yerel okuma (IndexedDB) başarısız'); }
 
     // Yerel kopya yoksa gateway'in kalıcı diskindeki Blob'u iste.
     try {
       const gw = await gatewayMusicGet(id);
       if (gw?.ok && gw.track?.data) return { ...gw.track, gatewayStored: true };
       if (!gw?.ok) console.warn(`[AssetManager] Gateway parça okunamadı (id=${String(id).slice(0, 40)}): ${gw?.error || ''}`);
-    } catch (e) { ErrorHandler.silent(e); }
+    } catch (e) { ErrorHandler.log(e, 'Müzik gateway okuma başarısız'); }
     return null;
   }
   static async removeMusicFromLib(id) {
@@ -2774,14 +2793,14 @@ class AssetManagerService {
       const tx = db.transaction(LIB_STORE, 'readwrite');
       tx.objectStore(LIB_STORE).delete(id);
       localOk = await new Promise(r => { tx.oncomplete = () => r(true); tx.onerror = () => r(false); tx.onabort = () => r(false); });
-    } catch (e) { ErrorHandler.silent(e); }
+    } catch (e) { ErrorHandler.log(e, 'Müzik yerel silme (IndexedDB) başarısız'); }
 
     let gatewayOk = false;
     try {
       const gw = await gatewayMusicDelete(id);
       gatewayOk = !!gw.ok;
       if (!gw.ok) console.warn(`[AssetManager] Gateway müzik silme başarısız (id=${String(id).slice(0, 40)}): ${gw.error || ''}`);
-    } catch (e) { ErrorHandler.silent(e); }
+    } catch (e) { ErrorHandler.log(e, 'Müzik gateway silme başarısız'); }
     return localOk || gatewayOk;
   }
   static async mirrorLocalMusicToGateway() {
@@ -8719,9 +8738,9 @@ const NewsPhotoService = {
       `https://api.allorigins.win/raw?url=${enc}`,
       `https://api.codetabs.com/v1/proxy?quest=${enc}`,
       ...((_isCanvasHttps) ? [] : [
-        // v1.176: ölü localhost:3457 yerine kendi gateway'imizdeki sayfa/sw görsel proxy'si.
-        _otonomLocalProxy(imageUrl),
-        `http://localhost:3457/proxy?url=${enc}`
+        // v1.176: kendi gateway'imizdeki sayfa/sw görsel proxy'si.
+        // v1.195: ölü localhost:3457 adayı listeden çıkarıldı (audit SHOULD-4).
+        _otonomLocalProxy(imageUrl)
       ])
     ];
     const attempt = async (src) => {
@@ -13059,7 +13078,7 @@ export default function App() {
             ? applyManualGazeteCover(it, stored)
             : it
         )));
-      } catch (e) { ErrorHandler.silent(e); }
+      } catch (e) { ErrorHandler.log(e, 'Gazete elle kapak okuma (IndexedDB) başarısız'); }
     }
   };
   const handleManualGazeteCoverUpload = async (name) => {

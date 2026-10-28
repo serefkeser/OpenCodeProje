@@ -10,6 +10,15 @@ Kesin sürüm referansı `web/src/App.tsx` içinde `APP_VERSION`; burası insan-
 
 ---
 
+## v1.195 — (28 Ekim 2026, PONYTAIL-AUDIT: 10 DÜZELTME)
+**Kullanıcı onayı: audit bulgularının hepsi sırasıyla uygulandı (2 MUST + 4 SHOULD + 4 NICE).**
+
+- **MUST:** media TTS fail-closed (boş ses yanıtı artık 502, `ok:true+audio:null` sessiz düşüşü kaldırıldı); media readJson 50 MB üstünde destroy+return (bellek şişmesi fix).
+- **SHOULD:** ölü kök kopya `haber_saas_sistemiii.tsx` (2.49 MB) silindi, README canlı kodu tarif ediyor; App.tsx'teki ölü `localhost:3457` adayları + ölü `GAZETE_PROXY_ENDPOINTS`/`OTONOM_BACKEND` sabitleri kaldırıldı; veri yollarında (job durumu, müzik kütüphanesi, elle kapak) `ErrorHandler.silent` → `ErrorHandler.log` (arızalar sistem günlüğünde); CORS allowlist (`CORS_ORIGIN`, varsayılan localhost/127.0.0.1:5173) — drive-by kota tüketimi kapanır.
+- **NICE:** package.json/README sürüm senkronu (1.195.0); `scripts/test-services.mjs` 11 ışın smoke test (kota harcamaz); spawn-all çökmede sınırlı yeniden başlatma (3 sn × 3); `MAX_BODY_BYTES` ortak sabit.
+- **Kanıt:** node --check ×3, `node scripts/test-services.mjs` 11/11 PASS, `npx vite build` ✓.
+- **Aynen:** YORUMLA/gazete/render/cache/recorder akışları değişmedi.
+
 ## v1.194 — (28 Ekim 2026, BUGFIX: BAŞLIK OKUMA/SESLENDİRME)
 **Kullanıcı talebi: haberleri okurken yanlış cümle kuruluyor; önce oku, anla, sonra seslendir; %100 doğru, kafadan uydurma yok.**
 

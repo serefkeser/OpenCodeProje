@@ -1,16 +1,18 @@
 // ============================================================================
-// OTONOM v1.185 — GATEWAY MİKRO SERVİS (port: GATEWAY_PORT / 4100)
+// OTONOM v1.195 — GATEWAY MİKRO SERVİS (port: GATEWAY_PORT / 4100)
 // Sorumluluk: CORS, /health, /proxy (+/api/proxy) sayfa proxy, /api/gemini-proxy
 //             (Gemini anahtarı sunucuda kalır), /api/music (kalıcı müzik deposu),
 //             /api/* isteklerini analysis (4201) ve media (4202) servislerine yönlendir.
 // İlke: zero-dependency (node:http + node:fetch) — server.mjs stiliyle uyumlu.
+// v1.195: CORS allowlist (CORS_ORIGIN) — izinsiz köken ACAO almaz; gövde sınırı
+//         MAX_BODY_BYTES (analysis/media ile ortak sabit).
 // ============================================================================
 import { createServer } from 'node:http';
 import { mkdirSync, readFileSync, writeFileSync, rmSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const GEMINI_ORIGIN = 'https://generativelanguage.googleapis.com';
-const GEMINI_MAX_BODY_BYTES = 100 * 1024 * 1024;
+const MAX_BODY_BYTES = Number(process.env.MAX_BODY_BYTES || 100e6);
 const ALLOWED_MODEL_ACTION = /^\/v1(?:beta)?\/models\/[A-Za-z0-9._-]+:(?:generateContent|streamGenerateContent|predict)$/;
 
 const GEMINI_API_KEY = String(process.env.GEMINI_API_KEY || '');
@@ -19,8 +21,16 @@ const MEDIA_PORT = Number(process.env.MEDIA_PORT || 4202);
 const PORT = Number(process.env.GATEWAY_PORT || 4100);
 const HOST = process.env.HOST || '127.0.0.1';
 
+// v1.195: allowlist — yalnız güvenilen yerel kökenlere ACAO verilir (CORS_ORIGIN).
+// Alt servislerin bıraktığı eski ACAO ('*' dahil) writeHead öncesi silinir.
+const CORS_ALLOWED_ORIGINS = String(process.env.CORS_ORIGIN || 'http://localhost:5173,http://127.0.0.1:5173')
+  .split(',').map(s => s.trim()).filter(Boolean);
+const corsAllowOrigin = request => {
+  const origin = String(request?.headers?.origin || '');
+  return (origin && CORS_ALLOWED_ORIGINS.includes(origin)) ? { 'access-control-allow-origin': origin } : {};
+};
+
 const CORS_HEADERS = {
-  'access-control-allow-origin': '*',
   'access-control-allow-methods': 'GET, POST, PUT, DELETE, OPTIONS',
   'access-control-allow-headers': 'content-type, accept, authorization, x-requested-with',
 };
@@ -35,7 +45,7 @@ const readBody = request => new Promise((resolveBody, rejectBody) => {
   let size = 0;
   request.on('data', chunk => {
     size += chunk.length;
-    if (size > GEMINI_MAX_BODY_BYTES) {
+    if (size > MAX_BODY_BYTES) {
       const error = new Error('REQUEST_TOO_LARGE');
       error.status = 413;
       rejectBody(error);
@@ -343,56 +353,52 @@ const probe = async port => {
 };
 
 const server = createServer(async (request, response) => {
+  // v1.195: tüm upstream Response'lar tek noktadan yazılır; alt servis/gateway'in
+  // bıraktığı eski ACAO silinir, yalnız allowlist'te köken yankılanır.
+  const send = async upstream => {
+    const headers = Object.fromEntries(upstream.headers);
+    delete headers['access-control-allow-origin'];
+    response.writeHead(upstream.status, { ...headers, ...corsAllowOrigin(request) });
+    response.end(Buffer.from(await upstream.arrayBuffer()));
+  };
   try {
     if (request.method === 'OPTIONS') {
-      response.writeHead(204, CORS_HEADERS).end();
+      response.writeHead(204, { ...CORS_HEADERS, ...corsAllowOrigin(request) }).end();
       return;
     }
     if (request.url === '/health' || request.url === '/api/health') {
       const [analysisOk, mediaOk] = await Promise.all([probe(ANALYSIS_PORT), probe(MEDIA_PORT)]);
-      response.writeHead(200, { 'content-type': 'application/json; charset=utf-8', ...CORS_HEADERS });
+      response.writeHead(200, { 'content-type': 'application/json; charset=utf-8', ...CORS_HEADERS, ...corsAllowOrigin(request) });
       response.end(JSON.stringify({ ok: true, gateway: PORT, analysis: { port: ANALYSIS_PORT, up: analysisOk }, media: { port: MEDIA_PORT, up: mediaOk }, geminiKey: Boolean(GEMINI_API_KEY.trim()) }));
       return;
     }
     if (request.url.startsWith('/api/gemini-proxy')) {
-      const upstream = await handleGeminiProxy(request);
-      response.writeHead(upstream.status, Object.fromEntries(upstream.headers));
-      response.end(Buffer.from(await upstream.arrayBuffer()));
+      await send(await handleGeminiProxy(request));
       return;
     }
     // v1.176: Haber Linki akışı için ham sayfa/görsel proxy (/#/api/proxy takma adı).
     if (request.url.startsWith('/proxy') || request.url.startsWith('/api/proxy')) {
-      const upstream = await handlePageProxy(request.url);
-      response.writeHead(upstream.status, Object.fromEntries(upstream.headers));
-      response.end(Buffer.from(await upstream.arrayBuffer()));
+      await send(await handlePageProxy(request.url));
       return;
     }
     // v1.185: kalıcı müzik deposu (uzantı IndexedDB yerine gateway diski).
     if (request.url.startsWith('/api/music')) {
-      const upstream = await handleMusicApi(request);
-      response.writeHead(upstream.status, Object.fromEntries(upstream.headers));
-      response.end(Buffer.from(await upstream.arrayBuffer()));
+      await send(await handleMusicApi(request));
       return;
     }
     // v1.188: günlük gazete manifest önbelleği (doğrulanmış listenin diske kaydı).
     if (request.url.startsWith('/api/gazete-manifest')) {
-      const upstream = await handleGazeteManifestApi(request);
-      response.writeHead(upstream.status, Object.fromEntries(upstream.headers));
-      response.end(Buffer.from(await upstream.arrayBuffer()));
+      await send(await handleGazeteManifestApi(request));
       return;
     }
     const matched = SERVICE_ALIASES.find(a => a.name && request.url.startsWith(a.prefix));
     if (matched) {
-      const upstream = await handlePassthrough(matched.name, matched.port)(request);
-      response.writeHead(upstream.status, Object.fromEntries(upstream.headers));
-      response.end(Buffer.from(await upstream.arrayBuffer()));
+      await send(await handlePassthrough(matched.name, matched.port)(request));
       return;
     }
-    const notFound = json(404, 'NOT_FOUND', 'Gateway API yolu bulunamadı.');
-    response.writeHead(notFound.status, Object.fromEntries(notFound.headers));
-    response.end(Buffer.from(await notFound.arrayBuffer()));
+    await send(json(404, 'NOT_FOUND', 'Gateway API yolu bulunamadı.'));
   } catch (error) {
-    response.writeHead(error?.status || 500, { 'content-type': 'application/json; charset=utf-8', ...CORS_HEADERS });
+    response.writeHead(error?.status || 500, { 'content-type': 'application/json; charset=utf-8', ...CORS_HEADERS, ...corsAllowOrigin(request) });
     response.end(JSON.stringify({ ok: false, code: error?.message || 'SERVER_ERROR', message: 'Gateway isteği işleyemedi.' }));
   }
 });

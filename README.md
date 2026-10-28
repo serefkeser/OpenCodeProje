@@ -1,8 +1,8 @@
 # OTONOM — Yerel Haber Video Üretim Sistemi
 
-**Sürüm:** `OTONOM Chatgpt_1.171` (`haber_saas_sistemiii.tsx` başlığındaki sürüm rozetiyle senkron)
+**Sürüm:** `OTONOM 1.195` (`web/src/App.tsx` içindeki `APP_VERSION` tek doğruluk kaynağıdır)
 
-Gemini Canvas uyumlu, **local-first** tek dosyalık React uygulaması. Haber metnini otomatik olarak analiz eder, sahne sahne görsellerle destekler ve Canvas tabanlı video render ile son çıktıyı üretir. Firebase tamamen kaldırılmıştır; tüm veriler tarayıcıda (localStorage + IndexedDB) saklanır ve uygulama offline/standalone çalışır.
+Gemini Canvas uyumlu, **local-first** React uygulaması. Haber metnini otomatik olarak analiz eder, sahne sahne görsellerle destekler ve Canvas tabanlı video render ile son çıktıyı üretir. Firebase tamamen kaldırılmıştır; tüm veriler tarayıcıda (localStorage + IndexedDB) saklanır ve uygulama offline/standalone çalışır.
 
 ## Nasıl Çalışır?
 
@@ -24,11 +24,11 @@ Akış: `S1 → M1 analiz → 2 AI görsel → S2 → M2 analiz → 2 AI görsel
 
 ## Çalıştırma
 
-Uygulama **tek** `haber_saas_sistemiii.tsx` dosyasıdır ve Gemini Canvas uyumlu olacak şekilde tasarlanmıştır:
+Uygulamanın canlı kodu `web/src/App.tsx`'tir (kökdeki eski `haber_saas_sistemiii.tsx` kopyası v1.195'te silindi; Gemini Canvas'a yapıştırmak için bu dosyanın içeriğini kullanabilirsiniz):
 
-1. Doğru çalışmak için geçerli bir **Gemini API anahtarı** gerekir → uygulama içi Ayarlar'dan girin (tarayıcıda `GEMINI_API_KEY` altında saklanır).
-2. Dosyayı Gemini Canvas'a yapıştırın veya kendi ortamınızda React/TypeScript derleme hattınıza ekleyin.
-3. Uygulama tamamen tarayıcı içinde çalışır; sunucu kurulumu gerekmez.
+1. Doğru çalışmak için geçerli bir **Gemini API anahtarı** gerekir → uygulama içi Ayarlar'dan girin (tarayıcıda `GEMINI_API_KEY` altında saklanır) veya root `.env`'e yazın (gateway sunucuda tutar).
+2. Çalıştırma: `npm run start:all` (gateway+analysis+media) + `npm run start:web` (vite:5173), tarayıcıdan `http://localhost:5173`.
+3. Uygulama tamamen tarayıcı içinde çalışır; dış sunucu kurulumu gerekmez.
 
 ## Modüler Yapı
 
