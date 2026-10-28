@@ -10,6 +10,27 @@ Kesin sürüm referansı `web/src/App.tsx` içinde `APP_VERSION`; burası insan-
 
 ---
 
+## v1.194 — (28 Ekim 2026, BUGFIX: BAŞLIK OKUMA/SESLENDİRME)
+**Kullanıcı talebi: haberleri okurken yanlış cümle kuruluyor; önce oku, anla, sonra seslendir; %100 doğru, kafadan uydurma yok.**
+
+- **Kök neden:** gazete kartına tıklama akışında `analyzeContentForImage` şeması
+  `gazeteBasliklari` isterdi ama prompt'ta başlık çıkarma kuralı YOKTU; model iki
+  başlığı tek maddeye yazabiliyor, `aciklama`'ya uydurma bağlam koyabiliyordu.
+  Seslendirme metni `baslik + '. ' + aciklama` birebir birleştiriliyordu.
+- **Düzeltme:** sysPrompt'a "GAZETE BAŞLIK OKUMA VE SESLENDİRME KURALLARI" —
+  (A) her başlık TEK TEK harfiyen; iki başlığı birleştirme YASAK, (B) skor/rakam/
+  isim birebir, (C) kesik başlıkta uydurma yasak, (D) her madde tek başlık,
+  (E) `aciklama` yalnız görselde yazan spotla sınırlı (yoksa boş), (F) sonra anla
+  ve seslendir — akıcı tam cümleler, başlıklar kendi cümlesinde kalır.
+- **Kod tarafı:** `spokenText` birleştirmesi normalize edildi (fazla nokta/boşluk
+  temizliği; boş açıklamada yalnız başlık okunur). Karşılaştırma manşet okuma
+  prompt'una "her başlık TEK madde" eklendi.
+
+Kanıt: `npx vite build` ✓ (4.68 s); canlı doğrulama kullanıcı koşusuyla (Fotomaç
+tipi tek gazete akışı) yapılacak.
+
+---
+
 ## v1.193 — (27 Ekim 2026, özellik: ELLE KAPAK YÜKLEME)
 **Kullanıcı talebi: çekilemeyen gazetelere elle kapak yükleme; diğer gazeteler gibi davranış.**
 

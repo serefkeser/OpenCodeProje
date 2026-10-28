@@ -46,16 +46,18 @@ Not: .env anahtarlar ASLA repoya yazılmaz.
 
 ---
 
-## DEVAM HATTI — yarın kaldığımız yerden (güncellendi: 27 Ekim v1.193)
+## DEVAM HATTI — yarın kaldığımız yerden (güncellendi: 28 Ekim v1.194)
 
-**Son sürüm:** v1.193 — ELLE KAPAK YÜKLEME: grid/tekli karttan amber "Kapak Yükle"
-butonu; IndexedDB persist (GAZETE_MANUAL_<tarih>_<ad>) + hydrate ile yenilemeyi geçer;
-akış/karşılaştırma/Crop otomatik; sources 'Elle/Yükleme' dürüst etiketi.
-Öncesinde v1.192 (`dcce10a`) — backend adayı gateway (ölü 3457 kök nedeni), kullanıcı
-31 sırası + Günboyu çıkarıldı, Analiz +BİK, 429 başarıda kapı temizlik, 7 bilgi-log;
-v1.191 (`d191380`) — BİK 4. ana kaynak + dijitalbasin 3 gazete; v1.190 (`3f3ff06`) —
-RECORDER GUARD + canary. Çalışan ağ: app :5173 (assistant başlattı — `npm run start:web`),
-gateway :4100, analysis :4201, media :4202 (`npm run start:all` — spawn-all web'i kapsamıyor).
+**Son sürüm:** v1.194 — BAŞLIK OKUMA/SESLENDİRME: gazete tıklama akışında
+analyzeContentForImage prompt'una "önce oku (harfiyen, tek başlık/madde) → anla →
+seslendir" kuralları; skor/rakam birebir; uydurma yasak; spokenText birleştirmesi
+normalize. Öncesinde v1.193 (`3dc515b`) — ELLE KAPAK YÜKLEME: grid/tekli karttan
+amber "Kapak Yükle" butonu; IndexedDB persist (GAZETE_MANUAL_<tarih>_<ad>) + hydrate
+ile yenilemeyi geçer; akış/karşılaştırma/Crop otomatik; sources 'Elle/Yükleme' dürüst
+etiketi. v1.192 (`dcce10a`) — backend adayı gateway (ölü 3457 kök nedeni), kullanıcı
+31 sırası + Günboyu çıkarıldı, Analiz +BİK, 429 başarıda kapı temizlik, 7 bilgi-log.
+Çalışan ağ: app :5173 (`npm run start:web`), gateway :4100, analysis :4201,
+media :4202 (`npm run start:all` — spawn-all web'i kapsamıyor).
 
 **v1.188 içeriği (uygulandı):**
 0. **Takipten çıkarma:** Dokuz Sütun, Güneş, Yeni Yüzyıl → `GAZETE_EXCLUDED` (iç tanıma korunur, listede görünmez).

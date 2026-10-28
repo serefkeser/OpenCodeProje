@@ -1,7 +1,20 @@
 // ============================================================================
-// OTONOM Chatgpt_1.193 — SÜRÜM BAŞLIĞI (her değişiklikte burayı, APP_VERSION'ı ve SÜRÜM NOTLARI'nı birlikte artır)
+// OTONOM Chatgpt_1.194 — SÜRÜM BAŞLIĞI (her değişiklikte burayı, APP_VERSION'ı ve SÜRÜM NOTLARI'nı birlikte artır)
 // Program menüsündeki rozet APP_VERSION.toBadge() ile bu sürümden otomatik üretilir.
-// v1.193 ÖZET: Kullanıcı talebi — ELLE KAPAK YÜKLEME. Sistemin çekemediği gazeteye
+// v1.194 ÖZET: Kullanıcı talebi — gazete akışında başlık okuma/seslendirme HATALIYDI
+// ("Beşiktaş Başakşehir'i 2-0 yendi Trabzon'un ki..." tipi: iki ayrı başlık tek bozuk
+// cümleye bağlanmış, kafadan içerik). Kök neden: gazete kartına tıklama akışında
+// analyzeContentForImage şeması gazeteBasliklari ister ama prompt'ta başlık çıkarma
+// kuralı YOKTU; model başlıkları keyfi dolduruyor ve spokenText (baslik + aciklama)
+// birebir birleştiriliyordu. Düzeltme: (1) sysPrompt'a GAZETE BAŞLIK OKUMA VE
+// SESLENDİRME KURALLARI — önce oku (harfiyen, tek başlık/madde, iki başlığı
+// birleştirme YASAK), sonra anla ve seslendir (akıcı tam cümle); skor/rakam/isim
+// birebir; kesik başlıkta uydurma yasak; aciklama yalnız görselde yazan spotla
+// sınırlı, yoksa boş. (2) Medya parça metnine gazete kuralı atfı. (3) spokenText
+// birleştirmesi: boşluk/nokta normalizasyonu, boş açıklamada yalnız başlık okunur.
+// (4) Karşılaştırma manşet okuma prompt'una "her başlık TEK madde" ekleme.
+// Fail-closed, YORUMLA/elle-kapak/cache/recorder aynen. Kanıt: npx vite build.
+// v1.193 ÖZET: ELLE KAPAK YÜKLEME. Sistemin çekemediği gazeteye
 // kullanıcı kendi kapak görselini yükler; kart diğerleri gibi davranır (tık → video
 // akışı; seç → iki gazete karşılaştırması; Crop; Tam Sayfa Ekle — kod değişkeni YOK,
 // mevcut img akışı otomatik). (1) Grid karta 3. ikon "Kapak Yükle" + tekli görünümde
@@ -270,7 +283,7 @@ const { Download, RotateCcw, UploadCloud, Music, Trash2, Volume2, Clock, Loader2
 // M1: CONSTANTS & CONFIG
 // ============================================================================
 const APP_VERSION = {
-  major: 1, minor: 193, hotfix: 'Chatgpt_1.193',
+  major: 1, minor: 194, hotfix: 'Chatgpt_1.194',
   short() { return `${this.major}.${this.minor}`; },
   toString() { return `OTONOM Chatgpt_${this.major}.${this.minor}`; },
   toBadge() { return `${this.toString()} • One-Page`; }
@@ -1371,6 +1384,7 @@ const collectUltimateCoverReferences = async (jobState) => {
 const useDebounce = (value, delay = 300) => { const [debounced, setDebounced] = useState(value); useEffect(() => { const timer = setTimeout(() => setDebounced(value), delay); return () => clearTimeout(timer); }, [value, delay]); return debounced; };
 
 const FIX_CHECKLIST = Object.freeze([
+  { version: '1.194', key: 'GAZETE_HEADLINE_READ_THEN_SPEAK', text: 'Kullanıcı talebi: gazete akışında başlıklar okunurken iki ayrı başlık tek bozuk cümleye bağlanıyor ve içerik uyduruluyor. Kök neden: analyzeContentForImage şeması gazeteBasliklari ister ama prompt başlık çıkarma kuralı içermiyordu; spokenText (baslik + aciklama) birebir birleştiriliyordu. Düzeltme: (1) sysPrompta GAZETE BAŞLIK OKUMA VE SESLENDİRME KURALLARI eklendi — önce oku (harfiyen, tek başlık/madde, iki başlığı birleştirme yasak), sonra anla ve seslendir; skor/rakam/isim birebir; kesik başlıkta uydurma yasak; aciklama yalnız görselde yazan spotla sınırlı, yoksa boş. (2) Medya parça metnine gazete kuralı atfı. (3) spokenText birleştirmesi normalize edildi (boşluk/nokta temizliği; boş açıklamada yalnız başlık). (4) Karşılaştırma manşet okuma promptuna her başlık TEK madde eklendi. YORUMLA/elle-kapak/cache/recorder aynen. Kanıt: npx vite build.' },
   { version: '1.193', key: 'MANUAL_GAZETE_COVER_UPLOAD', text: 'Kullanıcı talebi: çekilemeyen gazetelere elle kapak yükleme + diğer gazeteler gibi akış. (1) Grid karta 3. ikon (UploadCloud, amber) + tekli görünümde Kapak Yükle butonu; tek gizli file input, hedef ad ref içinde. (2) handleManualGazeteCoverUpload: image/* + 8 KB min + 12 MB max doğrulama, NetworkUtils.compressImage (max 1080), IndexedDB persist AssetManagerService.saveMedia(GAZETE_MANUAL_<tarih>_<normalize-ad>) — GAZETE_CACHE localStorage dataURL yasağı AYNEN korunur. (3) applyManualGazeteCover doyurucu yoldan dataURL candidate headine girer (createGazeteVariants uzak URL patternini reddettiği için doğrudan apply; revision++, placeholder sona düşer) — tık-akışı (_gazeteImageLock), çift-karşılaştırma, Crop, Tam Sayfa Ekle kod değişikliği olmadan çalışır. (4) hydrateManualGazeteCovers buildGazeteCards sonrası IndexedDB-deki yazar; yenileme sonrası kapak geri gelir; kendi kendini revision-döngüsünden korur (manualCover + aynı src guard). (5) Dürüstlük: sources Elle/Yükleme + system log + amber buton; kapak kullanıcı beyanıdır, sistem kaynak-doğrulanmış demez. Kapak yüklendiği tarihe bağlanır. Fail-closed, fetch, cache LRU, recorder dokunmadı. Kanıt: npx vite build + canlı süreç (ports auto).' },
   { version: '1.192', key: 'BACKEND_GATEWAY_CANDIDATE_AND_LIST_ORDER', text: 'Kullanıcı raporu: Yeni Asya ve Milli Gazete gelmemiş — kök neden kanıtla tespit edildi: fetchViaOtonomGazeteBackend aday çözücüsü gateway-ü tanımıyordu; REACT_APP_BACKEND_URL hiçbir yerde tanımsız, aday listesi pratikte yalnız ölü localhost:3457 idi; gerçek gateway (127.0.0.1:4100) yalnız vite define __OTONOM_GATEWAY__ içinde. BİK gövdesi gateway /proxy üzerinden 8.16 sn geliyor (probe-v192-latency) ama tüm taşıma süreleri (4.5/5.0/1.6 sn) BİK-e yetişemez → 13:35 manifest BİK/İlkSayfalar:0/gövde-alınamadı; dijitalbasin Jina markdown-a düşer → extract 0. Düzeltme: (1) _readOtonomRuntimeBackendCandidates __OTONOM_GATEWAY__ adayını ekler (root .env GATEWAY_PORT config-driven; 3457 son aday); (2) fetchGazeteSourceTextsFast son-kurtarma backend options.backendTimeoutMs okur; (3) fetchIndividualGazeteCandidates BİK+DijitalBasin kaynakları backendFirst+16 sn. Kullanıcı istekleri: (4) takip listesi kullanıcının verdiği 31 girişlik sırayla dizildi, Günboyu listeden çıkarıldı ve GAZETE_EXCLUDED-a eklendi (v1.188 örneği); (5) Analiz-e bik:true — BİK 20/20 alt-tarihli kart kanıtlı (probe-bik-count); (6) hızlandırma: HTTP 429 sonrasında başarıya ulaşan istek 3 dakikalık sonraki-video kapısını temizler (401/403 kapısı açılmaz) — bu koşuda kapı 14:19:57-e silahlı kalıyordu; (7) bilgilendirme vendorları (v1.150 KAYNAK KİLİDİ ×2, v1.150 SAHNE KİLİDİ, v1.84 CAPTURE, v1.83 GOLDEN MASTER ×2, MP4 hızlı-mod atlandı, FFmpeg exit(0)) warn-to-info — davranış değişmiyor; MP4 SON KONTROL decoder gerçek doğrulama, aynen. Kanıt: probe-v192-live.elastic (BİK 200 ✓ 20 YYN + DB 3× SSR), probe-v192-latency (gecikme), 13:35 manifest durumu + npx vite build ✓.' },
   { version: '1.191', key: 'BIK_AND_DIGITALBASIN_SIX_GAZETE_SOURCES', text: 'Kullanıcı kaynak teklifi (dijitalbasin + BİK linkleri) ölçüldü ve entegre edildi: (1) BİK İlk Sayfalar (gazete.bik.gov.tr/Uygulamalar/GazeteIlkSayfalar?kapsam=yaygin) — 20 kart SSR\'de figcaption ad + alt tarih ("26 Ekim 2026 - ... tarihli X gazetesi ilk sayfası") taşıyor [probe-bik-count kanıtı: 20/20 tarihli]; 4. ana kaynak eklendi (minCount 15) ve kart-başına alt-tarih kanıtı ZORUNLU kılındı; Korkusuz/Milli Gazete/Yeni Asya + Cumhuriyet/Sözcü/Hürriyet/Karar/BirGün/Dünya vb. adları bu kaynaktan doğrulanır. (2) dijitalbasin.com Read/331 (Evrensel), Read/504 (Gazete Pencere), Read/321 (Diriliş Postası) — SSR publication-name + publication-date kanıtlı [probe-db kanıtı: 3× 26 Ekim 2026]; kapak GetPublicationDisplay?publicationId= JPEG\'inden kurulur; SSR date eşleşmezse ne ad ne kapak verilir (fail-closed aynen). fetchIndividualGazeteCandidates +BİK/+DijitalBasin kapak yolları; extractExactGazeteHeroCandidate BİK tam çözünürlük YYN-*.jpg izleme; isLikelyGazeteImage +dijitalbasin pattern. Mevcut GZT/GazeteOku/Aydınlık/Evrensel-kendi yolları ve fail-closed mantığı değişmedi. Kanıt: tasks/probe-v191-*.mjs + npx vite build ✓.' },
@@ -4286,7 +4300,7 @@ class LogicEngineService {
         konular: { type: 'ARRAY', items: { type: 'STRING' } }, aramalar: { type: 'ARRAY', items: { type: 'STRING' } }
       }, required: ['gazeteA', 'gazeteB', 'konular', 'aramalar'] };
       const readPayload = {
-        contents: [{ role: 'user', parts: [...imageParts, { text: `Görseller sırasıyla ${nameA} (1) ve ${nameB} (2) gazetelerinin ön sayfasıdır. Her sayfadaki ANA MANŞET ve öne çıkan ilk sayfa başlıklarını AYNEN, okuyabildiğin kadarıyla çıkar (gazeteA, gazeteB; her biri en fazla 6 kısa madde). konular: iki sayfada öne çıkan 3-5 ana konu. aramalar: bu manşetlerdeki olguları doğrulamak ve güncel resmî verileri (enflasyon, işsizlik, yargı kararı, ilgili olay) bulmak için Google'da yapılacak 3-5 Türkçe arama sorgusu (bugün: ${today}). Okuyamadığını yazma; uydurma.` }] }],
+        contents: [{ role: 'user', parts: [...imageParts, { text: `Görseller sırasıyla ${nameA} (1) ve ${nameB} (2) gazetelerinin ön sayfasıdır. Her sayfadaki ANA MANŞET ve öne çıkan ilk sayfa başlıklarını AYNEN, okuyabildiğin kadarıyla çıkar (her başlık TEK madde; iki başlığı birleştirme veya zincirleme bağlama; skor ve rakamları birebir taşı; gazeteA, gazeteB; her biri en fazla 6 kısa madde). konular: iki sayfada öne çıkan 3-5 ana konu. aramalar: bu manşetlerdeki olguları doğrulamak ve güncel resmî verileri (enflasyon, işsizlik, yargı kararı, ilgili olay) bulmak için Google'da yapılacak 3-5 Türkçe arama sorgusu (bugün: ${today}). Okuyamadığını yazma; uydurma.` }] }],
         generationConfig: { temperature: 0.1, maxOutputTokens: 2500, thinkingConfig: { thinkingBudget: 0 }, responseMimeType: 'application/json', responseSchema: readSchema }
       };
       const readResponse = await NetworkUtils.fetchWithRetry(url, { method: 'POST', body: JSON.stringify(readPayload) });
@@ -4794,7 +4808,16 @@ Google Search aracını gerçekten kullan. Cevabında arama sonucunda bulunan en
           : `\n\nYEDİNCİ KURAL (SON SÖZ): Haberin/gazetenin GENEL OLARAK NE ANLATTIĞINA bak ve konuya uygun kısa bir Son Söz seç. ${buildSonSozCategoryPrompt()} Alıntı veya atıf gerçek ve güvenilir olmalı; yanlış kaynak gösterme. Kamu malı olmayan modern kitap, film, şiir veya çizgi film metnini birebir kopyalama; bu kategorilerde gerekiyorsa özgün/parafraz kapanış üret ve kaynak türünü açıkça belirt. 'sonSozKaynak' kişi adı, klasik eser + yazar veya güvenli özgün kategori kaynağı olsun. KESİNLİKLE TEKRAR ETME — daha önce kullanılan Son Sözler:\n${buildSonSozHistoryPrompt()}`)
       : "";
 
-    const sysPrompt = `Bu, ${totalImages} görsellik bir videonun ${imageIndex + 1}. bloğudur.\nSen TikTok ve Instagram Reels için viral içerikler üreten profesyonel bir içerik üreticisisin.\n\nSENARYOYU TAM OLARAK 2 SAHNE olacak şekilde böl!\nToplam konuşma metni bu blok için ${newsReadMode ? '45-80' : '30-50'} kelime aralığında olmalıdır.\n\nDİL KURALI: ${langInstruction}\n${styleInstruction}\n${dynamicRules}\n${contextBlock}\n\nGAZETE İLK SAYFASI VE YERLİ GÖRSEL KURALLARI:\n1. Eğer görsel bir gazete ilk sayfası ise 'imagePrompts' dizisini BOŞ [] BIRAK!\n2. GAZETE HARİCİ İÇERİKLER İÇİN: HER SAHNE İÇİN 'imagePrompts' DİZİSİNDE TAM 1 ADET AI GÖRSEL PROMPTU YAZ.\n3. TÜRKİYE VE TÜRK KÜLTÜRÜ BAZ ALINACAK. 'set in Turkey, authentic Turkish setting, realistic Turkish environment, Turkish people' eklenecek.\n4. TIKTOK UYUMLULUĞU: Sansasyonel/hakaret içeren dil kullanma; doğrulanmamış iddiayı kesin gerçek gibi yazma; gerçek kişiler için suçluluk veya ahlaki hüküm kurma; şiddeti grafik ayrıntılandırma. AI görseli gerçek olayın sahte kanıtı gibi göstermeyecek, editoryal/temsili olacak.\n- ATATÜRK HASSASİYETİ: 'Atatürk' geçerse "Mustafa Kemal Atatürk, highly detailed, respectful portrait" ekle!${sonSozRule}${newsReadRules}\nDönüş ZORUNLU olarak JSON formatında olmalı.`;
+    const sysPrompt = `Bu, ${totalImages} görsellik bir videonun ${imageIndex + 1}. bloğudur.\nSen TikTok ve Instagram Reels için viral içerikler üreten profesyonel bir içerik üreticisisin.\n\nSENARYOYU TAM OLARAK 2 SAHNE olacak şekilde böl!\nToplam konuşma metni bu blok için ${newsReadMode ? '45-80' : '30-50'} kelime aralığında olmalıdır.\n\nDİL KURALI: ${langInstruction}\n${styleInstruction}\n${dynamicRules}\n${contextBlock}\n\nGAZETE İLK SAYFASI VE YERLİ GÖRSEL KURALLARI:\n1. Eğer görsel bir gazete ilk sayfası ise 'imagePrompts' dizisini BOŞ [] BIRAK!\n2. GAZETE HARİCİ İÇERİKLER İÇİN: HER SAHNE İÇİN 'imagePrompts' DİZİSİNDE TAM 1 ADET AI GÖRSEL PROMPTU YAZ.\n3. TÜRKİYE VE TÜRK KÜLTÜRÜ BAZ ALINACAK. 'set in Turkey, authentic Turkish setting, realistic Turkish environment, Turkish people' eklenecek.\n4. TIKTOK UYUMLULUĞU: Sansasyonel/hakaret içeren dil kullanma; doğrulanmamış iddiayı kesin gerçek gibi yazma; gerçek kişiler için suçluluk veya ahlaki hüküm kurma; şiddeti grafik ayrıntılandırma. AI görseli gerçek olayın sahte kanıtı gibi göstermeyecek, editoryal/temsili olacak.\n- ATATÜRK HASSASİYETİ: 'Atatürk' geçerse "Mustafa Kemal Atatürk, highly detailed, respectful portrait" ekle!
+
+GAZETE BAŞLIK OKUMA VE SESLENDİRME KURALLARI (görsel bir gazete ilk sayfasıysa EN YÜKSEK ÖNCELİK):
+A. ÖNCE OKU: Sayfadaki her başlığı TEK TEK, görselde yazdığı gibi HARFİYEN oku. İki ayrı başlığı asla tek cümlede birleştirme veya zincirleme bağlama.
+B. HARFİYEN: Skor, rakam, tarih, takım ve kişi/kurum adlarını birebir taşı; sayıları değiştirme veya yorumlama.
+C. KESİK BAŞLIK: Başlık sayfada kesik/eksik görünüyorsa yalnız okuduğun kısmı yaz; anlamı tamamlamak için içerik UYDURMA.
+D. HER MADDE TEK BAŞLIK: gazeteBasliklari dizisindeki her 'baslik' değeri YALNIZ tek bir başlık içerir; ikinci bir başlığı baslik veya aciklama alanına ekleme.
+E. aciklama: yalnız başlığın altındaki spot/alt başlıkta açıkça yazan bilgiyle sınırlı 1 kısa düz cümle; görselde yazmayan neden/sonuç/bağlantı uydurma; destekleyici metin yoksa boş string bırak.
+F. SONRA ANLA VE SESLENDİR: spokenText akıcı tam cümleler olsun; her başlık kendi cümlesinde kalsın; başlıklar arasında bağlantı kurma; okumadığın hiçbir bilgiyi ekleme.
+${sonSozRule}${newsReadRules}\nDönüş ZORUNLU olarak JSON formatında olmalı.`;
 
     let parts = [];
     let extractStatsHint = "Olayı tam anla ve KISA BİR ÖZET ver.";
@@ -4803,7 +4826,7 @@ Google Search aracını gerçekten kullan. Cevabında arama sonucunda bulunan en
       const targetFile = inputData[0];
       if (targetFile) {
         const b64 = targetFile.data.split(',')[1];
-        parts = [{ inlineData: { mimeType: targetFile.type || "application/octet-stream", data: b64 } }, { text: newsReadMode ? "Bu görsel bir haber paylaşımı/ekran görüntüsü. Görseldeki başlık, spot ve yazılardan hangi olaydan söz edildiğini belirle; internette ara ve haberi güvenilir kaynaklardan doğrula; sonra haberi doğrudan, 3-5 cümleyle anlat. Görseli tarif etme." : "Bu görseldeki haberi/konuyu detaylıca incele ve 2 sahnede anlat." }];
+        parts = [{ inlineData: { mimeType: targetFile.type || "application/octet-stream", data: b64 } }, { text: newsReadMode ? "Bu görsel bir haber paylaşımı/ekran görüntüsü. Görseldeki başlık, spot ve yazılardan hangi olaydan söz edildiğini belirle; internette ara ve haberi güvenilir kaynaklardan doğrula; sonra haberi doğrudan, 3-5 cümleyle anlat. Görseli tarif etme." : "Bu görseldeki haberi/konuyu detaylıca incele ve 2 sahnede anlat. Görsel bir gazete ilk sayfasıysa başlıkları sistemdeki GAZETE BAŞLIK OKUMA VE SESLENDİRME KURALLARI'na göre harfiyen çıkar; iki başlığı birleştirme." }];
       } else { parts = [{ text: `Görsel bulunamadı.` }]; }
     } else if (inputType === 'prompt') { parts = [{ text: `AŞAĞIDAKİ TALİMATI UYGULA (Bu ${imageIndex + 1}/${totalImages} blok):\n\n${inputData}\n\n${extractStatsHint}` }]; }
     else if (inputType === 'url') { parts = [{ text: `[KRİTİK GÖREV]: URL'yi oku.\nURL: ${inputData}\nBu ${imageIndex + 1}/${totalImages} blok için içeriğe dayanarak haberi özetle. ${extractStatsHint}` }]; }
@@ -9073,11 +9096,15 @@ class WorkflowCoordinator {
                 (typeof srcItem?.data?.data === "string" ? srcItem.data.data : null) ||
                 (typeof srcItem?.customImage === "string" ? srcItem.customImage : null) ||
                 (typeof srcItem?.mediaItem?.data === "string" ? srcItem.mediaItem.data : null);
+              // v1.194: seslendirme metni dürüst birleştirme — başlık ve açıklama
+              // ayrı alanlardan gelir, fazla noktalar temizlenir; boş açıklamada
+              // yalnız başlık okunur (ikinci başlık/uydurma eklenmez).
+              const spokenBaslik = [baslik.baslik, baslik.aciklama].map(x => String(x || '').replace(/\s+/g, ' ').replace(/\s*\.\s*$/, '').trim()).filter(Boolean).join('. ');
               this.state.script.imageBlocks.push({
                 imageIndex: imgIdx, imageType: 'custom', customImage: srcImg,
                 videoSlides: [{
                   topText: baslik.baslik.toUpperCase(),
-                  spokenText: `${baslik.baslik}. ${baslik.aciklama || ''}`.trim(),
+                  spokenText: spokenBaslik ? spokenBaslik + '.' : '',
                   imagePrompts: [],
                   _zoomCoords: (Number.isFinite(Number(baslik.x)) && Number.isFinite(Number(baslik.y)) && Number.isFinite(Number(baslik.w)) && Number.isFinite(Number(baslik.h)) && Number(baslik.w) > 0 && Number(baslik.h) > 0)
                     ? { x: Number(baslik.x), y: Number(baslik.y), w: Number(baslik.w), h: Number(baslik.h) }
