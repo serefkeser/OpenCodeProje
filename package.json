@@ -1,6 +1,6 @@
 {
   "name": "otonom-microservices",
-  "version": "1.198.0",
+  "version": "1.199.0",
   "description": "OTONOM monolit -> mikro servis dönüşümü (gateway + analysis + media + web)",
   "private": true,
   "type": "module",

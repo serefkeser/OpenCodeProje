@@ -46,14 +46,16 @@ Not: .env anahtarlar ASLA repoya yazılmaz.
 
 ---
 
-## DEVAM HATTI — yarın kaldığımız yerden (güncellendi: 29 Ekim v1.198)
+## DEVAM HATTI — yarın kaldığımız yerden (güncellendi: 29 Ekim v1.199)
 
-**Son sürüm:** v1.198 — YORUMLA BAŞLIK AÇIKLAMA KURALI: büyük başlıklar artık
-sadece okunmaz; her büyük başlık harfiyen 1 kez okunup hemen ardından 2-3 tam
-cümleyle anlamlandırılır (olay/iddia + araştırma notunun kim/ne/kaynak katkısı +
-vatandaş için önem; dayanak yalnız araştırma notu + görselden okunan metin,
-uydurma yasak). Persona 50 yıllık medya editörü; gazete bölümü bütçesi 25-40 →
-130-220 kelime (toplam 1300-1550 ve TTS istek sayısı aynen). Önceki: v1.197
+**Son sürüm:** v1.199 — SON SÖZ FAIL-STOP DÜRÜST NEDEN: "Son Söz seslendirmesi
+üretilemedi" FAILED'ının ayrıntısında neden yoktu; _ttsLastFailure değişkeni
+artık gerçek nedeni (günlük kota+saat / RPM / canlı model yok / son hata) hata
+metnine taşır; davranış aynen (fail-closed, yok sessiz atlama). Önceki: v1.198 —
+YORUMLA BAŞLIK AÇIKLAMA KURALI: her büyük başlık harfiyen 1 kez okunup hemen
+ardından 2-3 tam cümleyle anlamlandırılır; persona 50 yıllık medya editörü;
+gazete bölümü bütçesi 25-40 → 130-220 (toplam ve TTS sayısı aynen). v1.198'in
+ilk koşusu başarılı: sabah logunda başlık+açıklama deseni kanıtlı. v1.197
 (`bade55d`) — TTS GÜNLÜK KOTA DEFTERİ: canlı log + probe-v197-429body TTS 429-ların
 günlük kota olduğunu kesinleştirdi (ücretsiz katman: model başına 10 istek/GÜN,
 3 model = 30/gün; yenilenme ~10:00 TR). fetchWithRetry retryDelay okuyup

@@ -10,6 +10,14 @@ Kesin sürüm referansı `web/src/App.tsx` içinde `APP_VERSION`; burası insan-
 
 ---
 
+## v1.199 — (29 Ekim 2026, TEŞHİS: SON SÖZ FAIL-STOP ARTIK GERÇEK NEDENİ TAŞIR)
+**Kullanıcı FAILED raporu: "Son Söz seslendirmesi üretilemedi" — ama ayrıntıda neden yoktu.**
+
+- **Kök neden:** fail-stop mesajı generic; `generateAudio` sebebi (günlük kota / RPM penceresi / canlı model yok / 45 sn zaman aşımı / yetkilendirme) yalnız günlüğe yazıyor, hata metnine taşımıyor.
+- **Düzeltme:** `_ttsLastFailure` modül değişkeni — her null dönüş noktasında dürüst neden kaydeder (gün-kota + yenileme saati, zincirde canlı model kalmadı, tüm denemeler + son hata); başarıda temizlenir; Son Söz fail-stop artık `Neden: ...` içerir.
+- **Davranış aynen:** sessiz atlama yok, fail-closed korunur; render yine durur — yalnız teşhis şeffaflığı.
+- **Kanıt:** `npx vite build` ✓.
+
 ## v1.198 — (29 Ekim 2026, PROMPT: YORUMLA BAŞLIKLARI AÇIKLAMA KURALI)
 **Kullanıcı talebi: gazete videosunda büyük başlıklar sadece okunmasın; her başlık 2-3 cümleyle açıklansın; anlatıcı 50 yıllık medya editörü tonunda olsun.**
 

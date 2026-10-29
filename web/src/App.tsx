@@ -1,6 +1,18 @@
 // ============================================================================
 // OTONOM Chatgpt_1.197 — SÜRÜM BAŞLIĞI (her değişiklikte burayı, APP_VERSION'ı ve SÜRÜM NOTLARI'nı birlikte artır)
 // Program menüsündeki rozet APP_VERSION.toBadge() ile bu sürümden otomatik üretilir.
+// v1.199 ÖZET: Kullanıcı FAILED raporu — "Gazete videosu tamamlanamadı... Son Söz
+// seslendirmesi üretilemedi" AMA ayrıntıda neden YOKTU. Kök neden: Son Söz fail-stop
+// (satır ~9986) generic metin fırlatıyor; generateAudio zaten sebebi (günlük kota /
+// RPM penceresi / canlı model yok / 45 sn zaman aşımı / yetkilendirme) sistem
+// günlüğüne yazıyor ama hata METNİNE taşımıyor — kullanıcı "nedeni gizli FAILED"
+// görüyor. Düzeltme: (1) modül değişkeni _ttsLastFailure — generateAudio'nun her
+// null dönüş noktasında dürüst neden kaydeder (giriş kapısı gün-kota, zincirde canlı
+// model yok, tüm denemeler + son hata mesajı); ses başarılıysa temizlenir.
+// (2) Son Söz fail-stop hatası artık gerçek nedeni taşır: "Son Söz seslendirmesi
+// üretilemedi. Neden: TTS günlük ücretsiz kotası tüm modellerde dolu...". (3) Rapor
+// davranışı aynen: sessiz atlama yine yok, fail-closed korunur; render yine durur.
+// Bu yama davranışı değiştirmez, sadece teşhis şeffaflığı ekler. Kanıt: npx vite build ✓.
 // v1.198 ÖZET: Kullanıcı talebi — YORUMLA gazete videosunda büyük başlıklar ("Şimdi
 // yeniden Cumhuriyet", "Bitmeyen talan düzeni", "İktidar bahçesinde fon kavgası
 // sürüyor", "İspanya yasta sağcılar mitingde") YALNIZ OKUNUYORDU, açıklanmıyordu;
@@ -352,7 +364,7 @@ const { Download, RotateCcw, UploadCloud, Music, Trash2, Volume2, Clock, Loader2
 // M1: CONSTANTS & CONFIG
 // ============================================================================
 const APP_VERSION = {
-  major: 1, minor: 198, hotfix: 'Chatgpt_1.198',
+  major: 1, minor: 199, hotfix: 'Chatgpt_1.199',
   short() { return `${this.major}.${this.minor}`; },
   toString() { return `OTONOM Chatgpt_${this.major}.${this.minor}`; },
   toBadge() { return `${this.toString()} • One-Page`; }
@@ -1449,6 +1461,7 @@ const collectUltimateCoverReferences = async (jobState) => {
 const useDebounce = (value, delay = 300) => { const [debounced, setDebounced] = useState(value); useEffect(() => { const timer = setTimeout(() => setDebounced(value), delay); return () => clearTimeout(timer); }, [value, delay]); return debounced; };
 
 const FIX_CHECKLIST = Object.freeze([
+  { version: '1.199', key: 'SON_SOZ_FAIL_STOP_HONEST_REASON', text: 'Kullanıcı FAILED raporu: "Son Söz seslendirmesi üretilemedi" ama ayrıntıda GERÇEK NEDEN yoktu. Kök neden: Son Söz fail-stop generic metin fırlatıyordu; generateAudio sebebi (günlük kota/RPM/canlı model yok/45 sn zaman aşımı/yetkilendirme) yalnız günlüğe yazıyordu. Düzeltme: (1) _ttsLastFailure modül değişkeni — generateAudio her null dönüş noktasında dürüst neden kaydeder (giriş kapısı gün-kota + yenileme saati; zincirde canlı model kalmadı; tüm denemeler + son hata); başarıda temizlenir. (2) Son Söz fail-stop artık "Neden: ..." taşır. Davranış aynen: sessiz atlama yok, fail-closed, render düştükçe durur — yalnız teşhis şeffaflığı. Kanıt: npx vite build.' },
   { version: '1.198', key: 'YORUMLA_HEADLINE_EXPLAIN_NOT_JUST_READ', text: 'Kullanıcı talebi: YORUMLA gazete videosunda büyük başlıklar ("Şimdi yeniden Cumhuriyet", "Bitmeyen talan düzeni", "İktidar bahçesinde fon kavgası sürüyor", "İspanya yasta sağcılar mitingde") sadece başlık olarak okunuyordu, detay yoktu. Düzeltme (yalnız prompt; kod akışı/şema/fail-closed aynen): (1) instructions persona 50 yıllık medya editörü oldu (ses yine Aoede). (2) İÇERİK kuralı: her büyük başlık HARFİYEN 1 kez okunur + hemen ardından 2-3 tam cümleyle anlamlandırılır (olay/iddia; araştırma notunun kim/ne/kaynak katkısı; vatandaş için önem); başlık listeletmek yasak; dayanak yalnız araştırma notu + görselden okunan metin, uydurma yasak. (3) Gazete bölümü kelime bütçesi 25-40 → 130-220 (toplam 1300-1550 ve TTS istek sayısı aynen; yalnız metin dağılımı değişti). (4) GENİŞLETME promptu "yalnız başlığı okuyup geçen hiçbir bölüm kalmasın" zorunluluğu aldı. Kanıt: npx vite build.' },
   { version: '1.197', key: 'TTS_DAILY_QUOTA_LEDGER_AND_FAIL_FAST', text: 'Kullanıcı canlı logu (00:20-00:23) + probe-v197-429body: TTS 429-lar GÜNLÜK kota — 429 gövdesi quotaId GenerateRequestsPerDayPerProjectPerModel-FreeTier, quotaValue 10 (ücretsiz katmanda model başına 10 istek/GÜN), retryDelay 33699s (~9 sa 21 dk; gece yarısı Pasifik ~10:00 TR yenilenir). Dünkü çoklu koşular 3×10=30 istek/gün bütçesini tüketti; 30 sn toparlanma penceresi beyhudeler. Düzeltme: (1) fetchWithRetry son 429-da gövdeden retryDelay okur, HTTP_FAIL_429;retryDelay=Xs;perDay=1 fırlatır. (2) generateAudio günlük sinyalde modeli TTS GÜNLÜK KOTA DEFTERİNE yazar (localStorage ns_ttsQuotaLedger, anahtar parmak iziyle bağlı; anahtar değişince geçersiz) ve BEKLEMEDEN sonraki canlı modele geçer (her modelin günlük kotası ayrı); tüm modeller gün-bitikse istek hiç açılmadan dürüst hata + null. (3) İş akışı BAŞLANGIÇ kapısı: ses isteyen video koşusunda defterde tüm modeller gün-bitikse koşu analiz/görsel kotası yakılmadan dürüst hatayla durur. (4) RPM penceresi (≤5 dk) için 3/6 sn + 30 sn toparlanma korunur; 30 sn denemesi gün-biti modelleri atlayıp canlı modeli seçer. Fail-closed aynen: sessiz atlama yok. Kanıt: probe-v197-429body, npx vite build ✓.' },
   { version: '1.196', key: 'TTS_QUOTA_WINDOW_RECOVERY', text: 'Kullanıcı FAILED raporu: "Son Söz seslendirmesi üretilemedi; video render durduruldu". Kök neden kanıtla: koşu Son Söz-e kadar geldi (önceki analiz/görsel/sahne TTS-leri başarılı) = gateway sağlıklı; 3 dk sonra probe-v196-tts üç TTS modelini de PASS etti (178/148/141 KB) = model/kota o anda dip değil. Arıza penceresi: RPM kota dibi — Son Söz koşunun SON TTS-i olduğu için 6 hızlı deneme (fetchWithRetry iç bekleme ~1-2 sn + model zinciri arası 0 sn) aynı dakika penceresinde 429-a çarptı; fetchWithRetry tükenen 429-u generic "tüm denemeler başarısız" olarak yutuyordu. Düzeltme: (1) generateAudio denemeler arası 3/6 sn bekleme; HTTP 429 sinyalinde 30 sn bekleyip 4. kota toparlanma denemesi (fail-closed korunur — o da düşerse null → Son Söz fail-stop aynen). (2) fetchWithRetry lastStatus korur: tükenen 429/5xx penceresinde HTTP_FAIL_429 fırlatır (bilgi kaybı kapanır); 401/403/404 davranışı aynen. (3) Boş TTS yanıtında finishReason/blockReason/model tanı logu (v1.188 deseni). Fail-closed ilkesi, sessiz atlama yine yok. Kanıt: probe-v196-tts (3× PASS), npx vite build ✓.' },
@@ -5633,6 +5646,9 @@ const _ttsQuotaInfoFromError = message => {
   return { retryDelaySec, perDay: retryDelaySec > 300 }; // >5 dk pencere = günlük kota
 };
 const _ttsFormatRenewal = untilMs => { try { return new Date(untilMs).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }); } catch (e) { return String(untilMs); } };
+// v1.199: son TTS başarısızlığının DÜRÜST SEBEBİ — null dönüşten önce buraya yazılır,
+// Son Söz fail-stop gibi üst katman hata metinlerine eklenir; "nedeni gizli FAILED" yasağı kapanır.
+let _ttsLastFailure = '';
 
 class MediaSynthesisService {
   // Sıfır maliyet görsel yedeği: Wikipedia (tr) sayfa görseli + Commons bitmap araması.
@@ -5835,10 +5851,12 @@ class MediaSynthesisService {
     const TTS_QUOTA_RECOVERY_ATTEMPT = 3;
     const maxRetries = 2;
     let sawQuota = false;
+    let lastAttemptError = '';
     const triedModels = new Set();
     // v1.197 giriş kapısı: bütün modeller gün-biti defterindeyse hiç istek açma.
     if (TTS_MODEL_CHAIN.every(m => _ttsDayDeadUntil(m) > Date.now())) {
       const untilMs = Math.max(...TTS_MODEL_CHAIN.map(m => _ttsDayDeadUntil(m)));
+      _ttsLastFailure = `TTS günlük ücretsiz kotası tüm modellerde dolu (model başına 10 istek/gün); kota ~${_ttsFormatRenewal(untilMs)} (TR) yenilenir`;
       addSystemLog(`TTS günlük ücretsiz kotası tüm modellerde dolu (ücretsiz katman: model başına 10 istek/gün); kota ~${_ttsFormatRenewal(untilMs)} (TR) yenilenir. Boşa istek açılmadı.`, 'error');
       return null;
     }
@@ -5853,7 +5871,7 @@ class MediaSynthesisService {
       const isQuotaRecoveryAttempt = attempt === TTS_QUOTA_RECOVERY_ATTEMPT;
       if (isQuotaRecoveryAttempt && !sawQuota) break;
       const model = pickLiveModel(isQuotaRecoveryAttempt ? 0 : attempt);
-      if (!model) { addSystemLog('TTS: denenebilir canlı model kalmadı; zincir durduruldu.', 'warn'); break; }
+      if (!model) { _ttsLastFailure = 'TTS zincirinde denenebilir canlı model kalmadı (tüm modeller bu çağrıda denendi/gün-biti)'; addSystemLog('TTS: denenebilir canlı model kalmadı; zincir durduruldu.', 'warn'); break; }
       if (attempt > 0) {
         const delayMs = isQuotaRecoveryAttempt ? 30000 : (attempt === maxRetries ? 6000 : 3000);
         addSystemLog(`TTS ${Math.round(delayMs / 1000)} sn bekleniyor${isQuotaRecoveryAttempt ? ' (kota penceresi toparlansın)' : ''}...`, isQuotaRecoveryAttempt ? 'warn' : 'info');
@@ -5949,6 +5967,7 @@ class MediaSynthesisService {
         view.setUint16(34, bitsPerSample, true); writeString(36, 'data'); view.setUint32(40, audioBytes.length, true);
         new Uint8Array(wavBuffer, 44).set(audioBytes);
         addSystemLog(`Ses hazır: ${(audioBytes.length / 1024).toFixed(0)}KB, ${sampleRate}Hz (${model})`, 'success');
+        _ttsLastFailure = '';
         return { wavBuffer, sampleRate };
       } catch (e) {
         if (/^HTTP_FAIL_(401|403)\b/.test(String(e?.message || e))) {
@@ -5969,12 +5988,15 @@ class MediaSynthesisService {
           }
         }
         addSystemLog(`TTS deneme ${attempt + 1} hatası: ${e.message}`, 'warn');
+        lastAttemptError = e?.message || String(e);
       }
     }
     if (TTS_MODEL_CHAIN.every(m => _ttsDayDeadUntil(m) > Date.now())) {
       const untilMs = Math.max(...TTS_MODEL_CHAIN.map(m => _ttsDayDeadUntil(m)));
+      _ttsLastFailure = `TTS günlük ücretsiz kotası tüm modellerde dolu (model başına 10 istek/gün); kota ~${_ttsFormatRenewal(untilMs)} (TR) yenilenir`;
       addSystemLog(`TTS günlük ücretsiz kotası TÜM modellerde doldu (ücretsiz katman: model başına 10 istek/gün); kota ~${_ttsFormatRenewal(untilMs)} (TR) yenilenir. Bu pencerede ses üretimi yapılamaz.`, 'error');
     } else {
+      _ttsLastFailure = `tüm TTS denemeleri başarısız (son hata: ${lastAttemptError || 'bilinmiyor'})`;
       addSystemLog('TTS tüm denemeler başarısız.', 'error');
     }
     return null;
@@ -9983,7 +10005,11 @@ ${buildSonSozHistoryPrompt()}
           );
 
           if (!this.state.assets.sonSozAudio) {
-            throw new Error('Son Söz seslendirmesi üretilemedi. Son Söz sessizce atlanmadı; video render durduruldu.');
+            // v1.199: nedeni gizlemek yasak — MediaSynthesisService son başarısızlık
+            // sebebini _ttsLastFailure'a yazar (günlük kota / RPM / model yok / 45 sn
+            // zaman aşımı vb.); FAILED ayrıntısı artık gerçek nedenle gelir.
+            const sonSozNeden = _ttsLastFailure ? ` Neden: ${_ttsLastFailure}.` : ' Neden: TTS sentezi sessizce yanıt döndürmedi.';
+            throw new Error(`Son Söz seslendirmesi üretilemedi.${sonSozNeden} Son Söz sessizce atlanmadı; video render durduruldu.`);
           }
         }
 
