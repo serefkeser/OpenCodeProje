@@ -10,6 +10,14 @@ Kesin sürüm referansı `web/src/App.tsx` içinde `APP_VERSION`; burası insan-
 
 ---
 
+## v1.200 — (29 Ekim 2026, TEŞHİS: BAŞLATMA FAZI DURUŞU ARTIK GERÇEK NEDENİ TAŞIR)
+**Kullanıcı FAILED raporu: "Workflow durumu: durum bilinmiyor; son hata/aşama bilgisi boş."**
+
+- **Kök neden:** `handleExecuteStart` başlatma fazı kapıları (önizleme / kuyruk meşgul / MP4 hazırlığı / v1.197 TTS günlük kota kapısı) yalnız günlüğe yazıp `false` döner; kota kapısı `throw` ettiğinde catch yalnız `uiState.error`'a yazar — `workflowRef` durumu hiç doldurulmaz. Gazete sarmalayıcısı workflow durumundan okuyunca hepsi boş çıkar.
+- **Düzeltme:** `_lastStartAbortReason` — her başlatma-fazı duruş noktasında gerçek sebep kaydedilir (başlangıçta/başarıda temizlenir); sarmalayıcı ayrıntıyı `workflowState.error/statusText || _lastStartAbortReason` zinciriyle alır; aşama bilinmezse "iş akışı başlamadı (başlatma fazında durdu)" etiketi.
+- **Davranış aynen:** kapılar hâlâ koşuyu durdurur (fail-closed); yalnız raporlama dürüstleşir.
+- **Kanıt:** `npx vite build` ✓.
+
 ## v1.199 — (29 Ekim 2026, TEŞHİS: SON SÖZ FAIL-STOP ARTIK GERÇEK NEDENİ TAŞIR)
 **Kullanıcı FAILED raporu: "Son Söz seslendirmesi üretilemedi" — ama ayrıntıda neden yoktu.**
 

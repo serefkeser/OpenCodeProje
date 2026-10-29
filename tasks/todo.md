@@ -46,13 +46,13 @@ Not: .env anahtarlar ASLA repoya yazılmaz.
 
 ---
 
-## DEVAM HATTI — yarın kaldığımız yerden (güncellendi: 29 Ekim v1.199)
+## DEVAM HATTI — yarın kaldığımız yerden (güncellendi: 29 Ekim v1.200)
 
-**Son sürüm:** v1.199 — SON SÖZ FAIL-STOP DÜRÜST NEDEN: "Son Söz seslendirmesi
-üretilemedi" FAILED'ının ayrıntısında neden yoktu; _ttsLastFailure değişkeni
-artık gerçek nedeni (günlük kota+saat / RPM / canlı model yok / son hata) hata
-metnine taşır; davranış aynen (fail-closed, yok sessiz atlama). Önceki: v1.198 —
-YORUMLA BAŞLIK AÇIKLAMA KURALI: her büyük başlık harfiyen 1 kez okunup hemen
+**Son sürüm:** v1.200 — BAŞLATMA FAZI DURUŞ DÜRÜST NEDEN: "durum bilinmiyor /
+bilgi boş" FAILED'ı kök nedeni gizliyordu; _lastStartAbortReason artık başlatma
+kapılarının (öniizleme/kuyruk/MP4/TTS günlük kota) gerçek sebebini sarmalayıcıya
+taşır; davranış aynen (fail-closed). Önceki: v1.199 — SON SÖZ FAIL-STOP DÜRÜST
+NEDEN (_ttsLastFailure). v1.198 — YORUMLA BAŞLIK AÇIKLAMA KURALI: her büyük başlık harfiyen 1 kez okunup hemen
 ardından 2-3 tam cümleyle anlamlandırılır; persona 50 yıllık medya editörü;
 gazete bölümü bütçesi 25-40 → 130-220 (toplam ve TTS sayısı aynen). v1.198'in
 ilk koşusu başarılı: sabah logunda başlık+açıklama deseni kanıtlı. v1.197

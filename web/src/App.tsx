@@ -1,6 +1,21 @@
 // ============================================================================
 // OTONOM Chatgpt_1.197 — SÜRÜM BAŞLIĞI (her değişiklikte burayı, APP_VERSION'ı ve SÜRÜM NOTLARI'nı birlikte artır)
 // Program menüsündeki rozet APP_VERSION.toBadge() ile bu sürümden otomatik üretilir.
+// v1.200 ÖZET: Kullanıcı FAILED raporu — "Gazete videosu tamamlanamadı. Workflow
+// durumu: durum bilinmiyor; workflow içindeki son hata veya aşama bilgisi boş."
+// Kök neden: handleExecuteStart BAŞLATMA FAZINDA duran kapılar (önizleme kapısı,
+// kuyruk meşgul, MP4 yerel hazırlığı, v1.197 TTS günlük kota kapısı) yalnız sistem
+// günlüğüne yazıp false döner; v1.197 kapısı throw ettiğinde catch (satır ~11673)
+// YALNIZ uiState.error'a yazar — workflowRef durumu hiç doldurulmaz. Gazete sarmalayıcı
+// (!completed, satır ~14116) workflowState.error/statusText/currentStage/status
+// okur — hepsi boş → "durum bilinmiyor; bilgi boş" (nedeni gizli FAILED, v1.199
+// sınıfı). Düzeltme (teşhis şeffaflığı; davranış aynen): (1) _lastStartAbortReason
+// modül değişkeni — handleExecuteStart her duruş noktasında (üç kapı + Güzel Söz
+// intro beklemesi + catch) gerçek sebebini yazar; başlangıçta ve başarıda temizlenir.
+// (2) Sarmalayıcı detail zinciri workflowState.error/statusText || _lastStartAbortReason;
+// aşama bilinmezse "iş akışı başlamadı (başlatma fazında durdu)" etiketi. Böylece
+// kota kapısı duruşu artık "TTS günlük ücretsiz kotası dolu; ~10:00 TR yenilenir"
+// nedeniyle raporlanır. Kanıt: npx vite build ✓.
 // v1.199 ÖZET: Kullanıcı FAILED raporu — "Gazete videosu tamamlanamadı... Son Söz
 // seslendirmesi üretilemedi" AMA ayrıntıda neden YOKTU. Kök neden: Son Söz fail-stop
 // (satır ~9986) generic metin fırlatıyor; generateAudio zaten sebebi (günlük kota /
@@ -364,7 +379,7 @@ const { Download, RotateCcw, UploadCloud, Music, Trash2, Volume2, Clock, Loader2
 // M1: CONSTANTS & CONFIG
 // ============================================================================
 const APP_VERSION = {
-  major: 1, minor: 199, hotfix: 'Chatgpt_1.199',
+  major: 1, minor: 200, hotfix: 'Chatgpt_1.200',
   short() { return `${this.major}.${this.minor}`; },
   toString() { return `OTONOM Chatgpt_${this.major}.${this.minor}`; },
   toBadge() { return `${this.toString()} • One-Page`; }
@@ -1461,6 +1476,7 @@ const collectUltimateCoverReferences = async (jobState) => {
 const useDebounce = (value, delay = 300) => { const [debounced, setDebounced] = useState(value); useEffect(() => { const timer = setTimeout(() => setDebounced(value), delay); return () => clearTimeout(timer); }, [value, delay]); return debounced; };
 
 const FIX_CHECKLIST = Object.freeze([
+  { version: '1.200', key: 'START_PHASE_ABORT_HONEST_REASON', text: 'Kullanıcı FAILED raporu: "Workflow durumu: durum bilinmiyor; son hata/aşama bilgisi boş". Kök neden: handleExecuteStart başlatma fazı kapıları (önizleme bitmedi / kuyruk meşgul / MP4 hazırlığı / v1.197 TTS günlük kota kapısı) yalnız günlüğe yazıp false döner; kota kapısı throw ettiğinde catch yalnız uiState.error-a yazar — workflowRef durumu boş kalır; gazete sarmalayıcı workflowState/error/stage okuyunca hepsi boş çıkar (nedeni gizli FAILED, v1.199 sınıfı). Düzeltme (teşhis şeffaflığı; davranış aynen): (1) _lastStartAbortReason — her başlatma-fazı duruş noktasında gerçek sebep kaydedilir, başlangıçta/başarıda temizlenir. (2) Sarmalayıcı detail = workflowState.error/statusText || _lastStartAbortReason; aşama bilinmezse "iş akışı başlamadı (başlatma fazında durdu)". Kota duruşu artık yenileme saatiyle raporlanır. Kanıt: npx vite build.' },
   { version: '1.199', key: 'SON_SOZ_FAIL_STOP_HONEST_REASON', text: 'Kullanıcı FAILED raporu: "Son Söz seslendirmesi üretilemedi" ama ayrıntıda GERÇEK NEDEN yoktu. Kök neden: Son Söz fail-stop generic metin fırlatıyordu; generateAudio sebebi (günlük kota/RPM/canlı model yok/45 sn zaman aşımı/yetkilendirme) yalnız günlüğe yazıyordu. Düzeltme: (1) _ttsLastFailure modül değişkeni — generateAudio her null dönüş noktasında dürüst neden kaydeder (giriş kapısı gün-kota + yenileme saati; zincirde canlı model kalmadı; tüm denemeler + son hata); başarıda temizlenir. (2) Son Söz fail-stop artık "Neden: ..." taşır. Davranış aynen: sessiz atlama yok, fail-closed, render düştükçe durur — yalnız teşhis şeffaflığı. Kanıt: npx vite build.' },
   { version: '1.198', key: 'YORUMLA_HEADLINE_EXPLAIN_NOT_JUST_READ', text: 'Kullanıcı talebi: YORUMLA gazete videosunda büyük başlıklar ("Şimdi yeniden Cumhuriyet", "Bitmeyen talan düzeni", "İktidar bahçesinde fon kavgası sürüyor", "İspanya yasta sağcılar mitingde") sadece başlık olarak okunuyordu, detay yoktu. Düzeltme (yalnız prompt; kod akışı/şema/fail-closed aynen): (1) instructions persona 50 yıllık medya editörü oldu (ses yine Aoede). (2) İÇERİK kuralı: her büyük başlık HARFİYEN 1 kez okunur + hemen ardından 2-3 tam cümleyle anlamlandırılır (olay/iddia; araştırma notunun kim/ne/kaynak katkısı; vatandaş için önem); başlık listeletmek yasak; dayanak yalnız araştırma notu + görselden okunan metin, uydurma yasak. (3) Gazete bölümü kelime bütçesi 25-40 → 130-220 (toplam 1300-1550 ve TTS istek sayısı aynen; yalnız metin dağılımı değişti). (4) GENİŞLETME promptu "yalnız başlığı okuyup geçen hiçbir bölüm kalmasın" zorunluluğu aldı. Kanıt: npx vite build.' },
   { version: '1.197', key: 'TTS_DAILY_QUOTA_LEDGER_AND_FAIL_FAST', text: 'Kullanıcı canlı logu (00:20-00:23) + probe-v197-429body: TTS 429-lar GÜNLÜK kota — 429 gövdesi quotaId GenerateRequestsPerDayPerProjectPerModel-FreeTier, quotaValue 10 (ücretsiz katmanda model başına 10 istek/GÜN), retryDelay 33699s (~9 sa 21 dk; gece yarısı Pasifik ~10:00 TR yenilenir). Dünkü çoklu koşular 3×10=30 istek/gün bütçesini tüketti; 30 sn toparlanma penceresi beyhudeler. Düzeltme: (1) fetchWithRetry son 429-da gövdeden retryDelay okur, HTTP_FAIL_429;retryDelay=Xs;perDay=1 fırlatır. (2) generateAudio günlük sinyalde modeli TTS GÜNLÜK KOTA DEFTERİNE yazar (localStorage ns_ttsQuotaLedger, anahtar parmak iziyle bağlı; anahtar değişince geçersiz) ve BEKLEMEDEN sonraki canlı modele geçer (her modelin günlük kotası ayrı); tüm modeller gün-bitikse istek hiç açılmadan dürüst hata + null. (3) İş akışı BAŞLANGIÇ kapısı: ses isteyen video koşusunda defterde tüm modeller gün-bitikse koşu analiz/görsel kotası yakılmadan dürüst hatayla durur. (4) RPM penceresi (≤5 dk) için 3/6 sn + 30 sn toparlanma korunur; 30 sn denemesi gün-biti modelleri atlayıp canlı modeli seçer. Fail-closed aynen: sessiz atlama yok. Kanıt: probe-v197-429body, npx vite build ✓.' },
@@ -5649,6 +5665,12 @@ const _ttsFormatRenewal = untilMs => { try { return new Date(untilMs).toLocaleTi
 // v1.199: son TTS başarısızlığının DÜRÜST SEBEBİ — null dönüşten önce buraya yazılır,
 // Son Söz fail-stop gibi üst katman hata metinlerine eklenir; "nedeni gizli FAILED" yasağı kapanır.
 let _ttsLastFailure = '';
+// v1.200: handleExecuteStart BAŞLATMA FAZI duruş sebebi — iş akışı başlamadan kapılar
+// (önizleme kapısı, kuyruk meşgul, MP4 yerel hazırlığı, TTS günlük kota kapısı)
+// yalnız günlük yazıp false döner; workflowRef durumu boş kalır ve gazete sarmalayıcısı
+// "durum bilinmiyor / bilgi boş" derdi. Sebep artık buraya yazılır; sarmalayıcı gerçek
+// nedeni workflowState bilgi yoksa bununla gösterir.
+let _lastStartAbortReason = '';
 
 class MediaSynthesisService {
   // Sıfır maliyet görsel yedeği: Wikipedia (tr) sayfa görseli + Commons bitmap araması.
@@ -11590,14 +11612,18 @@ export default function App() {
   };
 
   const handleExecuteStart = async (files = null, forceOutputType = null, configOverrides = null) => {
+    _lastStartAbortReason = '';
     if (gazetePreviewGateRef.current && !gazetePreviewGateRef.current.settled) {
-      addSystemLog(`Yeni video başlatılmadı: ${gazetePreviewGateRef.current.title} önizlemesi bitmedi. Önizleme tamamlanmadan başka video üretilemez.`, 'warn');
+      _lastStartAbortReason = `${gazetePreviewGateRef.current.title} önizlemesi bitmedi; önizleme tamamlanmadan başka video üretilemez`;
+      addSystemLog(`Yeni video başlatılmadı: ${_lastStartAbortReason.replace(/^/, '')}.`, 'warn');
       return false;
     }
     if (gazeteQueueRef.current.getState().active && configOverrides?._gazeteQueueId !== gazeteQueueRef.current.getState().id) {
+      _lastStartAbortReason = 'seçilen gazete sırası çalışıyor; yeni seçim için önce sıra iptal edilmeli';
       addSystemLog('Seçilen gazete sırası çalışıyor. Yeni seçim için önce sırayı iptal edin.', 'warn'); return false;
     }
     if (finalMp4BusyRef.current) {
+      _lastStartAbortReason = 'mevcut MP4 yerel hazırlığı tamamlanmadı; gönderim kuyruğu görevleri üretimi bloke etmez ama bu koşu başlatılmadı';
       addSystemLog('Mevcut MP4 yerel hazırlığı henüz tamamlanmadı; gönderim kuyruğundaki görevler üretimi bloke etmez.', 'warn');
       return false;
     }
@@ -11617,6 +11643,7 @@ export default function App() {
         guzelSozIntroFileInputRef.current.value = '';
         guzelSozIntroFileInputRef.current.click();
         addSystemLog('Güzel Sözler.mp4 yalnız bu kez seçilecek; ardından IndexedDB’ye kalıcı kaydedilecek.', 'info');
+        _lastStartAbortReason = 'Güzel Söz intro dosyası bekleniyor (dosya seçici açıldı; koşu bu tıklamada başlatılmadı)';
         return;
       }
 
@@ -11669,8 +11696,9 @@ export default function App() {
         throw new Error(`TTS günlük ücretsiz kotası tüm modellerde dolu (ücretsiz katman: model başına 10 istek/gün); kota ~${_ttsFormatRenewal(untilMs)} (TR) yenilenir. Video üretimi başlatılmadı — fail-closed, boşa kota yakma yok.`);
       }
       await workflowRef.current.startWorkflow(inputData, inputType, runConfig, prefs, canvasRef);
+      _lastStartAbortReason = '';
       return workflowRef.current?.state?.status === 'COMPLETED';
-    } catch (e) { if (cancelRequestedRef.current) return false; addSystemLog(`Hata: ${e.message}`, 'error'); void _processLogManager?.finish('FAILED', e?.message || String(e)); setUiState(prev => ({ ...prev, isProcessing: false, error: e.message })); return false; }
+    } catch (e) { if (cancelRequestedRef.current) return false; _lastStartAbortReason = e?.message || String(e); addSystemLog(`Hata: ${e.message}`, 'error'); void _processLogManager?.finish('FAILED', e?.message || String(e)); setUiState(prev => ({ ...prev, isProcessing: false, error: e.message })); return false; }
   };
 
   const handleStopAndRestart = async () => {
@@ -14123,8 +14151,10 @@ export default function App() {
           releaseIfMine();
           return false;
         }
-        const detail = String(workflowState.error || workflowState.statusText || '').trim();
-        const stage = String(workflowState.currentStage || workflowState.stage || workflowState.status || 'durum bilinmiyor');
+        // v1.200: başlatma fazında duran kapılar workflowRef durumunu BOŞ bırakır;
+        // gerçek neden _lastStartAbortReason'da taşınır ve ayrıntıya yazılır.
+        const detail = String(workflowState.error || workflowState.statusText || _lastStartAbortReason || '').trim();
+        const stage = String(workflowState.currentStage || workflowState.stage || workflowState.status || (detail ? 'iş akışı başlamadı (başlatma fazında durdu)' : 'durum bilinmiyor'));
         throw new Error(detail
           ? `Gazete videosu tamamlanamadı. Workflow aşaması/durumu: ${stage}. Ayrıntı: ${detail}`
           : `Gazete videosu tamamlanamadı. Workflow durumu: ${stage}; workflow içindeki son hata veya aşama bilgisi boş.`);
