@@ -10,6 +10,15 @@ Kesin sürüm referansı `web/src/App.tsx` içinde `APP_VERSION`; burası insan-
 
 ---
 
+## v1.198 — (29 Ekim 2026, PROMPT: YORUMLA BAŞLIKLARI AÇIKLAMA KURALI)
+**Kullanıcı talebi: gazete videosunda büyük başlıklar sadece okunmasın; her başlık 2-3 cümleyle açıklansın; anlatıcı 50 yıllık medya editörü tonunda olsun.**
+
+- **Persona:** YORUMLA anlatı promptu artık "50 yıllık gazete sırasında yetişmiş medya editörü" kimliğiyle yazıyor; ses yine kadın spiker Aoede.
+- **Kural:** Her büyük başlık için ayrılmaz iki adım — (1) harfiyen 1 kez oku, (2) hemen ardından 2-3 tam cümleyle anlamlandır (olay/iddia + araştırma notunun kim/ne/kaynak katkısı + vatandaş için önem). Başlık listeletmek yasak; dayanak yalnız araştırma notu + görselden okunan metin; uydurma yasak (fail-closed aynen).
+- **Kelime bütçesi:** gazete bölümü 25-40 → 130-220 kelime; toplam 1300-1550 hedefi ve TTS istek sayısı aynen (yalnız metin dağılımı değişti).
+- **Genişletme:** tekrar-üretim promptu "yalnız başlığı okuyup geçen hiçbir bölüm kalmasın" zorunluluğu aldı.
+- **Kanıt:** `npx vite build` ✓.
+
 ## v1.197 — (29 Ekim 2026, BUGFIX: TTS GÜNLÜK KOTA DEFTERİ + HIZLI DÜRÜST DURUŞ)
 **Canlı log + prob kök nedeni kesinleştirdi: TTS 429'lar günlük kota — ücretsiz katmanda model başına 10 istek/GÜN (3 model = 30/gün), yenilenme ~10:00 TR.**
 

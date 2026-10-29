@@ -46,15 +46,21 @@ Not: .env anahtarlar ASLA repoya yazılmaz.
 
 ---
 
-## DEVAM HATTI — yarın kaldığımız yerden (güncellendi: 29 Ekim v1.197)
+## DEVAM HATTI — yarın kaldığımız yerden (güncellendi: 29 Ekim v1.198)
 
-**Son sürüm:** v1.197 — TTS GÜNLÜK KOTA DEFTERİ + HIZLI DÜRÜST DURUŞ: canlı log +
-probe-v197-429body TTS 429-ların günlük kota olduğunu kesinleştirdi (ücretsiz
-katman: model başına 10 istek/GÜN, 3 model = 30/gün; yenilenme ~10:00 TR).
-fetchWithRetry retryDelay okuyup HTTP_FAIL_429;perDay=1 fırlatır; generateAudio
-günlük modeli deftere yazıp beklemesiz canlı modele geçer; tüm modeller döndüyse
-istek açılmadan dürüst hata; iş akışı BAŞINDA defter doluysa koşu analiz/görsel
-kotası yakılmadan durur (fail-closed aynen). Önceki: v1.196 (`4577b80`) — SON SÖZ
+**Son sürüm:** v1.198 — YORUMLA BAŞLIK AÇIKLAMA KURALI: büyük başlıklar artık
+sadece okunmaz; her büyük başlık harfiyen 1 kez okunup hemen ardından 2-3 tam
+cümleyle anlamlandırılır (olay/iddia + araştırma notunun kim/ne/kaynak katkısı +
+vatandaş için önem; dayanak yalnız araştırma notu + görselden okunan metin,
+uydurma yasak). Persona 50 yıllık medya editörü; gazete bölümü bütçesi 25-40 →
+130-220 kelime (toplam 1300-1550 ve TTS istek sayısı aynen). Önceki: v1.197
+(`bade55d`) — TTS GÜNLÜK KOTA DEFTERİ: canlı log + probe-v197-429body TTS 429-ların
+günlük kota olduğunu kesinleştirdi (ücretsiz katman: model başına 10 istek/GÜN,
+3 model = 30/gün; yenilenme ~10:00 TR). fetchWithRetry retryDelay okuyup
+HTTP_FAIL_429;perDay=1 fırlatır; generateAudio günlük modeli deftere yazıp
+beklemesiz canlı modele geçer; tüm modeller döndüyse istek açılmadan dürüst hata;
+iş akışı BAŞINDA defter doluysa koşu analiz/görsel kotası yakılmadan durur
+(fail-closed aynen). v1.196 (`4577b80`) — SON SÖZ
 TTS KOTA TOPARLANMASI: denemeler arası 3/6 sn + 429'da 30 sn toparlanma denemesi,
 fetchWithRetry HTTP_FAIL_429 durum koruması, finishReason tanı logu. v1.195
 (`b6f7f41`) — PONYTAIL-AUDIT: 10 düzeltme
