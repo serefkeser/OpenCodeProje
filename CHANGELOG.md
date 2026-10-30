@@ -10,6 +10,15 @@ Kesin sürüm referansı `web/src/App.tsx` içinde `APP_VERSION`; burası insan-
 
 ---
 
+## v1.201 — (30 Ekim 2026, TTS ZİNCİRİNE v1.169'DA KANITLANMIŞ MODEL EKLENDİ)
+**Kullanıcı talimatı: "sadece hata veren ama orada çalışan kodu al, tüm kodu değil"** (kaynak: `haber_saas_sistemi.tsx` = OTONOM v1.169 Canvas kopyası, 15.633 satır).
+
+- **Kök neden analizi:** v1.169'un TTS'i satır 5635'te `gemini-2.5-flash-preview-tts` ile hatasız ses üretiyor; bu model v1.200 zincirinde yoktu (3.1-preview / 3.8 / 3.8-lite). Ücretsiz kota **model başına ayrı** (10 istek/gün/model) → Canvas'taki modelin günü tazeyken zincirin üç modeli tükenmiş olabilir. "Orada çalışıyor, bende FAILED"ın kod tarafındaki tek gerçek boşluğu buydu.
+- **Düzeltme (tek nokta):** `TTS_MODEL_CHAIN`'e 4. üye eklendi → kapasite 30 → **40 istek/gün**; kota defteri modele özel havuzu otomatik açar; `pickLiveModel` ve PCM/RIFF çözümleyici zaten model-bağımsız.
+- **Parite kanıtı:** v1.169'daki değerli parçaların hepsi v1.200'de zaten vardı (ECONOMIC_DATA 402, fetchWikimediaImages 513, LinkedIn 449, TR TTS 5813); v1.169 ayrıca aynı Son Söz fail-stop'u içerir (satır 9562) — kota dolunca o da FAILED üretir, üstelik nedensiz.
+- **Davranış aynen:** fail-closed, honest reason, YORUMLA kuralı korunur.
+- **Kanıt:** `npx vite build` ✓.
+
 ## v1.200 — (29 Ekim 2026, TEŞHİS: BAŞLATMA FAZI DURUŞU ARTIK GERÇEK NEDENİ TAŞIR)
 **Kullanıcı FAILED raporu: "Workflow durumu: durum bilinmiyor; son hata/aşama bilgisi boş."**
 

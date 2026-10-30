@@ -46,12 +46,16 @@ Not: .env anahtarlar ASLA repoya yazılmaz.
 
 ---
 
-## DEVAM HATTI — yarın kaldığımız yerden (güncellendi: 29 Ekim v1.200)
+## DEVAM HATTI — yarın kaldığımız yerden (güncellendi: 30 Ekim v1.201)
 
-**Son sürüm:** v1.200 — BAŞLATMA FAZI DURUŞ DÜRÜST NEDEN: "durum bilinmiyor /
-bilgi boş" FAILED'ı kök nedeni gizliyordu; _lastStartAbortReason artık başlatma
-kapılarının (öniizleme/kuyruk/MP4/TTS günlük kota) gerçek sebebini sarmalayıcıya
-taşır; davranış aynen (fail-closed). Önceki: v1.199 — SON SÖZ FAIL-STOP DÜRÜST
+**Son sürüm:** v1.201 — TTS ZİNCİRİNE v1.169 KANITLI MODEL: kullanıcı talimatı
+"sadece orada çalışan kodu al" (haber_saas_sistemi.tsx = OTONOM v1.169 Canvas
+kopyası); analiz: v1.169 satır 5635 modeli gemini-2.5-flash-preview-tts ile
+hatasız ses, bu model zincirde yoktu; kota model başına ayrı olduğundan zincire
+4. üye eklendi (30→40 istek/gün); v1.169'dan başka kod alınmadı — parite kanıtlı
+(ECONOMIC_DATA/Wikimedia/LinkedIn/TR-TTS hepsi v1.200'de zaten mevcut; v1.169
+aynı Son Söz fail-stop'u içerir). Önceki: v1.200 — BAŞLATMA FAZI DURUŞ DÜRÜST
+NEDEN (_lastStartAbortReason). v1.199 — SON SÖZ FAIL-STOP DÜRÜST
 NEDEN (_ttsLastFailure). v1.198 — YORUMLA BAŞLIK AÇIKLAMA KURALI: her büyük başlık harfiyen 1 kez okunup hemen
 ardından 2-3 tam cümleyle anlamlandırılır; persona 50 yıllık medya editörü;
 gazete bölümü bütçesi 25-40 → 130-220 (toplam ve TTS sayısı aynen). v1.198'in

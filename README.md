@@ -1,6 +1,6 @@
 # OTONOM — Yerel Haber Video Üretim Sistemi
 
-**Sürüm:** `OTONOM 1.200` (`web/src/App.tsx` içindeki `APP_VERSION` tek doğruluk kaynağıdır)
+**Sürüm:** `OTONOM 1.201` (`web/src/App.tsx` içindeki `APP_VERSION` tek doğruluk kaynağıdır)
 
 Gemini Canvas uyumlu, **local-first** React uygulaması. Haber metnini otomatik olarak analiz eder, sahne sahne görsellerle destekler ve Canvas tabanlı video render ile son çıktıyı üretir. Firebase tamamen kaldırılmıştır; tüm veriler tarayıcıda (localStorage + IndexedDB) saklanır ve uygulama offline/standalone çalışır.
 

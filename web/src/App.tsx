@@ -1,6 +1,20 @@
 // ============================================================================
 // OTONOM Chatgpt_1.197 — SÜRÜM BAŞLIĞI (her değişiklikte burayı, APP_VERSION'ı ve SÜRÜM NOTLARI'nı birlikte artır)
 // Program menüsündeki rozet APP_VERSION.toBadge() ile bu sürümden otomatik üretilir.
+// v1.201 ÖZET: Kullanıcı talimatı — "sadece hata veren ama orada (Gemini Canvas)
+// çalışan kodu al, tüm kodu değil." Kanıt: C:\Users\skese\Downloads\haber_saas_sistemi.tsx
+// (OTONOM v1.169 donmuş Canvas kopyası, 15.633 satır) satır 5635 — TTS modeli
+// 'gemini-2.5-flash-preview-tts' ile ses üretimi hatasız; bu model v1.200 zincirinde
+// YOKTU (zincir: 3.1-preview / 3.8 / 3.8-lite). Ücretsiz kota model başına ayrı
+// (10 istek/gün/model) olduğundan Canvas'taki modelin günü tazeyken zincirin üç
+// modeli tükenmiş olabilir → "orada çalışıyor, bende FAILED"ın kod tarafındaki tek
+// gerçek boşluğu buydu. Düzeltme (tek nokta): TTS_MODEL_CHAIN'e 4. üye olarak
+// 'gemini-2.5-flash-preview-tts' eklendi; kapasite 30 → 40 istek/gün, kota defteri
+// modele özel havuzu otomatik açar, pickLiveModel/PCM-RIFF çözümleyici zaten
+// model-bağımsız. Diğer tüm davranış (fail-closed, honest reason, YORUMLA kuralı)
+// aynen korunur. v1.169'dan başka hiçbir kod alınmadı — zaten parite kanıtlandı
+// (ECONOMIC_DATA 402, fetchWikimediaImages 513, LinkedIn 449, TR TTS 5813 mevcut).
+// Kanıt: npx vite build ✓.
 // v1.200 ÖZET: Kullanıcı FAILED raporu — "Gazete videosu tamamlanamadı. Workflow
 // durumu: durum bilinmiyor; workflow içindeki son hata veya aşama bilgisi boş."
 // Kök neden: handleExecuteStart BAŞLATMA FAZINDA duran kapılar (önizleme kapısı,
@@ -379,7 +393,7 @@ const { Download, RotateCcw, UploadCloud, Music, Trash2, Volume2, Clock, Loader2
 // M1: CONSTANTS & CONFIG
 // ============================================================================
 const APP_VERSION = {
-  major: 1, minor: 200, hotfix: 'Chatgpt_1.200',
+  major: 1, minor: 201, hotfix: 'Chatgpt_1.201',
   short() { return `${this.major}.${this.minor}`; },
   toString() { return `OTONOM Chatgpt_${this.major}.${this.minor}`; },
   toBadge() { return `${this.toString()} • One-Page`; }
@@ -1476,6 +1490,7 @@ const collectUltimateCoverReferences = async (jobState) => {
 const useDebounce = (value, delay = 300) => { const [debounced, setDebounced] = useState(value); useEffect(() => { const timer = setTimeout(() => setDebounced(value), delay); return () => clearTimeout(timer); }, [value, delay]); return debounced; };
 
 const FIX_CHECKLIST = Object.freeze([
+  { version: '1.201', key: 'TTS_CHAIN_ADDS_V169_WORKING_MODEL', text: 'Kullanıcı talimatı: "sadece hata veren ama orada çalışan kodu al, tüm kodu değil" (kaynak: haber_saas_sistemi.tsx = OTONOM v1.169 Canvas kopyası). Kanıt: v1.169 satır 5635 TTS modeli gemini-2.5-flash-preview-tts ile hatasız ses; bu model v1.200 zincirinde yoktu. Ücretsiz kota model başına ayrı (10 istek/gün/model) → zincire 4. üye eklendi; kapasite 30→40 istek/gün, kota defteri havuzu otomatik açar, tüketim (pickLiveModel) ve PCM/RIFF çözümleyici zaten model-bağımsız. Parite kanıtı: v1.169 değerli parçalarının hepsi v1.200de zaten vardı (ECONOMIC_DATA 402, fetchWikimediaImages 513, LinkedIn 449, TR TTS 5813). Davranış aynen: fail-closed, honest reason, YORUMLA kuralı korunur. Kanıt: npx vite build.' },
   { version: '1.200', key: 'START_PHASE_ABORT_HONEST_REASON', text: 'Kullanıcı FAILED raporu: "Workflow durumu: durum bilinmiyor; son hata/aşama bilgisi boş". Kök neden: handleExecuteStart başlatma fazı kapıları (önizleme bitmedi / kuyruk meşgul / MP4 hazırlığı / v1.197 TTS günlük kota kapısı) yalnız günlüğe yazıp false döner; kota kapısı throw ettiğinde catch yalnız uiState.error-a yazar — workflowRef durumu boş kalır; gazete sarmalayıcı workflowState/error/stage okuyunca hepsi boş çıkar (nedeni gizli FAILED, v1.199 sınıfı). Düzeltme (teşhis şeffaflığı; davranış aynen): (1) _lastStartAbortReason — her başlatma-fazı duruş noktasında gerçek sebep kaydedilir, başlangıçta/başarıda temizlenir. (2) Sarmalayıcı detail = workflowState.error/statusText || _lastStartAbortReason; aşama bilinmezse "iş akışı başlamadı (başlatma fazında durdu)". Kota duruşu artık yenileme saatiyle raporlanır. Kanıt: npx vite build.' },
   { version: '1.199', key: 'SON_SOZ_FAIL_STOP_HONEST_REASON', text: 'Kullanıcı FAILED raporu: "Son Söz seslendirmesi üretilemedi" ama ayrıntıda GERÇEK NEDEN yoktu. Kök neden: Son Söz fail-stop generic metin fırlatıyordu; generateAudio sebebi (günlük kota/RPM/canlı model yok/45 sn zaman aşımı/yetkilendirme) yalnız günlüğe yazıyordu. Düzeltme: (1) _ttsLastFailure modül değişkeni — generateAudio her null dönüş noktasında dürüst neden kaydeder (giriş kapısı gün-kota + yenileme saati; zincirde canlı model kalmadı; tüm denemeler + son hata); başarıda temizlenir. (2) Son Söz fail-stop artık "Neden: ..." taşır. Davranış aynen: sessiz atlama yok, fail-closed, render düştükçe durur — yalnız teşhis şeffaflığı. Kanıt: npx vite build.' },
   { version: '1.198', key: 'YORUMLA_HEADLINE_EXPLAIN_NOT_JUST_READ', text: 'Kullanıcı talebi: YORUMLA gazete videosunda büyük başlıklar ("Şimdi yeniden Cumhuriyet", "Bitmeyen talan düzeni", "İktidar bahçesinde fon kavgası sürüyor", "İspanya yasta sağcılar mitingde") sadece başlık olarak okunuyordu, detay yoktu. Düzeltme (yalnız prompt; kod akışı/şema/fail-closed aynen): (1) instructions persona 50 yıllık medya editörü oldu (ses yine Aoede). (2) İÇERİK kuralı: her büyük başlık HARFİYEN 1 kez okunur + hemen ardından 2-3 tam cümleyle anlamlandırılır (olay/iddia; araştırma notunun kim/ne/kaynak katkısı; vatandaş için önem); başlık listeletmek yasak; dayanak yalnız araştırma notu + görselden okunan metin, uydurma yasak. (3) Gazete bölümü kelime bütçesi 25-40 → 130-220 (toplam 1300-1550 ve TTS istek sayısı aynen; yalnız metin dağılımı değişti). (4) GENİŞLETME promptu "yalnız başlığı okuyup geçen hiçbir bölüm kalmasın" zorunluluğu aldı. Kanıt: npx vite build.' },
@@ -5634,7 +5649,13 @@ Return ONLY the translated quote. No labels, no explanation.
 // açılmadan dürüst null/error döner, (3) iş akışı BAŞINDA mahkûm koşu
 // analiz/görsel kotası yakılmadan durdurulur. Anahtar değişirse (fp farklı)
 // defter otomatik geçersiz olur.
-const TTS_MODEL_CHAIN = ['gemini-3.1-flash-tts-preview', 'gemini-3.8-flash-tts', 'gemini-3.8-flash-lite-tts'];
+// v1.201: zincire v1.169 Canvas sürümünde kanıtlanmış 4. model eklendi —
+// haber_saas_sistemi.tsx satır 5635: 'gemini-2.5-flash-preview-tts' (orada hatasız
+// ses üretiminin modeli). Kota model başına ayrı olduğundan (10 istek/gün/model)
+// kapasite 30 → 40 istek/gün çıkar; diğer üç model döndüğünde bu model koşuyu
+// kurtarır. Zaten model-bağımsız tüketim (pickLiveModel/URL interpolasyonu) ve
+// PCM/RIFF çözümleyici (v1.181) mevcut; başka değişiklik gerekmez.
+const TTS_MODEL_CHAIN = ['gemini-3.1-flash-tts-preview', 'gemini-3.8-flash-tts', 'gemini-3.8-flash-lite-tts', 'gemini-2.5-flash-preview-tts'];
 const TTS_QUOTA_LEDGER_KEY = 'ns_ttsQuotaLedger';
 const _ttsDayDead = { models: {} }; // model -> untilMs (bellek içi ayna)
 const _ttsKeyFingerprint = () => { try { return String(apiKey || '').slice(0, 8) || 'none'; } catch (e) { return 'none'; } };
