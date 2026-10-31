@@ -1,6 +1,21 @@
 // ============================================================================
 // OTONOM Chatgpt_1.197 — SÜRÜM BAŞLIĞI (her değişiklikte burayı, APP_VERSION'ı ve SÜRÜM NOTLARI'nı birlikte artır)
 // Program menüsündeki rozet APP_VERSION.toBadge() ile bu sürümden otomatik üretilir.
+// v1.202 ÖZET: Kullanıcı onayıyla FreeLLMAPI TTS son-çare köprüsü. Kanıt: FreeLLMAPI
+// (localhost:3001) /v1/audio/speech + model 'gemini-2.5-flash-preview-tts' → 284 KB
+// RIFF WAV (probe-freellmapi-tts.out.wav, X-Provider google); 'auto' seçimi de
+// çalışıyor (155 KB). Düzeltme: (1) services/gateway → /api/freellmapi/tts köprü
+// ucu (anahtar FREELLMAPI_UNIFIED_KEY sunucuda kalır, asla loglanmaz; 503/400/413/
+// 502 dürüst kodlar) + /health'a freellmapi bayrağı. (2) App.tsx →
+// MediaSynthesisService._tryFreellmapiFallback: RIFF fmt/data çözümü + kanonik 44
+// baytlık sarma (v1.181 kopyası); generateAudio'nun İKİ null noktasında (giriş
+// kapısı + zincir bitişi) denenir; başarıda _ttsLastFailure temizlenir, hata-
+// da dürüst neden yazılır (fail-closed aynen). (3) v1.197 başlatma kapısı:
+// defter dolu + köprü yapılandırılmışsa TEK kanıt probu (429 bedava, WAV kanıt);
+// prob başarısızsa koşu yine baştan dürüstçe durur. Dürüstlük: köprü 'auto' ile
+// AYNI Google günlük kotasını paylaşır — gerçek ek kapasite dashboard'a İKİNCİ
+// Google anahtarı eklenince; rapor metinleri bunu açıkça söyler. Kanıt: build ✓
+// + gateway ucu uçtan uca probe.
 // v1.201 ÖZET: Kullanıcı talimatı — "sadece hata veren ama orada (Gemini Canvas)
 // çalışan kodu al, tüm kodu değil." Kanıt: C:\Users\skese\Downloads\haber_saas_sistemi.tsx
 // (OTONOM v1.169 donmuş Canvas kopyası, 15.633 satır) satır 5635 — TTS modeli
@@ -393,7 +408,7 @@ const { Download, RotateCcw, UploadCloud, Music, Trash2, Volume2, Clock, Loader2
 // M1: CONSTANTS & CONFIG
 // ============================================================================
 const APP_VERSION = {
-  major: 1, minor: 201, hotfix: 'Chatgpt_1.201',
+  major: 1, minor: 202, hotfix: 'Chatgpt_1.202',
   short() { return `${this.major}.${this.minor}`; },
   toString() { return `OTONOM Chatgpt_${this.major}.${this.minor}`; },
   toBadge() { return `${this.toString()} • One-Page`; }
@@ -1490,6 +1505,7 @@ const collectUltimateCoverReferences = async (jobState) => {
 const useDebounce = (value, delay = 300) => { const [debounced, setDebounced] = useState(value); useEffect(() => { const timer = setTimeout(() => setDebounced(value), delay); return () => clearTimeout(timer); }, [value, delay]); return debounced; };
 
 const FIX_CHECKLIST = Object.freeze([
+  { version: '1.202', key: 'FREELLMAPI_TTS_LAST_RESORT_BRIDGE', text: 'Kullanıcı onayıyla FreeLLMAPI TTS son-çare köprüsü. Kanıt: FreeLLMAPI /v1/audio/speech + gemini-2.5-flash-preview-tts → 284 KB RIFF WAV (probe-freellmapi-tts.out.wav); auto → 155 KB (provider google). Düzeltme: (1) gateway /api/freellmapi/tts ucu — FREELLMAPI_UNIFIED_KEY sunucuda kalır, asla loglanmaz; /health freellmapi bayrağı. (2) App.tsx _tryFreellmapiFallback — RIFF fmt/data çözümü + kanonik WAV sarma; generateAudio iki null noktasında (giriş kapısı + zincir bitişi) denenir; _ttsLastFailure dürüst kalmaya devam eder (fail-closed). (3) v1.197 başlatma kapısı: defter dolu + köprü varsa tek kanıt probu; prob 429 ise koşu yine baştan dürüstçe durur. Dürüstlük: köprü auto ile aynı Google kotasını paylaşır — gerçek ek kapasite dashboarda ikinci Google anahtarı ile; metinler bunu açıkça söyler. Kanıt: npx vite build + gateway uçtan uca probe.' },
   { version: '1.201', key: 'TTS_CHAIN_ADDS_V169_WORKING_MODEL', text: 'Kullanıcı talimatı: "sadece hata veren ama orada çalışan kodu al, tüm kodu değil" (kaynak: haber_saas_sistemi.tsx = OTONOM v1.169 Canvas kopyası). Kanıt: v1.169 satır 5635 TTS modeli gemini-2.5-flash-preview-tts ile hatasız ses; bu model v1.200 zincirinde yoktu. Ücretsiz kota model başına ayrı (10 istek/gün/model) → zincire 4. üye eklendi; kapasite 30→40 istek/gün, kota defteri havuzu otomatik açar, tüketim (pickLiveModel) ve PCM/RIFF çözümleyici zaten model-bağımsız. Parite kanıtı: v1.169 değerli parçalarının hepsi v1.200de zaten vardı (ECONOMIC_DATA 402, fetchWikimediaImages 513, LinkedIn 449, TR TTS 5813). Davranış aynen: fail-closed, honest reason, YORUMLA kuralı korunur. Kanıt: npx vite build.' },
   { version: '1.200', key: 'START_PHASE_ABORT_HONEST_REASON', text: 'Kullanıcı FAILED raporu: "Workflow durumu: durum bilinmiyor; son hata/aşama bilgisi boş". Kök neden: handleExecuteStart başlatma fazı kapıları (önizleme bitmedi / kuyruk meşgul / MP4 hazırlığı / v1.197 TTS günlük kota kapısı) yalnız günlüğe yazıp false döner; kota kapısı throw ettiğinde catch yalnız uiState.error-a yazar — workflowRef durumu boş kalır; gazete sarmalayıcı workflowState/error/stage okuyunca hepsi boş çıkar (nedeni gizli FAILED, v1.199 sınıfı). Düzeltme (teşhis şeffaflığı; davranış aynen): (1) _lastStartAbortReason — her başlatma-fazı duruş noktasında gerçek sebep kaydedilir, başlangıçta/başarıda temizlenir. (2) Sarmalayıcı detail = workflowState.error/statusText || _lastStartAbortReason; aşama bilinmezse "iş akışı başlamadı (başlatma fazında durdu)". Kota duruşu artık yenileme saatiyle raporlanır. Kanıt: npx vite build.' },
   { version: '1.199', key: 'SON_SOZ_FAIL_STOP_HONEST_REASON', text: 'Kullanıcı FAILED raporu: "Son Söz seslendirmesi üretilemedi" ama ayrıntıda GERÇEK NEDEN yoktu. Kök neden: Son Söz fail-stop generic metin fırlatıyordu; generateAudio sebebi (günlük kota/RPM/canlı model yok/45 sn zaman aşımı/yetkilendirme) yalnız günlüğe yazıyordu. Düzeltme: (1) _ttsLastFailure modül değişkeni — generateAudio her null dönüş noktasında dürüst neden kaydeder (giriş kapısı gün-kota + yenileme saati; zincirde canlı model kalmadı; tüm denemeler + son hata); başarıda temizlenir. (2) Son Söz fail-stop artık "Neden: ..." taşır. Davranış aynen: sessiz atlama yok, fail-closed, render düştükçe durur — yalnız teşhis şeffaflığı. Kanıt: npx vite build.' },
@@ -5901,6 +5917,10 @@ class MediaSynthesisService {
       const untilMs = Math.max(...TTS_MODEL_CHAIN.map(m => _ttsDayDeadUntil(m)));
       _ttsLastFailure = `TTS günlük ücretsiz kotası tüm modellerde dolu (model başına 10 istek/gün); kota ~${_ttsFormatRenewal(untilMs)} (TR) yenilenir`;
       addSystemLog(`TTS günlük ücretsiz kotası tüm modellerde dolu (ücretsiz katman: model başına 10 istek/gün); kota ~${_ttsFormatRenewal(untilMs)} (TR) yenilenir. Boşa istek açılmadı.`, 'error');
+      // v1.202: defter doluyken tek kalan kapı — FreeLLMAPI köprüsü (dashboard'da
+      // ikinci Google anahtarı varsa gerçek kapasite; yoksa 429 gelir, fail-closed).
+      const gateFallback = await MediaSynthesisService._tryFreellmapiFallback(cleanText, voice);
+      if (gateFallback) return gateFallback;
       return null;
     }
     const pickLiveModel = startOffset => {
@@ -6042,7 +6062,70 @@ class MediaSynthesisService {
       _ttsLastFailure = `tüm TTS denemeleri başarısız (son hata: ${lastAttemptError || 'bilinmiyor'})`;
       addSystemLog('TTS tüm denemeler başarısız.', 'error');
     }
+    // v1.202: zincir döndüğünde tek kalan kapı — FreeLLMAPI köprüsü (fail-closed korunur).
+    const chainFallback = await MediaSynthesisService._tryFreellmapiFallback(cleanText, voice);
+    if (chainFallback) return chainFallback;
     return null;
+  }
+
+  // v1.202: SON-ÇARE TTS KAPISI — FreeLLMAPI köprüsü (gateway /api/freellmapi/tts →
+  // localhost:3001 /v1/audio/speech; kanıt: probe-freellmapi-tts.out.wav 284 KB RIFF).
+  // Zincirin 4 Gemini modeli döndüğünde devreye girer. Dürüstlük: 'auto' seçimi de
+  // Google TTS'e gider → AYNI Google günlük kotasını paylaşır; dashboard'da İKİNCİ
+  // bir Google anahtarı varsa o havuz koşuyu kurtarır. Fail-closed: köprü hata
+  // verirse neden _ttsLastFailure'a dürüstçe yazılır; sessiz başarı taklidi yok.
+  static async _tryFreellmapiFallback(cleanText, voice) {
+    try {
+      addSystemLog('TTS son-çare: FreeLLMAPI köprüsü deneniyor (gateway /api/freellmapi/tts)...', 'info');
+      const r = await fetch(`${_otonomGatewayBase()}/api/freellmapi/tts`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ input: cleanText, voice }),
+        signal: AbortSignal.timeout(150000),
+      });
+      if (!r.ok) {
+        let msg = `HTTP ${r.status}`;
+        try { const j = await r.json(); msg = j?.detail || j?.message || msg; } catch (e) {}
+        throw new Error(msg);
+      }
+      const pcmBytes = new Uint8Array(await r.arrayBuffer());
+      if (pcmBytes.length <= 44 || pcmBytes[0] !== 0x52 || pcmBytes[1] !== 0x49 || pcmBytes[2] !== 0x46 || pcmBytes[3] !== 0x46) {
+        throw new Error('köprü tanınabilir WAV döndürmedi');
+      }
+      // v1.181 çözümleyicinin kompakt kopyası: RIFF fmt/data çöz → kanonik 44 bayt sar.
+      const headerView = new DataView(pcmBytes.buffer, pcmBytes.byteOffset, pcmBytes.byteLength);
+      let off = 12; let dataStart = -1; let dataLen = 0; let sampleRate = 24000; let numChannels = 1; let bitsPerSample = 16;
+      while (off + 8 <= pcmBytes.length) {
+        const id = String.fromCharCode(pcmBytes[off], pcmBytes[off + 1], pcmBytes[off + 2], pcmBytes[off + 3]);
+        const size = headerView.getUint32(off + 4, true);
+        if (id === 'fmt ') {
+          sampleRate = headerView.getUint32(off + 12, true) || 24000;
+          numChannels = headerView.getUint16(off + 10, true) || 1;
+          bitsPerSample = headerView.getUint16(off + 22, true) || 16;
+        } else if (id === 'data') { dataStart = off + 8; dataLen = Math.min(size, pcmBytes.length - dataStart); break; }
+        off += 8 + size + (size % 2);
+      }
+      if (dataStart < 0 || dataLen <= 0) throw new Error('köprü WAV fmt/data çözülemedi');
+      const audioBytes = pcmBytes.subarray(dataStart, dataStart + dataLen);
+      const byteRate = sampleRate * numChannels * (bitsPerSample / 8);
+      const blockAlign = numChannels * (bitsPerSample / 8);
+      const wavBuffer = new ArrayBuffer(44 + audioBytes.length);
+      const view = new DataView(wavBuffer);
+      const writeString = (offset, str) => { for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i)); };
+      writeString(0, 'RIFF'); view.setUint32(4, 36 + audioBytes.length, true); writeString(8, 'WAVE'); writeString(12, 'fmt ');
+      view.setUint32(16, 16, true); view.setUint16(20, 1, true); view.setUint16(22, numChannels, true);
+      view.setUint32(24, sampleRate, true); view.setUint32(28, byteRate, true); view.setUint16(32, blockAlign, true);
+      view.setUint16(34, bitsPerSample, true); writeString(36, 'data'); view.setUint32(40, audioBytes.length, true);
+      new Uint8Array(wavBuffer, 44).set(audioBytes);
+      addSystemLog(`Ses hazır (FreeLLMAPI son-çare köprüsü): ${(audioBytes.length / 1024).toFixed(0)}KB, ${sampleRate}Hz`, 'success');
+      _ttsLastFailure = '';
+      return { wavBuffer, sampleRate };
+    } catch (e) {
+      const msg = e?.message || String(e);
+      _ttsLastFailure = `FreeLLMAPI son-çare kapısı da başarısız: ${msg}`;
+      addSystemLog(`TTS son-çare köprüsü başarısız: ${msg} — fail-closed, ses üretilemedi.`, 'warn');
+      return null;
+    }
   }
 }
 
@@ -11706,6 +11789,10 @@ export default function App() {
       // (model başına 10 istek/gün; kanıt: probe-v197-429body) dolduysa koşuyu
       // BAŞTAN dürüstçe durdur: analiz/görsel kotası ve dakikalar boşa yakılmaz.
       // Kota defteri anahtar parmak iziyle bağlıdır; anahtar değişince geçersizleşir.
+      // v1.202: defter doluyken FreeLLMAPI köprüsü yapılandırılmışsa TEK kanıt probu
+      // atılır (küçük giriş; 429 gelirse bedava, WAV gelirse kanıtlanır). Köprü
+      // başarılıysa koşu başlar ve zincir döndüğünde her TTS köprüyle üretilir;
+      // köprü de 429 ise koşu yine baştan dürüstçe durur — fail-closed aynen.
       if (
         outType === 'video' &&
         String(prefs?.narratorVoice || '') !== 'none' &&
@@ -11714,7 +11801,24 @@ export default function App() {
         _ttsAllModelsDayDead()
       ) {
         const untilMs = Math.max(...TTS_MODEL_CHAIN.map(m => _ttsDayDeadUntil(m)));
-        throw new Error(`TTS günlük ücretsiz kotası tüm modellerde dolu (ücretsiz katman: model başına 10 istek/gün); kota ~${_ttsFormatRenewal(untilMs)} (TR) yenilenir. Video üretimi başlatılmadı — fail-closed, boşa kota yakma yok.`);
+        let bridgeConfigured = false;
+        let bridgeProven = false;
+        let bridgeNote = '';
+        try {
+          const h = await fetch(`${_otonomGatewayBase()}/health`, { signal: AbortSignal.timeout(2500) });
+          const hj = await h.json().catch(() => null);
+          bridgeConfigured = Boolean(hj?.freellmapi);
+        } catch (e) {}
+        if (bridgeConfigured) {
+          addSystemLog('TTS defteri dolu; FreeLLMAPI köprüsü yapılandırılmış — kanıt probu deneniyor...', 'info');
+          const probeAudio = await MediaSynthesisService._tryFreellmapiFallback('Kapı denemesi.', prefs?.narratorVoice || 'Aoede');
+          if (probeAudio) { bridgeProven = true; bridgeNote = ' FreeLLMAPI son-çare köprüsü kanıtlandı (prob WAV üretti); zincir döndüğünde her TTS köprüyle üretilir.'; }
+          else bridgeNote = ` FreeLLMAPI son-çare köprüsü de yanıt vermedi (${_ttsLastFailure || 'sebep bilinmiyor'}) — auto seçimi de aynı Google kotasını paylaştığından beklenen durum; dashboard'a İKİNCİ bir Google anahtarı eklerseniz köprü gerçek kapasiteye dönüşür.`;
+        }
+        if (!bridgeProven) {
+          throw new Error(`TTS günlük ücretsiz kotası tüm modellerde dolu (ücretsiz katman: model başına 10 istek/gün); kota ~${_ttsFormatRenewal(untilMs)} (TR) yenilenir.${bridgeNote} Video üretimi başlatılmadı — fail-closed, boşa kota yakma yok.`);
+        }
+        addSystemLog(`TTS günlük kotası dolu ama köprü kanıtlı — koşu başlatılıyor. Kota ~${_ttsFormatRenewal(untilMs)} (TR) yenilenir (doğrudan zincir için).`, 'warn');
       }
       await workflowRef.current.startWorkflow(inputData, inputType, runConfig, prefs, canvasRef);
       _lastStartAbortReason = '';

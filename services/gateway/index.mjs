@@ -338,6 +338,47 @@ const handlePassthrough = (name, port) => async request => {
   }
 };
 
+// v1.202: FreeLLMAPI TTS son-çare köprüsü — App.tsx TTS zincirinin 4 Gemini modeli
+// tükendiğinde (günlük kota defteri dolu) tarayıcı buraya düşer; gateway sunucu
+// tarafında FreeLLMAPI'nin OpenAI-uyumlu /v1/audio/speech ucuna köprü kurar
+// (kanıt: probe-freellmapi-tts.out.wav 284 KB RIFF, provider google).
+// Anahtar yalnız sunucuda kalır (FREELLMAPI_UNIFIED_KEY); asla loglanmaz/yankılanmaz.
+// Dürüstlük notu: FreeLLMAPI 'auto' seçimi de Google TTS'e gider → AYNI Google
+// günlük kotasını paylaşır (kotasız değil); katma değer sunucu-tarafı çalışma ve
+// dashboard'a eklenen ikinci anahtar havuzudur. Fail-closed: upstream hata →
+// düzgün hata yanıtı; sessiz başarı taklidi yok.
+const FREELLMAPI_BASE = String(process.env.FREELLMAPI_BASE_URL || 'http://127.0.0.1:3001').replace(/\/+$/, '');
+const FREELLMAPI_KEY = String(process.env.FREELLMAPI_UNIFIED_KEY || '');
+const handleFreellmapiTts = async request => {
+  if (request.method !== 'POST') return json(405, 'METHOD_NOT_ALLOWED', 'Yalnız POST.');
+  if (!FREELLMAPI_KEY.trim()) return json(503, 'FREELLMAPI_NOT_CONFIGURED', 'FreeLLMAPI köprüsü yapılandırılmadı (root .env: FREELLMAPI_UNIFIED_KEY).');
+  const body = await readBody(request);
+  let parsed;
+  try { parsed = JSON.parse(body.toString('utf8') || '{}'); } catch (_) { return json(400, 'BAD_JSON', 'Gövde JSON olmalı.'); }
+  const input = String(parsed.input || '').trim();
+  const voice = String(parsed.voice || 'Aoede').trim() || 'Aoede';
+  const model = String(parsed.model || 'auto').trim() || 'auto';
+  if (!input) return json(400, 'INPUT_REQUIRED', '`input` zorunlu.');
+  if (input.length > 20000) return json(413, 'INPUT_TOO_LARGE', 'TTS girdisi 20.000 karakteri aşamaz.');
+  try {
+    const upstream = await fetch(`${FREELLMAPI_BASE}/v1/audio/speech`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${FREELLMAPI_KEY}` },
+      body: JSON.stringify({ model, input, voice, response_format: 'wav' }),
+      signal: AbortSignal.timeout(120000),
+    });
+    if (!upstream.ok) {
+      const detail = (await upstream.text()).slice(0, 300);
+      return json(502, 'FREELLMAPI_TTS_UPSTREAM_ERROR', `FreeLLMAPI TTS hatası (HTTP ${upstream.status}).`, { detail });
+    }
+    const audio = Buffer.from(await upstream.arrayBuffer());
+    if (audio.length <= 44 || audio.toString('ascii', 0, 4) !== 'RIFF') return json(502, 'FREELLMAPI_TTS_BAD_AUDIO', 'FreeLLMAPI tanınabilir WAV döndürmedi.');
+    return new Response(audio, { status: 200, headers: { 'content-type': 'audio/wav', 'x-provider': upstream.headers.get('x-provider') || 'unknown', ...CORS_HEADERS } });
+  } catch (error) {
+    return json(502, 'FREELLMAPI_UNREACHABLE', `FreeLLMAPI'ye gateway ulaşılamadı (${FREELLMAPI_BASE}).`, { detail: String(error?.message || error) });
+  }
+};
+
 const SERVICE_ALIASES = [
   { prefix: '/api/gemini-proxy', handler: undefined }, // özel (aşağıda)
   { prefix: '/api/analysis', name: 'ANALYSIS', port: ANALYSIS_PORT },
@@ -369,7 +410,7 @@ const server = createServer(async (request, response) => {
     if (request.url === '/health' || request.url === '/api/health') {
       const [analysisOk, mediaOk] = await Promise.all([probe(ANALYSIS_PORT), probe(MEDIA_PORT)]);
       response.writeHead(200, { 'content-type': 'application/json; charset=utf-8', ...CORS_HEADERS, ...corsAllowOrigin(request) });
-      response.end(JSON.stringify({ ok: true, gateway: PORT, analysis: { port: ANALYSIS_PORT, up: analysisOk }, media: { port: MEDIA_PORT, up: mediaOk }, geminiKey: Boolean(GEMINI_API_KEY.trim()) }));
+      response.end(JSON.stringify({ ok: true, gateway: PORT, analysis: { port: ANALYSIS_PORT, up: analysisOk }, media: { port: MEDIA_PORT, up: mediaOk }, geminiKey: Boolean(GEMINI_API_KEY.trim()), freellmapi: Boolean(FREELLMAPI_KEY.trim()) }));
       return;
     }
     if (request.url.startsWith('/api/gemini-proxy')) {
@@ -389,6 +430,11 @@ const server = createServer(async (request, response) => {
     // v1.188: günlük gazete manifest önbelleği (doğrulanmış listenin diske kaydı).
     if (request.url.startsWith('/api/gazete-manifest')) {
       await send(await handleGazeteManifestApi(request));
+      return;
+    }
+    // v1.202: FreeLLMAPI TTS son-çare köprüsü (anahtar sunucuda kalır).
+    if (request.url.startsWith('/api/freellmapi/tts')) {
+      await send(await handleFreellmapiTts(request));
       return;
     }
     const matched = SERVICE_ALIASES.find(a => a.name && request.url.startsWith(a.prefix));

@@ -10,6 +10,16 @@ Kesin sürüm referansı `web/src/App.tsx` içinde `APP_VERSION`; burası insan-
 
 ---
 
+## v1.202 — (31 Ekim 2026, FREEELLMAPI TTS SON-ÇARE KÖPRÜSÜ)
+**Kullanıcı onayıyla: FreeLLMAPI (/v1/audio/speech) OTONOM'a son-çare TTS kapısı olarak entegre edildi.**
+
+- **Kanıt zinciri:** FreeLLMAPI doğrudan probe → 284 KB RIFF WAV (`probe-freellmapi-tts.out.wav`, provider google); gateway köprüsü uçtan uca → **263 KB RIFF WAV** (`probe-v202-gateway-tts.out.wav`).
+- **Gateway:** yeni `/api/freellmapi/tts` ucu — `FREELLMAPI_UNIFIED_KEY` yalnız sunucuda okunur, asla loglanmaz/yankılanmaz; 405/400/413/502/503 dürüst kodlar; `/health`'a `freellmapi` bayrağı eklendi.
+- **App.tsx:** `MediaSynthesisService._tryFreellmapiFallback` — RIFF fmt/data çözümü + kanonik 44 baytlık sarma (v1.181 çözümleyicinin kompakt kopyası); `generateAudio`'nun İKİ null noktasında (giriş kapısı + zincir bitişi) denenir; başarıda `_ttsLastFailure` temizlenir, hatalarda dürüst neden yazılır.
+- **v1.197 başlatma kapısı güncellendi:** defter dolu + köprü yapılandırılmışsa TEK kanıt probu atılır (429 bedava, WAV kanıt); prob başarılıysa koşu başlar ve zincir döndüğünde her TTS köprüyle üretilir; prob da 429 ise koşu yine baştan dürüstçe durur — fail-closed aynen.
+- **Dürüstlük notu:** köprü `auto` seçimi de Google TTS'e gider → **aynı Google günlük kotasını paylaşır** (kotasız değil); gerçek ek kapasite, dashboard'a İKİNCİ bir Google anahtarı eklenince gelir. Rapor metinleri bunu açıkça söyler.
+- **Kanıt:** `npx vite build` ✓ (5.0 sn) + gateway uçtan uca probe ✓.
+
 ## v1.201 — (30 Ekim 2026, TTS ZİNCİRİNE v1.169'DA KANITLANMIŞ MODEL EKLENDİ)
 **Kullanıcı talimatı: "sadece hata veren ama orada çalışan kodu al, tüm kodu değil"** (kaynak: `haber_saas_sistemi.tsx` = OTONOM v1.169 Canvas kopyası, 15.633 satır).
 

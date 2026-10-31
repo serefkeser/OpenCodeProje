@@ -46,9 +46,15 @@ Not: .env anahtarlar ASLA repoya yazılmaz.
 
 ---
 
-## DEVAM HATTI — yarın kaldığımız yerden (güncellendi: 30 Ekim v1.201)
+## DEVAM HATTI — yarın kaldığımız yerden (güncellendi: 31 Ekim v1.202)
 
-**Son sürüm:** v1.201 — TTS ZİNCİRİNE v1.169 KANITLI MODEL: kullanıcı talimatı
+**Son sürüm:** v1.202 — FREEELLMAPI TTS SON-ÇARE KÖPRÜSÜ: gateway /api/freellmapi/tts
+(anahtar sunucuda, .env FREELLMAPI_UNIFIED_KEY) + App.tsx _tryFreellmapiFallback
+(generateAudio iki null noktasında; RIFF çözümü + kanonik sarma) + v1.197 kapı
+güncellemesi (defter dolu + köprü varsa tek kanıt probu; 429 ise dürüst duruş).
+Uçtan uca kanıt: probe-v202-gateway-tts.out.wav 263 KB RIFF. Dürüstlük: köprü
+auto ile AYNI Google kotasını paylaşır; gerçek ek kapasite dashboard'a ikinci
+Google anahtarı ile. Önceki: v1.201 — TTS ZİNCİRİNE v1.169 KANITLI MODEL: kullanıcı talimatı
 "sadece orada çalışan kodu al" (haber_saas_sistemi.tsx = OTONOM v1.169 Canvas
 kopyası); analiz: v1.169 satır 5635 modeli gemini-2.5-flash-preview-tts ile
 hatasız ses, bu model zincirde yoktu; kota model başına ayrı olduğundan zincire
