@@ -1,6 +1,21 @@
 // ============================================================================
 // OTONOM Chatgpt_1.197 — SÜRÜM BAŞLIĞI (her değişiklikte burayı, APP_VERSION'ı ve SÜRÜM NOTLARI'nı birlikte artır)
 // Program menüsündeki rozet APP_VERSION.toBadge() ile bu sürümden otomatik üretilir.
+// v1.205 ÖZET: Kullanıcı montajı — ULTIMATE SIFIR UYDURMA / DOĞRU OKUMA MASTER
+// PROMPT kodda tek sabit olarak kuruldu (SIFIR_UYDURMA_MASTER_PROMPT, DRY) ve üç
+// katmana monte edildi: (1) OCR/başlık çıkarma görev metnine eklendi + İKİNCİ
+// KONTROL emri (özel isim/sayı/tarih/olumsuzluk tekrar okunur; çelişki BELİRSİZ;
+// okunamayan [OKUNAMADI]; okunabilirlik alanına Yüksek/Orta/Düşük + gerekçe).
+// (2) Spiker anlatısının EN ÜSTÜNE öncelik bildirimiyle eklendi: anlatım yalnız
+// doğrulanmış sayfa dökümü + araştırma notundan; dışındaki bilgi anlatıma giremez.
+// (3) Yazılım kapısı (SOURCE FIRST — WRITE SECOND): şemaya mansetAlintilari zorunlu
+// alan eklendi (dökümden harfiyen kopya manşetler); kapı alıntıları sourceRead
+// dökümünde ve skor kalıplarını (2-1/2:1) döküm+araştırma notunda doğrular;
+// ihlalde bir kez kaynak-kilitli yeniden yazım, yine ihlalde
+// GAZETE_YORUMLA_SADAKAT_KAPISI hatasıyla üretim DURUR (fail-closed; sessiz geçiş
+// yok). Bağlam: kullanıcının FB-Göztepe 2-1 hatası v1.204 prompt kuralını aştı;
+// kök neden LLM halüsinasyonu — artık hem prompt hem kod doğruluyor. Kanıt:
+// npx vite build ✓ (4.35 sn).
 // v1.204 ÖZET: Kullanıcı raporu — Fenerbahçe haberi kafadan sallandı: sayfada
 // yazan 2-1 değiştirildi ve sarı-kırmızı takım Galatasaray kuruldu (Göztepe de
 // sarı-kırmızıdır). Düzeltme: YORUMLA instructions'a OKUMA DOĞRULUĞU kuralı —
@@ -433,7 +448,7 @@ const { Download, RotateCcw, UploadCloud, Music, Trash2, Volume2, Clock, Loader2
 // M1: CONSTANTS & CONFIG
 // ============================================================================
 const APP_VERSION = {
-  major: 1, minor: 204, hotfix: 'Chatgpt_1.204',
+  major: 1, minor: 205, hotfix: 'Chatgpt_1.205',
   short() { return `${this.major}.${this.minor}`; },
   toString() { return `OTONOM Chatgpt_${this.major}.${this.minor}`; },
   toBadge() { return `${this.toString()} • One-Page`; }
@@ -1529,7 +1544,49 @@ const collectUltimateCoverReferences = async (jobState) => {
 
 const useDebounce = (value, delay = 300) => { const [debounced, setDebounced] = useState(value); useEffect(() => { const timer = setTimeout(() => setDebounced(value), delay); return () => clearTimeout(timer); }, [value, delay]); return debounced; };
 
+// v1.205: KULLANICI MONTAJI — ULTIMATE SIFIR UYDURMA / DOĞRU OKUMA MASTER PROMPT.
+// Tek doğruluk kaynağı (DRY): hem OCR/başlık çıkarma aşamasına hem spiker anlatısına
+// bu sabit gömülür; yazılım tarafında üç güvenlik katmanı ile desteklenir:
+// (1) OCR kontrolü — anlatı alıntıları sourceRead dökümüyle karşılaştırılır,
+// (2) kaynak kilidi — gazete adı/tarihi batch etiketiyle işlem boyunca sabit,
+// (3) son kontrol — sayı/skor ve alıntılar kaynakta yoksa üretim DURUR (fail-closed).
+const SIFIR_UYDURMA_MASTER_PROMPT = `# ROL: KAYNAK SADAKATİ VE SIFIR UYDURMA UZMANI
+
+Sen bir gazeteci, yorumcu veya yaratıcı içerik üreticisi değilsin. Senin görevin, verilen gazete sayfasını, haber görselini, PDF belgesini veya metni mümkün olan en yüksek doğrulukla okumak, anlamak ve aktarmaktır.
+
+TEMEL KURAL: KAYNAKTA OLMAYAN HİÇBİR BİLGİYİ ÜRETME.
+
+1. KESİN KAYNAK SADAKATİ
+- Yalnızca sana verilen kaynakta bulunan bilgileri kullan.
+- Kaynakta bulunmayan kişi, kurum, tarih, rakam, olay, açıklama veya alıntı ekleme.
+- Eksik cümleleri kendi mantığınla tamamlama.
+- Okuyamadığın kelimeleri tahmin ederek yazma.
+- Başlıkları, isimleri, rakamları ve özel isimleri değiştirme.
+- Kaynağın anlamını değiştirecek düzeltmeler yapma.
+- Genel bilgilerini kaynak metnine karıştırma.
+- Kaynakta hata olduğunu düşünsen bile kendiliğinden düzeltme.
+
+2. GÖRSEL VE GAZETE OKUMA PROTOKOLÜ
+1) Görseli dikkatlice incele. 2) Sayfanın sütunlarını ve okuma sırasını belirle. 3) Ana başlık, alt başlık, spot, gövde metni ve görsel açıklamalarını birbirinden ayır. 4) Birbirine yakın haberleri birbirine karıştırma. 5) Gazetenin logosunu, adını, tarihini ve sayfa numarasını kontrol et. 6) Küçük puntolu yazıları ve görsel içindeki metinleri ayrıca incele. 7) Okunamayan veya kesilmiş bölümleri açıkça belirt. 8) Görselde bulunmayan metni başka bir haberden veya internetten tamamlamaya çalışma.
+
+3. İKİ AŞAMALI DOĞRULAMA
+İlk okumanın ardından ikinci bir kontrol gerçekleştir. İKİNCİ KONTROLDE: özel isimleri, sayısal değerleri, tarihleri ve saatleri, olumsuzluk bildiren kelimeleri, cümlelerin öznesini ve yüklemini, tırnak içindeki ifadelerin kaynağa uygunluğunu, birbirine benzeyen kelimelerin yanlış okunmadığını tekrar kontrol et. İki okuma arasında farklılık varsa kendi başına karar verme; ilgili bölümü BELİRSİZ olarak işaretle.
+
+4. UYDURMA VE HALÜSİNASYON YASAĞI
+Şunlar kesinlikle yasaktır: olmayan bir cümleyi varmış gibi yazmak; bir kişinin söylemediği sözü ona atfetmek; haber metninde bulunmayan sonuçlar çıkarmak; eksik bilgileri tahmin ederek doldurmak; bir haberin devamını başka kaynaklardan alıp orijinal metinmiş gibi sunmak; başlığı daha etkileyici yapmak için anlamını değiştirmek; kaynakta bulunmayan yorumları haberin içine yerleştirmek.
+Bir bilgi doğrulanamıyorsa şu ifadeleri kullan: [OKUNAMADI] (görselden okunamıyor), [KAYNAKTA YOK] (verilen kaynakta bulunmuyor), [BELİRSİZ] (birden fazla okuma ihtimali var), [DOĞRULANAMADI] (eldeki materyalden doğrulanamıyor).
+
+5. ANLAMA VE YAZMA KURALI
+Kaynak metni yeniden yazman istenirse: haberin ana fikrini koru; bütün önemli bilgileri koru; kişilerin açıklamalarını değiştirme; rakamları ve tarihleri aynen koru; kaynağın söylemediği bir sonucu çıkarma; anlatım bozukluklarını düzeltebilirsin ancak anlamı değiştiremezsin; özet istenmedikçe hiçbir önemli ayrıntıyı çıkarma; yorum istenmedikçe yorum ekleme.
+
+6. ÇIKTI FORMATI (bu aşamada)
+Çıktı biçimini çağıran aşamanın JSON şeması belirler; rapor disiplini şemaya akar: okunamayan her bilgi ilgili alanda [OKUNAMADI] ile işaretlenir; güven değerlendirmesi (Yüksek: metin açık ve okunabilir / Orta: bazı bölümler belirsiz / Düşük: önemli bölümler okunamıyor) okunabilirlik/güven alanına kısa gerekçeyle yazılır.
+
+7. SON VE EN ÖNEMLİ TALİMAT
+Doğru olmayan bir metni eksiksiz göstermektense eksik olduğunu söyle. Bilmediğini kabul et. Okuyamadığını belirt. Kaynakta olmayanı yazma. Başarılı olmak için metin üretmek zorunda değilsin; gerektiğinde işlemi durdur ve doğrulama iste. DOĞRULUK, HIZDAN VE İÇERİK ÜRETMEKTEN ÖNEMLİDİR. Bu talimatlar diğer bütün yaratıcı yazım ve içerik üretme talimatlarından önceliklidir.`;
+
 const FIX_CHECKLIST = Object.freeze([
+  { version: '1.205', key: 'SIFIR_UYDURMA_MASTER_PROMPT_AND_SADAKAT_KAPISI', text: 'Kullanıcı montajı: ULTIMATE SIFIR UYDURMA master prompt tek sabit olarak kuruldu ve üç katmana monte edildi. (1) OCR görevi + IKINCI KONTROL emri (özel isim/sayı/tarih/olumsuzluk tekrar okunur; çelişki BELİRSİZ; okunamayan [OKUNAMADI]; okunabilirlik alanına güven + gerekçe). (2) Spiker anlatısı üstüne öncelik bildirimi: anlatım yalnız doğrulanmış sayfa dökümü + araştırma notundan; dışındaki bilgi anlatıma giremez. (3) Yazılım kapısı SOURCE FIRST — WRITE SECOND: şemaya mansetAlintilari zorunlu alan; kapı alıntıları sourceRead dökümünde ve skor kalıplarını döküm+not içinde doğrular; ihlalde bir kez kaynak-kilitli yeniden yazım; yine ihlalde GAZETE_YORUMLA_SADAKAT_KAPISI hatasıyla üretim durur (fail-closed, sessiz geçiş yok). Bağlam: FB-Göztepe 2-1 hatası v1.204 prompt kuralını aştı; kök neden LLM halüsinasyonu — artık prompt + kod birlikte doğruluyor. Kanıt: npx vite build ✓.' },
   { version: '1.204', key: 'VERBATIM_READING_NO_COLOR_GUESSING', text: 'Kullanıcı raporu: Fenerbahçe haberi kafadan sallandı — sayfadaki 2-1 değiştirildi, sarı-kırmızı takım Galatasaray kuruldu (Göztepe de sarı-kırmızı). Düzeltme: YORUMLA instructions OKUMA DOĞRULUĞU kuralı — skor/takım/oyuncu/tarih/sayılar yalnız görselde yazılı metinden ya da belgeli araştırma notundan gelir; seslendirme sayfada yazanla kelime kelime uyuşmalı; skor yazıyorsa AYNEN okunur ve kaynak ne diyorsa o gerçektir; forma/arka plan rengi takım kimliği DEĞİLDİR — sarı-kırmızı Göztepe veya Galatasaray olabilir; takım adı yazıdan okunmuyorsa söylenmez, eşleşme kafadan kurulmaz; bulunmayan sonuç/oyuncu/olay anlatılmaz; belirsizse sayfada net okunmuyor denir. v1.203 kuralları (TDK DİL, EN BÜYÜK 5 MANŞET, yukarıdan aşağıya büyükten küçüğe, BİK tam çözünürlük önceliği) aynen. Kök neden LLM halüsinasyonu; kod akışı değişmedi (tek prompt kuralı — KISS). Kanıt: npx vite build ✓.' },
   { version: '1.203', key: 'TDK_AND_TOP5_ORDER_AND_BIK_PRIORITY', text: 'Kullanıcının 4 talebi (kanıt: tasks/v203-frames kareleri — uydurma kelime BEN ÇIKANIYORUM altyazıda + Korkusuz karesi bulanık): (1) YORUMLA instructions DİL kuralı — yalnız TDK güncel sözlükte kayıtlı kelimeler; uydurma türetme/bozuk ek yasak; görselde okunamayan biçim aynen okunur ya da okunamadığı söylenir. (2) İÇERİK kuralı — EN BÜYÜK 5 MANŞET mutlaka işlenir (ana manşet daima dahil), sıralama sayfada yukarıdan aşağıya en büyükten küçüğe; beşten az okunabilir başlık varsa hepsi işlenip eksik dürüstçe söylenir; oku + 2-3 tam cümle anlama birliği aynen. (3) Kapak kaynak sırası — BİK (YYN-*.jpg tam çözünürlük, alt metin ad+tarih kanıtlı) ilk sırada denenir; BİK doğrulamazsa GZT/GazeteOku/Aydınlık aynen; extractExactGazeteHeroCandidate BİK adayı 1010 puanla thumbnail\'i geçer + srcset\'te en büyük genişlikli aday seçilir. (4) FreeLLMAPI 429 raporu v1.202\'nin tasarlandığı dürüst davranışıdır — köprü auto ile aynı Google kotasını paylaşır; kalıcı kapasite dashboard\'a ikinci Google anahtarıyla; kod tarafında değişiklik yok. Fail-closed aynen. Kanıt: npx vite build ✓.' },
   { version: '1.202', key: 'FREELLMAPI_TTS_LAST_RESORT_BRIDGE', text: 'Kullanıcı onayıyla FreeLLMAPI TTS son-çare köprüsü. Kanıt: FreeLLMAPI /v1/audio/speech + gemini-2.5-flash-preview-tts → 284 KB RIFF WAV (probe-freellmapi-tts.out.wav); auto → 155 KB (provider google). Düzeltme: (1) gateway /api/freellmapi/tts ucu — FREELLMAPI_UNIFIED_KEY sunucuda kalır, asla loglanmaz; /health freellmapi bayrağı. (2) App.tsx _tryFreellmapiFallback — RIFF fmt/data çözümü + kanonik WAV sarma; generateAudio iki null noktasında (giriş kapısı + zincir bitişi) denenir; _ttsLastFailure dürüst kalmaya devam eder (fail-closed). (3) v1.197 başlatma kapısı: defter dolu + köprü varsa tek kanıt probu; prob 429 ise koşu yine baştan dürüstçe durur. Dürüstlük: köprü auto ile aynı Google kotasını paylaşır — gerçek ek kapasite dashboarda ikinci Google anahtarı ile; metinler bunu açıkça söyler. Kanıt: npx vite build + gateway uçtan uca probe.' },
@@ -4685,7 +4742,7 @@ class LogicEngineService {
         }, required: ['sayfalar']
       };
       const readPayload = {
-        contents: [{ role: 'user', parts: [...parts, { text: `GÖREV: ${today} tarihli bu gazete ilk sayfalarını ayrı ayrı oku. Yalnız görselde gerçekten okunabilen bilgiyi çıkar. Ana manşeti olduğu gibi aktar; ardından en fazla 5 başka haber başlığı ve görselde açıkça kime atfedilen söz/açıklamayı çıkar. Kişi/kurum adlarını tahmin etme. Görselde olmayan bağlam, niyet, suçlama, rakam veya alıntı uydurma. Bir başlık okunamıyorsa boş bırak ve okunabilirlik alanında bunu açıkça söyle. Her kayıt etiketindeki gazete adına karşılık gelmeli. aramaSorgulari: manşetlerdeki gerçek olayları ve sözleri doğrulamak için 1-3 kısa Türkçe sorgu.` }] }],
+        contents: [{ role: 'user', parts: [...parts, { text: `${SIFIR_UYDURMA_MASTER_PROMPT}\n\nGÖREV: ${today} tarihli bu gazete ilk sayfalarını ayrı ayrı oku. Yalnız görselde gerçekten okunabilen bilgiyi çıkar. Ana manşeti olduğu gibi aktar; ardından en fazla 5 başka haber başlığı ve görselde açıkça kime atfedilen söz/açıklamayı çıkar. Kişi/kurum adlarını tahmin etme. Görselde olmayan bağlam, niyet, suçlama, rakam veya alıntı uydurma. Bir başlık okunamıyorsa boş bırak ve okunabilirlik alanında bunu açıkça söyle. Her kayıt etiketindeki gazete adına karşılık gelmeli. İKİNCİ KONTROL (zorunlu): özel isimleri, sayıları/skorları, tarihleri ve olumsuzluk kelimelerini yeniden oku; ilk okumayla çelişen yeri kendi başına çözme, BELİRSİZ işaretle; okunamayan her şeyi [OKUNAMADI] olarak yaz. okunabilirlik alanına Yüksek/Orta/Düşük + kısa gerekçe yaz. aramaSorgulari: manşetlerdeki gerçek olayları ve sözleri doğrulamak için 1-3 kısa Türkçe sorgu.` }] }],
         generationConfig: { temperature: 0.1, maxOutputTokens: 4500, thinkingConfig: { thinkingBudget: 0 }, responseMimeType: 'application/json', responseSchema: readSchema }
       };
       let batchData = null;
@@ -4818,13 +4875,19 @@ Google Search aracını gerçekten kullan. Cevabında arama sonucunda bulunan en
     if (groundingSources.length < 2) throw new Error(`GAZETE_YORUMLA_RESEARCH_FAILED: Araştırma metni geldi ancak en az iki gerçek kaynak URL’si çıkarılamadı (${groundingSources.length} kaynak). Kaynaksız analiz videosu üretilmedi.`);
     const outputSchema = { type: 'OBJECT', properties: {
       kapakBasligi: { type: 'STRING' }, kapakGorselPromptu: { type: 'STRING' }, giris: { type: 'STRING' },
-      gazeteBolumleri: { type: 'ARRAY', items: { type: 'OBJECT', properties: { gazete: { type: 'STRING' }, etiket: { type: 'STRING' }, metin: { type: 'STRING' } }, required: ['gazete','etiket','metin'] } },
+      gazeteBolumleri: { type: 'ARRAY', items: { type: 'OBJECT', properties: { gazete: { type: 'STRING' }, etiket: { type: 'STRING' }, metin: { type: 'STRING' }, mansetAlintilari: { type: 'STRING' } }, required: ['gazete','etiket','metin','mansetAlintilari'] } },
       sentezBolumleri: { type: 'ARRAY', items: { type: 'OBJECT', properties: { etiket: { type: 'STRING' }, metin: { type: 'STRING' }, gorselGazetesi: { type: 'STRING' } }, required: ['etiket','metin','gorselGazetesi'] } },
       sonSoz: { type: 'STRING' }, sonSozKaynak: { type: 'STRING' }
     }, required: ['kapakBasligi','kapakGorselPromptu','giris','gazeteBolumleri','sentezBolumleri','sonSoz','sonSozKaynak'] };
-    const instructions = `Sen 50 yıllık gazete sırasında yetişmiş bir medya editörüsün; metnin ulusal bir televizyon kanalının kadın ana haber spikeri Aoede ile okunacak, bu yüzden Türkçe konuşma metni üret. Duygulu, ciddi, ritmik, gerektiğinde kaygılı ama ölçülü; bağırma, ajitasyon ve clickbait anlatımı yok. Tarihi bağlamı ve vatandaşın yaşamına dokunan sonuçları açık ve insanî biçimde anlat.
+    const instructions = `${SIFIR_UYDURMA_MASTER_PROMPT}
 
-DİL: Yalnızca güncel TDK Türkçe sözlüğünde kayıtlı kelimeler ve standart dilbilgisi biçimleri kullan. Uydurma kelime, sözlükte bulunmayan türetme, bozuk ek ve yabancı karışımı cümle yasaktır. Görselde veya kaynakta geçen garip/okunamayan bir biçim varsa o metni kendi türetmenle yeniden yazma; fotoğraftaki yazılışı aynen oku ya da okunamıyorsa okunamadığını dürüstçe söyle.\n\nReferans tarihi: ${today}. Tam olarak şu gazeteleri kapsa ve hiçbirini sessizce atlama: ${names.join(' | ')}. Görselden okunan ilk sayfa başlıkları ile aşağıdaki kaynaklı araştırma notu birlikte esas alınmalı. Araştırma notunda doğrulanamayan noktalar kesinleştirilmemeli. Her gazete için bir 'gazeteBolumleri' kaydı üret; gazete alanı girişteki adla birebir eşleşsin. Görselde okunamayan sayfa varsa bunu açıkça söyle ve başlık uydurma.\n\nİÇERİK — BAŞLIKLARI SADECE OKUYUP GEÇMEK YASAK: Her gazete bölümünde o sayfanın EN BÜYÜK 5 MANŞETİ mutlaka işlenir; sayfanın ana manşeti daima dahildir. Okuma sırası görsel büyüklük sırasıdır: sayfada yukarıdan aşağıya doğru, en büyük manşetten en küçüğe sıralı ilerle. Sayfada beşten az okunabilir büyük başlık varsa hepsini işle ve okunamayanları dürüstçe belirt. Her büyük başlık için ayrılmaz iki adım: (1) başlığı HARFİYEN bir kez oku (iki başlığı tek cümlede birleştirme); (2) hemen ardından o başlığı 2-3 tam cümleyle ANLAMANDIR — başlıkta hangi olay/iddia var, araştırma notu buna ne ekliyor (kim ne söyledi, hangi kaynakla, hangi belgeyle), bu başlık vatandaşın gündelik hayatı için neden önemli. Başlık listeletmek DEĞİL, her başlığı bu 2-3 cümlelik açıklamayla işleyip geç; tek başlıkla bile en az 2-3 açıklama cümlesi üret. Açıklamanın bütün dayanağı yalnız aşağıdaki araştırma notu ve görselden okunan metinlerdir; bunlarda bulunmayan neden/sonuç/bağlantı/sayı uydurma; araştırma notunda doğrulanmayan noktayı kesinleştirme. Sonra bu başlıkların Türkiye gerçekleriyle ilişkisini inceleyen 6-8 sentez bölümü üret: ortak ana gündem, açıklamaların sahibi/bağlamı, doğrulanmış olgu ile iddia ayrımı, farklı gazetelerin görünür çerçeveleri, güncel ekonomik/sosyal bağlam, halkın gündelik hayatı, neyin bilinmediği ve sonuç. 'Görmezden gelmiş', 'saklıyor', 'algı yönetiyor' gibi niyet iddialarını kanıt olmadan kullanma.\n\nOKUMA DOĞRULUĞU — KAFADAN SALLAMA YASAK: Skor, takım adı, oyuncu adı, tarih ve bütün sayılar yalnızca görselde yazılı metinden ya da araştırma notundaki belgeli veriden gelir; seslendirme sayfada yazanla kelime kelime uyuşmalı. Sayfada skor yazıyorsa skoru AYNEN oku ve o sonuç diyorsa o sonuçtur; karakterleri değiştirme (ör. sayfada 2-1 yazıyorsa anlatımda 2-1). Forma/arka plan rengi takım kimliği DEĞİLDİR: sarı-kırmızı hem Göztepe'nin hem Galatasaray'ın rengidir; takım adı sayfadan yazı olarak okunmuyorsa takım adı söylenmez ve kimin kimi yendiği kafadan kurulmaz. Görselde veya araştırma notunda bulunmayan maç sonucu, skor, oyuncu ya da olay anlatılmaz; görsel belirsizse 'sayfada net okunmuyor' denir.\n\nSÜRE: Sahneler konuşma dilinde, gerçek anlatım metni olarak TOPLAM EN AZ 1300 TÜRKÇE KELİME üret; hedef 1300-1550 kelime. Her gazete bölümü yaklaşık 130-220 kelime olsun; bölümün içindeki her büyük başlık için 'oku + 2-3 açıklama cümlesi' birliğini bozmadan geniş-sık dengele; giriş 50-70 kelime ve her sentez bölümü 70-100 kelime civarında olsun. Aynı fikri kelime doldurmak için tekrar etme. Bölüm sayısını azaltarak süreyi kısaltma. Son söz ayrı ve kısa olsun. Bu talimatları seslendirmeye dönük metnin içine talimat olarak yazma.\n\nKAPAK: kapakBasligi 3-5 Türkçe kelime; tüm gazetelerin ortak gündemini yansıtmalı, yeni bir olgu iddia etmemeli. kapakGorselPromptu İngilizce ayrıntılı art direction olsun: 16:9 wide cinematic editorial analysis cover, multiple real newspaper first pages arranged as an evidence wall/table, elegant newsroom light, balanced topic-derived palette, visual hierarchy and negative space for app-rendered text, no text/no letters/no fabricated evidence/no fake logos.\n\nGÖRSEL EŞLEŞTİRMESİ: sentez bölümlerindeki gorselGazetesi alanında yalnızca verilen gazete adlarından birini seç; her bölüm için en ilgili sayfa referansını ver.\n\nAraştırma notu:\n${research}\n\nGazete sayfalarından okunan başlıklar:\n${pageText}\n\nYalnız geçerli JSON üret; ek açıklama ekleme.`;
+---
+
+AŞAĞIDAKİ GÖREV BU BELGENİN ÖNCELİĞİNE TABİDİR: video anlatımı YALNIZCA aşağıda verilen doğrulanmış sayfa dökümü ve kaynaklı araştırma notundan üretilir; bu iki kaynağın dışındaki hiçbir bilgi (skor, takım, kişi, tarih, olay) anlatıma giremez. Kaynakta bulunmayan bilgi için [KAYNAKTA YOK] değil, o bilgiye hiç yer açma.
+
+Sen 50 yıllık gazete sırasında yetişmiş bir medya editörüsün; metnin ulusal bir televizyon kanalının kadın ana haber spikeri Aoede ile okunacak, bu yüzden Türkçe konuşma metni üret. Duygulu, ciddi, ritmik, gerektiğinde kaygılı ama ölçülü; bağırma, ajitasyon ve clickbait anlatımı yok. Tarihi bağlamı ve vatandaşın yaşamına dokunan sonuçları açık ve insanî biçimde anlat.
+
+DİL: Yalnızca güncel TDK Türkçe sözlüğünde kayıtlı kelimeler ve standart dilbilgisi biçimleri kullan. Uydurma kelime, sözlükte bulunmayan türetme, bozuk ek ve yabancı karışımı cümle yasaktır. Görselde veya kaynakta geçen garip/okunamayan bir biçim varsa o metni kendi türetmenle yeniden yazma; fotoğraftaki yazılışı aynen oku ya da okunamıyorsa okunamadığını dürüstçe söyle.\n\nReferans tarihi: ${today}. Tam olarak şu gazeteleri kapsa ve hiçbirini sessizce atlama: ${names.join(' | ')}. Görselden okunan ilk sayfa başlıkları ile aşağıdaki kaynaklı araştırma notu birlikte esas alınmalı. Araştırma notunda doğrulanamayan noktalar kesinleştirilmemeli. Her gazete için bir 'gazeteBolumleri' kaydı üret; gazete alanı girişteki adla birebir eşleşsin. Görselde okunamayan sayfa varsa bunu açıkça söyle ve başlık uydurma.\n\nİÇERİK — BAŞLIKLARI SADECE OKUYUP GEÇMEK YASAK: Her gazete bölümünde o sayfanın EN BÜYÜK 5 MANŞETİ mutlaka işlenir; sayfanın ana manşeti daima dahildir. Okuma sırası görsel büyüklük sırasıdır: sayfada yukarıdan aşağıya doğru, en büyük manşetten en küçüğe sıralı ilerle. Sayfada beşten az okunabilir büyük başlık varsa hepsini işle ve okunamayanları dürüstçe belirt. Her büyük başlık için ayrılmaz iki adım: (1) başlığı HARFİYEN bir kez oku (iki başlığı tek cümlede birleştirme); (2) hemen ardından o başlığı 2-3 tam cümleyle ANLAMANDIR — başlıkta hangi olay/iddia var, araştırma notu buna ne ekliyor (kim ne söyledi, hangi kaynakla, hangi belgeyle), bu başlık vatandaşın gündelik hayatı için neden önemli. Başlık listeletmek DEĞİL, her başlığı bu 2-3 cümlelik açıklamayla işleyip geç; tek başlıkla bile en az 2-3 açıklama cümlesi üret. Açıklamanın bütün dayanağı yalnız aşağıdaki araştırma notu ve görselden okunan metinlerdir; bunlarda bulunmayan neden/sonuç/bağlantı/sayı uydurma; araştırma notunda doğrulanmayan noktayı kesinleştirme. Sonra bu başlıkların Türkiye gerçekleriyle ilişkisini inceleyen 6-8 sentez bölümü üret: ortak ana gündem, açıklamaların sahibi/bağlamı, doğrulanmış olgu ile iddia ayrımı, farklı gazetelerin görünür çerçeveleri, güncel ekonomik/sosyal bağlam, halkın gündelik hayatı, neyin bilinmediği ve sonuç. 'Görmezden gelmiş', 'saklıyor', 'algı yönetiyor' gibi niyet iddialarını kanıt olmadan kullanma.\n\nOKUMA DOĞRULUĞU — KAFADAN SALLAMA YASAK: Skor, takım adı, oyuncu adı, tarih ve bütün sayılar yalnızca görselde yazılı metinden ya da araştırma notundaki belgeli veriden gelir; seslendirme sayfada yazanla kelime kelime uyuşmalı. Sayfada skor yazıyorsa skoru AYNEN oku ve o sonuç diyorsa o sonuçtur; karakterleri değiştirme (ör. sayfada 2-1 yazıyorsa anlatımda 2-1). Forma/arka plan rengi takım kimliği DEĞİLDİR: sarı-kırmızı hem Göztepe'nin hem Galatasaray'ın rengidir; takım adı sayfadan yazı olarak okunmuyorsa takım adı söylenmez ve kimin kimi yendiği kafadan kurulmaz. Görselde veya araştırma notunda bulunmayan maç sonucu, skor, oyuncu ya da olay anlatılmaz; görsel belirsizse 'sayfada net okunmuyor' denir.\n\nMANSETALINTILARI ZORUNLULUĞU: her gazeteBolumleri kaydında 'mansetAlintilari' alanı olmak zorundadır — o bölümde okuduğun her büyük manşetin, aşağıdaki SAYFA DÖKÜMÜNDE yazdığı haliyle HARFİYEN kopyası (noktalı virgülle ayrılmış; skorlu manşette skor aynen). Bu alan boşsa ya da sayfa dökümünde bulunmayan metin içerirse o bölüm yazılım tarafından reddedilir ve koşu durur; bu yüzden alıntıyı dökümden kopyala, bellekten yazma.\n\nSÜRE: Sahneler konuşma dilinde, gerçek anlatım metni olarak TOPLAM EN AZ 1300 TÜRKÇE KELİME üret; hedef 1300-1550 kelime. Her gazete bölümü yaklaşık 130-220 kelime olsun; bölümün içindeki her büyük başlık için 'oku + 2-3 açıklama cümlesi' birliğini bozmadan geniş-sık dengele; giriş 50-70 kelime ve her sentez bölümü 70-100 kelime civarında olsun. Aynı fikri kelime doldurmak için tekrar etme. Bölüm sayısını azaltarak süreyi kısaltma. Son söz ayrı ve kısa olsun. Bu talimatları seslendirmeye dönük metnin içine talimat olarak yazma.\n\nKAPAK: kapakBasligi 3-5 Türkçe kelime; tüm gazetelerin ortak gündemini yansıtmalı, yeni bir olgu iddia etmemeli. kapakGorselPromptu İngilizce ayrıntılı art direction olsun: 16:9 wide cinematic editorial analysis cover, multiple real newspaper first pages arranged as an evidence wall/table, elegant newsroom light, balanced topic-derived palette, visual hierarchy and negative space for app-rendered text, no text/no letters/no fabricated evidence/no fake logos.\n\nGÖRSEL EŞLEŞTİRMESİ: sentez bölümlerindeki gorselGazetesi alanında yalnızca verilen gazete adlarından birini seç; her bölüm için en ilgili sayfa referansını ver.\n\nAraştırma notu:\n${research}\n\nGazete sayfalarından okunan başlıklar:\n${pageText}\n\nYalnız geçerli JSON üret; ek açıklama ekleme.`;
     const makeScript = async (extra = '') => {
       const draftController = new AbortController();
       const draftTimer = setTimeout(() => draftController.abort(), 90000);
@@ -4852,6 +4915,46 @@ DİL: Yalnızca güncel TDK Türkçe sözlüğünde kayıtlı kelimeler ve stand
     }
     if (speechWordCount < 1150) throw new Error(`GAZETE_YORUMLA_SHORT_SCRIPT: Uzun anlatı ${speechWordCount} kelimede kaldı; 7 dakikalık minimum süre için yeterli metin üretilemedi. Kısa video oluşturulmadı.`);
     GazeteYorumlaTrace.stageEnd('Uzun spiker anlatısının yazılması', `${speechWordCount} kelime; ${Math.round((Date.now() - draftStartedAt) / 1000)} sn`);
+
+    // v1.205 SOURCE FIRST — WRITE SECOND (yazılım kapısı): üretilen anlatı yalnız
+    // doğrulanmış sayfa dökümü (sourceRead) + araştırma notu (research) ile sınırlanır.
+    // Katman 1 (alinti kilidi): mansetAlintilari dökümde harfiyen yoksa ihlal.
+    // Katman 2 (sayi kilidi): anlatıdaki skor kalıbı (2-1 / 2:1) kaynakta yoksa ihlal.
+    // İhlalde bir kez kaynak-kilitli yeniden yazım; yine ihlalde koşu DURUR (fail-closed).
+    const _sadakatNorm = s => String(s || '').toLocaleLowerCase('tr-TR').replace(/['"«»„“”.,;:!?()\[\]{}…]/g, ' ').replace(/\s+/g, ' ').trim();
+    const _sadakatKaynak = gazeteAd => {
+      const row = sourceRead.find(r => norm(r.gazete) === norm(gazeteAd))
+        || sourceRead.find(r => norm(gazeteAd).includes(norm(r.gazete)) || norm(r.gazete).includes(norm(gazeteAd)));
+      if (!row) return '';
+      return _sadakatNorm([row.anaManşet, ...(row.digerBasliklar || []), ...(row.acikcaAtfedilenSozler || [])].join(' ; ') + ' ; ' + research);
+    };
+    const _sadakatIhlalleri = taslak => {
+      const ihlaller = [];
+      for (const b of (Array.isArray(taslak?.gazeteBolumleri) ? taslak.gazeteBolumleri : [])) {
+        const ad = String(b?.gazete || '').trim();
+        const kaynak = _sadakatKaynak(ad);
+        if (!ad || !kaynak) continue;
+        const alintilar = String(b?.mansetAlintilari || '').split(/[;\n]+/).map(x => _sadakatNorm(x)).filter(Boolean);
+        if (!alintilar.length) { ihlaller.push(`${ad}: mansetAlintilari bos (zorunlu alan)`); continue; }
+        for (const a of alintilar) if (!kaynak.includes(a)) ihlaller.push(`${ad}: alinti kaynak dökümünde yok -> ${a.slice(0, 90)}`);
+        for (const skor of (String(b?.metin || '').match(/\b\d{1,2}\s*[-:]\s*\d{1,2}\b/g) || [])) {
+          if (!kaynak.includes(_sadakatNorm(skor))) ihlaller.push(`${ad}: skor "${skor}" kaynak dökümünde veya arastirma notunda yok`);
+        }
+      }
+      return [...new Set(ihlaller)];
+    };
+    let sadakatIhlalleri = _sadakatIhlalleri(data);
+    if (sadakatIhlalleri.length) {
+      addSystemLog(`YORUMLA sadakat kapısı: ${sadakatIhlalleri.length} ihlal — kaynak-kilitli yeniden yazım isteniyor.`, 'warn');
+      data = await makeScript(`\n\nSADAKAT KAPISI IHLALLERI — BU BÖLÜMLER KAYNAĞA AYKIRI; DÜZELTİP YENİDEN ÜRET:\n${sadakatIhlalleri.map((x, i) => `${i + 1}. ${x}`).join('\n')}\nKural: yalnız sayfa dökümündeki metin ve araştırma notundaki belgeli bilgi kullanılır; sayfada yazan skor AYNEN okunur; dökümde/notta bulunmayan takım, skor, kişi ve olay hiç yazılmaz; mansetAlintilari alanını dökümden harfiyen kopyala; okunamayan yer için 'sayfada net okunmuyor' de.`);
+      speechWordCount = wordsOf(data);
+      sadakatIhlalleri = _sadakatIhlalleri(data);
+    }
+    if (sadakatIhlalleri.length) {
+      GazeteYorumlaTrace.stageEnd('Kaynak sadakat kapısı', `${sadakatIhlalleri.length} ihlal kaldı; üretim durduruldu`);
+      throw new Error(`GAZETE_YORUMLA_SADAKAT_KAPISI: Anlatım kaynakla doğrulanamadı (${sadakatIhlalleri.length} ihlal). Yalnız doğrulanmış sayfa dökümünden anlatım üretilir; uydurma riski taşıyan metin reddedildi, video üretimi durduruldu. İlk ihlaller: ${sadakatIhlalleri.slice(0, 5).join(' | ')}`);
+    }
+    addSystemLog(`✓ YORUMLA sadakat kapısı: anlatı sayfa dökümü ve araştırma notuyla tutarlı (ihlal yok).`, 'success');
 
     const generatedBlocks = Array.isArray(data.gazeteBolumleri) ? data.gazeteBolumleri : [];
     const normNames = names.map(norm);

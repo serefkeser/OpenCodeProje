@@ -46,9 +46,17 @@ Not: .env anahtarlar ASLA repoya yazılmaz.
 
 ---
 
-## DEVAM HATTI — yarın kaldığımız yerden (güncellendi: 1 Kasım v1.204)
+## DEVAM HATTI — yarın kaldığımız yerden (güncellendi: 1 Kasım v1.205)
 
-**Son sürüm:** v1.204 — AYNEN OKU KURALI: kullanıcı raporu (FB-Göztepe 2-1 skor
+**Son sürüm:** v1.205 — SIFIR UYDURMA MASTER PROMPT + KAYNAK SADAKAT KAPISI:
+kullanıcının verdiği ULTIMATE master prompt SIFIR_UYDURMA_MASTER_PROMPT sabiti
+olarak kuruldu; üç katmana monte: OCR görevi + IKINCI KONTROL, spiker anlatısı
+üstüne öncelik bildirimi (anlatım yalnız döküm+not), yazılım kapısı (şemaya
+mansetAlintilari zorunlu; alıntı sourceRead dökümünde, skor kalıbı döküm+not
+içinde doğrulanır; ihlalde bir yeniden yazım, yine ihlalde
+GAZETE_YORUMLA_SADAKAT_KAPISI ile üretim durur — fail-closed). 429 DERSİ: köprü
+(auto) da Google'ı seçer → aynı kota; tek gerçek çözüm dashboard'a İKİNCİ Google
+anahtarı (kullanıcı eylemi; anahtar değerlerine agent dokunmaz). Önceki: v1.204 — AYNEN OKU KURALI: kullanıcı raporu (FB-Göztepe 2-1 skor
 değiştirildi + sarı-kırmızıyı GS kurdu) → YORUMLA instructions OKUMA DOĞRULUĞU:
 skor/takım/oyuncu/sayılar yalnız görselde yazandan ya da belgeli nottan; skor
 yazıyorsa AYNEN okunur; renk kimlik DEĞİLDİR (sarı-kırmızı Göztepe veya GS);

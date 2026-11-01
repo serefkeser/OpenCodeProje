@@ -10,6 +10,16 @@ Kesin sürüm referansı `web/src/App.tsx` içinde `APP_VERSION`; burası insan-
 
 ---
 
+## v1.205 — (1 Kasım 2026, SIFIR UYDURMA MASTER PROMPT + KAYNAK SADAKAT KAPISI)
+**Kullanıcı montajı: verilen ULTIMATE master prompt kodda tek sabit olarak kuruldu ve üç katmana monte edildi.**
+
+- **Kuruldu:** `SIFIR_UYDURMA_MASTER_PROMPT` sabiti (DRY — tek doğruluk kaynağı); rol, kesin kaynak sadakati, görsel okuma protokolü, iki aşamalı doğrulama, halüsinasyon yasağı, [OKUNAMADI]/[KAYNAKTA YOK]/[BELİRSİZ]/[DOĞRULANAMADI] işaretleri ve "DOĞRULUK, HIZDAN VE İÇERİK ÜRETMEKTEN ÖNEMLİDİR" talimatı içerir.
+- **(1) OCR katmanı:** manşet okuma görevine master prompt eklendi + İKİNCİ KONTROL emri (özel isim/sayı/tarih/olumsuzluk tekrar okunur; çelişki çözülmez, BELİRSİZ işaretlenir; okunamayan [OKUNAMADI]; `okunabilirlik` alanına Yüksek/Orta/Düşük + gerekçe).
+- **(2) Anlatı katmanı:** spiker talimatının EN ÜSTÜNE öncelik bildirimiyle eklendi — anlatım yalnız doğrulanmış sayfa dökümü + araştırma notundan üretilir; bu iki kaynağın dışındaki hiçbir bilgi (skor, takım, kişi, tarih, olay) anlatıma giremez.
+- **(3) Yazılım kapısı (SOURCE FIRST — WRITE SECOND):** `gazeteBolumleri` şemasına `mansetAlintilari` ZORUNLU alan eklendi (dökümden harfiyen kopya manşetler). Kapı: (a) alıntı kilidi — her alıntı `sourceRead` dökümünde harfiyen aranır; (b) sayı kilidi — anlatıdaki skor kalıbı (2-1 / 2:1) döküm+araştırma notunda aranır. İhlal varsa bir kez kaynak-kiltli yeniden yazım istenir; yine ihlal varsa `GAZETE_YORUMLA_SADAKAT_KAPISI` hatasıyla üretim DURUR — fail-closed, sessiz geçiş yok.
+- **Kök neden itirafı:** v1.204 prompt kuralı FB-Göztepe hatasını engelleyemedi — LLM halüsinasyonu promptla değil, prompt+kod birlikte doğrulanarak durdurulur. Doğrulama başarısızsa üretim durur (kullanıcının değişmez kuralı).
+- **Kanıt:** `npx vite build` ✓ (4.35 sn).
+
 ## v1.204 — (1 Kasım 2026, AYNEN OKU — RENKTEN TAKIM TAHMİNİ YASAĞI)
 **Kullanıcı raporu: Fenerbahçe haberi kafadan sallandı.**
 
