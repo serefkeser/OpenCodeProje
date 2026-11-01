@@ -10,6 +10,15 @@ Kesin sürüm referansı `web/src/App.tsx` içinde `APP_VERSION`; burası insan-
 
 ---
 
+## v1.204 — (1 Kasım 2026, AYNEN OKU — RENKTEN TAKIM TAHMİNİ YASAĞI)
+**Kullanıcı raporu: Fenerbahçe haberi kafadan sallandı.**
+
+- **Kuşurun iddiası:** sayfada FB–Göztepe 2-1 yazıyordu anlatım skorun değişmiş biçimini kullandı ve sarı-kırmızı takımı Galatasaray saydı (Göztepe'nin rengi de sarı-kırmızıdır).
+- **Düzeltme:** YORUMLA instructions'a OKUMA DOĞRULUĞU kuralı eklendi — skor, takım adı, oyuncu, tarih ve bütün sayılar yalnız görselde yazılı metinden ya da belgeli araştırma notundan gelir; seslendirme sayfada yazanla kelime kelime uyuşmalı; sayfada skor yazıyorsa skoru AYNEN oku (yazan gerçektir, spiker maçı görmedi); forma/arka plan rengi takım kimliği DEĞİLDİR — Takım adları yazıdan okunamıyorsa söylenmez ve eşleşme kafadan kurulmaz; görselde ya da notta bulunmayan sonuç/oyuncu/olay üretilemez; belirsizse "sayfada net okunmuyor" denir.
+- v1.203 kuralları (TDK DİL, EN BÜYÜK 5 MANŞET, yukarıdan aşağıya büyükten küçüğe, BİK tam çözünürlük önceliği) aynen korunur.
+- KISS: kök nedenden LLM halüsinasyonu; kod akışı değişmedi, tek prompt kuralı.
+- **Kanıt:** `npx vite build` ✓ (5.8 sn).
+
 ## v1.203 — (31 Ekim 2026, TDK KURALSIZLIK, EN BÜYÜK 5 MANŞET VE BİK ÖNCELİĞİ)
 **Kullanıcının 4 talebi; kanıt: kullanıcı videosu (Korkusuz, tasks/v203-frames kareleri).**
 

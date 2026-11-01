@@ -46,9 +46,14 @@ Not: .env anahtarlar ASLA repoya yazılmaz.
 
 ---
 
-## DEVAM HATTI — yarın kaldığımız yerden (güncellendi: 31 Ekim v1.203)
+## DEVAM HATTI — yarın kaldığımız yerden (güncellendi: 1 Kasım v1.204)
 
-**Son sürüm:** v1.203 — TDK + EN BÜYÜK 5 MANŞET + BİK ÖNCELİĞİ: kullanıcı 4 talebi
+**Son sürüm:** v1.204 — AYNEN OKU KURALI: kullanıcı raporu (FB-Göztepe 2-1 skor
+değiştirildi + sarı-kırmızıyı GS kurdu) → YORUMLA instructions OKUMA DOĞRULUĞU:
+skor/takım/oyuncu/sayılar yalnız görselde yazandan ya da belgeli nottan; skor
+yazıyorsa AYNEN okunur; renk kimlik DEĞİLDİR (sarı-kırmızı Göztepe veya GS);
+okunmayan takım adı söylenmez; bulunmayan sonuç üretilmez; belirsizse dürüstçe
+"net okunmuyor" denir. Kod akışı değişmedi (KISS). Önceki: v1.203 — TDK + EN BÜYÜK 5 MANŞET + BİK ÖNCELİĞİ: kullanıcı 4 talebi
 (kanıt: v203-frames — uydurma kelime "BEN ÇIKANIYORUM" + Korkusuz karesi bulanık).
 (1) YORUMLA instructions DİL kuralı (TDK dışı kelime yasak; okunamayan aynen ya
 da dürüst). (2) İÇERİK: sayfanın en büyük 5 manşeti mutlaka, yukarıdan aşağıya
