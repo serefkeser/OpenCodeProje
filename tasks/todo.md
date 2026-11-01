@@ -46,9 +46,17 @@ Not: .env anahtarlar ASLA repoya yazılmaz.
 
 ---
 
-## DEVAM HATTI — yarın kaldığımız yerden (güncellendi: 31 Ekim v1.202)
+## DEVAM HATTI — yarın kaldığımız yerden (güncellendi: 31 Ekim v1.203)
 
-**Son sürüm:** v1.202 — FREEELLMAPI TTS SON-ÇARE KÖPRÜSÜ: gateway /api/freellmapi/tts
+**Son sürüm:** v1.203 — TDK + EN BÜYÜK 5 MANŞET + BİK ÖNCELİĞİ: kullanıcı 4 talebi
+(kanıt: v203-frames — uydurma kelime "BEN ÇIKANIYORUM" + Korkusuz karesi bulanık).
+(1) YORUMLA instructions DİL kuralı (TDK dışı kelime yasak; okunamayan aynen ya
+da dürüst). (2) İÇERİK: sayfanın en büyük 5 manşeti mutlaka, yukarıdan aşağıya
+büyükten küçüğe işlenir; oku+2-3 cümle birliği aynen. (3) Kapak kaynak sırasında
+BİK (YYN-*.jpg tam çözünürlük) ilk sırada; extractExact BİK 1010 puan + srcset
+en büyük aday; BİK doğrulamazsa GZT/Go/Aydınlık aynen. (4) Kullanıcının 429
+FAILED raporu v1.202 designın dürüst kanıtı (köprü auto aynı Google kotası);
+çözüm dashboard'a ikinci Google anahtarı. Önceki: v1.202 — FREEELLMAPI TTS SON-ÇARE KÖPRÜSÜ: gateway /api/freellmapi/tts
 (anahtar sunucuda, .env FREELLMAPI_UNIFIED_KEY) + App.tsx _tryFreellmapiFallback
 (generateAudio iki null noktasında; RIFF çözümü + kanonik sarma) + v1.197 kapı
 güncellemesi (defter dolu + köprü varsa tek kanıt probu; 429 ise dürüst duruş).

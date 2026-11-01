@@ -10,6 +10,16 @@ Kesin sürüm referansı `web/src/App.tsx` içinde `APP_VERSION`; burası insan-
 
 ---
 
+## v1.203 — (31 Ekim 2026, TDK KURALSIZLIK, EN BÜYÜK 5 MANŞET VE BİK ÖNCELİĞİ)
+**Kullanıcının 4 talebi; kanıt: kullanıcı videosu (Korkusuz, tasks/v203-frames kareleri).**
+
+- **Kanın edilen iki kusur:** (a) uydurma kelime "BEN ÇIKANIYORUM" altyazıdaydı — TDK ihlali; (b) Korkusuz ilk sayfası bulanık/düşük çözünürlük — diğer gazeteler net.
+- **(1) DİL kuralı:** YORUMLA instructions'a eklendi — yalnız TDK güncel sözlükte kayıtlı kelimeler; uydurma türetme/bozuk ek yasak; görselde okunamayan biçim aynen okunur ya da okunamadığı dürüstçe söylenir (belirsizliği uydurma ile doldurma yasağı).
+- **(2) En büyük 5 manşet kuralı:** İÇERİK bölümü güncellendi — her gazete sayfasının EN BÜYÜK 5 MANŞETİ mutlaka işlenir (ana manşet daima dahil); sıralama sayfada yukarıdan aşağıya, en büyükten küçüğe; beşten azı varsa hepsi işlenir ve eksik dürüstçe belirtilir; "oku + 2-3 tam cümle anlama" birliği (v1.198) aynen korunur.
+- **(3) BİK önceliği (Korkusuz bulanık kök nedeni):** `fetchIndividualGazeteCandidates` kaynak sırasında BİK (tam çözünürlük YYN-*.jpg + alt metinde ad+tarih kanıtı) İLK sıraya alındı; önceden ilk AD+TARİH doğrulamasında break atıldığı için BİK'e hiç sıra gelmiyordu. `extractExactGazeteHeroCandidate` içinde BİK adayı 1010 puanla HTML thumbnail'leri (1000) geçer; srcset varsa EN BÜYÜK genişlikli aday alınır. BİK doğrulamazsa GZT/GazeteOku/Aydınlık sırası aynen işler (fail-closed korunur).
+- **(4) 429 raporu doğrulandı:** kullanıcının bildirdiği Son Söz FAILED, v1.202 köprüsünün tasarlandığı dürüst davranışının kanıtıdır — köprü `auto` ile aynı Google günlük kotasını paylaşır; kalıcı kapasite dashboard'a ikinci Google anahtarı eklenince gelir; sessiz atlama olmadı.
+- **Kanıt:** `npx vite build` ✓ (4.3 sn).
+
 ## v1.202 — (31 Ekim 2026, FREEELLMAPI TTS SON-ÇARE KÖPRÜSÜ)
 **Kullanıcı onayıyla: FreeLLMAPI (/v1/audio/speech) OTONOM'a son-çare TTS kapısı olarak entegre edildi.**
 

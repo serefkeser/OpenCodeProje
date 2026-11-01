@@ -1,6 +1,19 @@
 // ============================================================================
 // OTONOM Chatgpt_1.197 — SÜRÜM BAŞLIĞI (her değişiklikte burayı, APP_VERSION'ı ve SÜRÜM NOTLARI'nı birlikte artır)
 // Program menüsündeki rozet APP_VERSION.toBadge() ile bu sürümden otomatik üretilir.
+// v1.203 ÖZET: Kullanıcının 4 talebi. Kanıt: kullanıcı videosu (Korkusuz
+// "Faturalar ve zam geliyor" 32.7 sn, tasks/v203-frames kareleri) → uydurma kelime
+// "BEN ÇIKANIYORUM" altyazıda + Korkusuz kapak bulanık. Düzeltmeler: (1) YORUMLA
+// instructions'a DİL kuralı — yalnız TDK'lı kelime; uydurma türetme yasak; görselde
+// okunamayan biçim uydurulmaz, aynen okunur ya da okunamadığı söylenir. (2) İÇERİK
+// kuralı: EN BÜYÜK 5 MANŞET mutlaka işlenir (ana manşet daima dahil), sıralama
+// sayfada yukarıdan aşağıya en büyükten küçüğe; beşten azı varsa eksik dürüstçe
+// söylenir; oku+2-3 cümle açıklama birliği aynen. (3) Kapak kaynak sırası: BİK
+// (YYN-*.jpg tam çözünürlük, ad+tarih kanıtlı) İLK sırada denenir; doğrulamazsa
+// GZT/GazeteOku/Aydınlık aynen. extractExact'te BİK adayı 1010 puan (thumbnail
+// 1000'i geçemez) + srcset'te EN BÜYÜK genişlikli aday alınır. (4) Uçtan uca
+// fail-closed korunur; session 429 raporu v1.202 köprüsünün dürüst davranışının
+// kanıtıdır (köprü auto ile aynı Google kotasını paylaşır). Kanıt: npx vite build ✓.
 // v1.202 ÖZET: Kullanıcı onayıyla FreeLLMAPI TTS son-çare köprüsü. Kanıt: FreeLLMAPI
 // (localhost:3001) /v1/audio/speech + model 'gemini-2.5-flash-preview-tts' → 284 KB
 // RIFF WAV (probe-freellmapi-tts.out.wav, X-Provider google); 'auto' seçimi de
@@ -408,7 +421,7 @@ const { Download, RotateCcw, UploadCloud, Music, Trash2, Volume2, Clock, Loader2
 // M1: CONSTANTS & CONFIG
 // ============================================================================
 const APP_VERSION = {
-  major: 1, minor: 202, hotfix: 'Chatgpt_1.202',
+  major: 1, minor: 203, hotfix: 'Chatgpt_1.203',
   short() { return `${this.major}.${this.minor}`; },
   toString() { return `OTONOM Chatgpt_${this.major}.${this.minor}`; },
   toBadge() { return `${this.toString()} • One-Page`; }
@@ -1505,6 +1518,7 @@ const collectUltimateCoverReferences = async (jobState) => {
 const useDebounce = (value, delay = 300) => { const [debounced, setDebounced] = useState(value); useEffect(() => { const timer = setTimeout(() => setDebounced(value), delay); return () => clearTimeout(timer); }, [value, delay]); return debounced; };
 
 const FIX_CHECKLIST = Object.freeze([
+  { version: '1.203', key: 'TDK_AND_TOP5_ORDER_AND_BIK_PRIORITY', text: 'Kullanıcının 4 talebi (kanıt: tasks/v203-frames kareleri — uydurma kelime BEN ÇIKANIYORUM altyazıda + Korkusuz karesi bulanık): (1) YORUMLA instructions DİL kuralı — yalnız TDK güncel sözlükte kayıtlı kelimeler; uydurma türetme/bozuk ek yasak; görselde okunamayan biçim aynen okunur ya da okunamadığı söylenir. (2) İÇERİK kuralı — EN BÜYÜK 5 MANŞET mutlaka işlenir (ana manşet daima dahil), sıralama sayfada yukarıdan aşağıya en büyükten küçüğe; beşten az okunabilir başlık varsa hepsi işlenip eksik dürüstçe söylenir; oku + 2-3 tam cümle anlama birliği aynen. (3) Kapak kaynak sırası — BİK (YYN-*.jpg tam çözünürlük, alt metin ad+tarih kanıtlı) ilk sırada denenir; BİK doğrulamazsa GZT/GazeteOku/Aydınlık aynen; extractExactGazeteHeroCandidate BİK adayı 1010 puanla thumbnail\'i geçer + srcset\'te en büyük genişlikli aday seçilir. (4) FreeLLMAPI 429 raporu v1.202\'nin tasarlandığı dürüst davranışıdır — köprü auto ile aynı Google kotasını paylaşır; kalıcı kapasite dashboard\'a ikinci Google anahtarıyla; kod tarafında değişiklik yok. Fail-closed aynen. Kanıt: npx vite build ✓.' },
   { version: '1.202', key: 'FREELLMAPI_TTS_LAST_RESORT_BRIDGE', text: 'Kullanıcı onayıyla FreeLLMAPI TTS son-çare köprüsü. Kanıt: FreeLLMAPI /v1/audio/speech + gemini-2.5-flash-preview-tts → 284 KB RIFF WAV (probe-freellmapi-tts.out.wav); auto → 155 KB (provider google). Düzeltme: (1) gateway /api/freellmapi/tts ucu — FREELLMAPI_UNIFIED_KEY sunucuda kalır, asla loglanmaz; /health freellmapi bayrağı. (2) App.tsx _tryFreellmapiFallback — RIFF fmt/data çözümü + kanonik WAV sarma; generateAudio iki null noktasında (giriş kapısı + zincir bitişi) denenir; _ttsLastFailure dürüst kalmaya devam eder (fail-closed). (3) v1.197 başlatma kapısı: defter dolu + köprü varsa tek kanıt probu; prob 429 ise koşu yine baştan dürüstçe durur. Dürüstlük: köprü auto ile aynı Google kotasını paylaşır — gerçek ek kapasite dashboarda ikinci Google anahtarı ile; metinler bunu açıkça söyler. Kanıt: npx vite build + gateway uçtan uca probe.' },
   { version: '1.201', key: 'TTS_CHAIN_ADDS_V169_WORKING_MODEL', text: 'Kullanıcı talimatı: "sadece hata veren ama orada çalışan kodu al, tüm kodu değil" (kaynak: haber_saas_sistemi.tsx = OTONOM v1.169 Canvas kopyası). Kanıt: v1.169 satır 5635 TTS modeli gemini-2.5-flash-preview-tts ile hatasız ses; bu model v1.200 zincirinde yoktu. Ücretsiz kota model başına ayrı (10 istek/gün/model) → zincire 4. üye eklendi; kapasite 30→40 istek/gün, kota defteri havuzu otomatik açar, tüketim (pickLiveModel) ve PCM/RIFF çözümleyici zaten model-bağımsız. Parite kanıtı: v1.169 değerli parçalarının hepsi v1.200de zaten vardı (ECONOMIC_DATA 402, fetchWikimediaImages 513, LinkedIn 449, TR TTS 5813). Davranış aynen: fail-closed, honest reason, YORUMLA kuralı korunur. Kanıt: npx vite build.' },
   { version: '1.200', key: 'START_PHASE_ABORT_HONEST_REASON', text: 'Kullanıcı FAILED raporu: "Workflow durumu: durum bilinmiyor; son hata/aşama bilgisi boş". Kök neden: handleExecuteStart başlatma fazı kapıları (önizleme bitmedi / kuyruk meşgul / MP4 hazırlığı / v1.197 TTS günlük kota kapısı) yalnız günlüğe yazıp false döner; kota kapısı throw ettiğinde catch yalnız uiState.error-a yazar — workflowRef durumu boş kalır; gazete sarmalayıcı workflowState/error/stage okuyunca hepsi boş çıkar (nedeni gizli FAILED, v1.199 sınıfı). Düzeltme (teşhis şeffaflığı; davranış aynen): (1) _lastStartAbortReason — her başlatma-fazı duruş noktasında gerçek sebep kaydedilir, başlangıçta/başarıda temizlenir. (2) Sarmalayıcı detail = workflowState.error/statusText || _lastStartAbortReason; aşama bilinmezse "iş akışı başlamadı (başlatma fazında durdu)". Kota duruşu artık yenileme saatiyle raporlanır. Kanıt: npx vite build.' },
@@ -4795,7 +4809,9 @@ Google Search aracını gerçekten kullan. Cevabında arama sonucunda bulunan en
       sentezBolumleri: { type: 'ARRAY', items: { type: 'OBJECT', properties: { etiket: { type: 'STRING' }, metin: { type: 'STRING' }, gorselGazetesi: { type: 'STRING' } }, required: ['etiket','metin','gorselGazetesi'] } },
       sonSoz: { type: 'STRING' }, sonSozKaynak: { type: 'STRING' }
     }, required: ['kapakBasligi','kapakGorselPromptu','giris','gazeteBolumleri','sentezBolumleri','sonSoz','sonSozKaynak'] };
-    const instructions = `Sen 50 yıllık gazete sırasında yetişmiş bir medya editörüsün; metnin ulusal bir televizyon kanalının kadın ana haber spikeri Aoede ile okunacak, bu yüzden Türkçe konuşma metni üret. Duygulu, ciddi, ritmik, gerektiğinde kaygılı ama ölçülü; bağırma, ajitasyon ve clickbait anlatımı yok. Tarihi bağlamı ve vatandaşın yaşamına dokunan sonuçları açık ve insanî biçimde anlat.\n\nReferans tarihi: ${today}. Tam olarak şu gazeteleri kapsa ve hiçbirini sessizce atlama: ${names.join(' | ')}. Görselden okunan ilk sayfa başlıkları ile aşağıdaki kaynaklı araştırma notu birlikte esas alınmalı. Araştırma notunda doğrulanamayan noktalar kesinleştirilmemeli. Her gazete için bir 'gazeteBolumleri' kaydı üret; gazete alanı girişteki adla birebir eşleşsin. Görselde okunamayan sayfa varsa bunu açıkça söyle ve başlık uydurma.\n\nİÇERİK — BAŞLIKLARI SADECE OKUYUP GEÇMEK YASAK: Her gazete bölümünde o gazetenin ana manşetini ve en göze çarpan büyük başlıklarını işle. Her büyük başlık için ayrılmaz iki adım: (1) başlığı HARFİYEN bir kez oku (iki başlığı tek cümlede birleştirme); (2) hemen ardından o başlığı 2-3 tam cümleyle ANLAMANDIR — başlıkta hangi olay/iddia var, araştırma notu buna ne ekliyor (kim ne söyledi, hangi kaynakla, hangi belgeyle), bu başlık vatandaşın gündelik hayatı için neden önemli. Başlık listeletmek DEĞİL, her başlığı bu 2-3 cümlelik açıklamayla işleyip geç; tek başlıkla bile en az 2-3 açıklama cümlesi üret. Açıklamanın bütün dayanağı yalnız aşağıdaki araştırma notu ve görselden okunan metinlerdir; bunlarda bulunmayan neden/sonuç/bağlantı/sayı uydurma; araştırma notunda doğrulanmayan noktayı kesinleştirme. Sonra bu başlıkların Türkiye gerçekleriyle ilişkisini inceleyen 6-8 sentez bölümü üret: ortak ana gündem, açıklamaların sahibi/bağlamı, doğrulanmış olgu ile iddia ayrımı, farklı gazetelerin görünür çerçeveleri, güncel ekonomik/sosyal bağlam, halkın gündelik hayatı, neyin bilinmediği ve sonuç. 'Görmezden gelmiş', 'saklıyor', 'algı yönetiyor' gibi niyet iddialarını kanıt olmadan kullanma.\n\nSÜRE: Sahneler konuşma dilinde, gerçek anlatım metni olarak TOPLAM EN AZ 1300 TÜRKÇE KELİME üret; hedef 1300-1550 kelime. Her gazete bölümü yaklaşık 130-220 kelime olsun; bölümün içindeki her büyük başlık için 'oku + 2-3 açıklama cümlesi' birliğini bozmadan geniş-sık dengele; giriş 50-70 kelime ve her sentez bölümü 70-100 kelime civarında olsun. Aynı fikri kelime doldurmak için tekrar etme. Bölüm sayısını azaltarak süreyi kısaltma. Son söz ayrı ve kısa olsun. Bu talimatları seslendirmeye dönük metnin içine talimat olarak yazma.\n\nKAPAK: kapakBasligi 3-5 Türkçe kelime; tüm gazetelerin ortak gündemini yansıtmalı, yeni bir olgu iddia etmemeli. kapakGorselPromptu İngilizce ayrıntılı art direction olsun: 16:9 wide cinematic editorial analysis cover, multiple real newspaper first pages arranged as an evidence wall/table, elegant newsroom light, balanced topic-derived palette, visual hierarchy and negative space for app-rendered text, no text/no letters/no fabricated evidence/no fake logos.\n\nGÖRSEL EŞLEŞTİRMESİ: sentez bölümlerindeki gorselGazetesi alanında yalnızca verilen gazete adlarından birini seç; her bölüm için en ilgili sayfa referansını ver.\n\nAraştırma notu:\n${research}\n\nGazete sayfalarından okunan başlıklar:\n${pageText}\n\nYalnız geçerli JSON üret; ek açıklama ekleme.`;
+    const instructions = `Sen 50 yıllık gazete sırasında yetişmiş bir medya editörüsün; metnin ulusal bir televizyon kanalının kadın ana haber spikeri Aoede ile okunacak, bu yüzden Türkçe konuşma metni üret. Duygulu, ciddi, ritmik, gerektiğinde kaygılı ama ölçülü; bağırma, ajitasyon ve clickbait anlatımı yok. Tarihi bağlamı ve vatandaşın yaşamına dokunan sonuçları açık ve insanî biçimde anlat.
+
+DİL: Yalnızca güncel TDK Türkçe sözlüğünde kayıtlı kelimeler ve standart dilbilgisi biçimleri kullan. Uydurma kelime, sözlükte bulunmayan türetme, bozuk ek ve yabancı karışımı cümle yasaktır. Görselde veya kaynakta geçen garip/okunamayan bir biçim varsa o metni kendi türetmenle yeniden yazma; fotoğraftaki yazılışı aynen oku ya da okunamıyorsa okunamadığını dürüstçe söyle.\n\nReferans tarihi: ${today}. Tam olarak şu gazeteleri kapsa ve hiçbirini sessizce atlama: ${names.join(' | ')}. Görselden okunan ilk sayfa başlıkları ile aşağıdaki kaynaklı araştırma notu birlikte esas alınmalı. Araştırma notunda doğrulanamayan noktalar kesinleştirilmemeli. Her gazete için bir 'gazeteBolumleri' kaydı üret; gazete alanı girişteki adla birebir eşleşsin. Görselde okunamayan sayfa varsa bunu açıkça söyle ve başlık uydurma.\n\nİÇERİK — BAŞLIKLARI SADECE OKUYUP GEÇMEK YASAK: Her gazete bölümünde o sayfanın EN BÜYÜK 5 MANŞETİ mutlaka işlenir; sayfanın ana manşeti daima dahildir. Okuma sırası görsel büyüklük sırasıdır: sayfada yukarıdan aşağıya doğru, en büyük manşetten en küçüğe sıralı ilerle. Sayfada beşten az okunabilir büyük başlık varsa hepsini işle ve okunamayanları dürüstçe belirt. Her büyük başlık için ayrılmaz iki adım: (1) başlığı HARFİYEN bir kez oku (iki başlığı tek cümlede birleştirme); (2) hemen ardından o başlığı 2-3 tam cümleyle ANLAMANDIR — başlıkta hangi olay/iddia var, araştırma notu buna ne ekliyor (kim ne söyledi, hangi kaynakla, hangi belgeyle), bu başlık vatandaşın gündelik hayatı için neden önemli. Başlık listeletmek DEĞİL, her başlığı bu 2-3 cümlelik açıklamayla işleyip geç; tek başlıkla bile en az 2-3 açıklama cümlesi üret. Açıklamanın bütün dayanağı yalnız aşağıdaki araştırma notu ve görselden okunan metinlerdir; bunlarda bulunmayan neden/sonuç/bağlantı/sayı uydurma; araştırma notunda doğrulanmayan noktayı kesinleştirme. Sonra bu başlıkların Türkiye gerçekleriyle ilişkisini inceleyen 6-8 sentez bölümü üret: ortak ana gündem, açıklamaların sahibi/bağlamı, doğrulanmış olgu ile iddia ayrımı, farklı gazetelerin görünür çerçeveleri, güncel ekonomik/sosyal bağlam, halkın gündelik hayatı, neyin bilinmediği ve sonuç. 'Görmezden gelmiş', 'saklıyor', 'algı yönetiyor' gibi niyet iddialarını kanıt olmadan kullanma.\n\nSÜRE: Sahneler konuşma dilinde, gerçek anlatım metni olarak TOPLAM EN AZ 1300 TÜRKÇE KELİME üret; hedef 1300-1550 kelime. Her gazete bölümü yaklaşık 130-220 kelime olsun; bölümün içindeki her büyük başlık için 'oku + 2-3 açıklama cümlesi' birliğini bozmadan geniş-sık dengele; giriş 50-70 kelime ve her sentez bölümü 70-100 kelime civarında olsun. Aynı fikri kelime doldurmak için tekrar etme. Bölüm sayısını azaltarak süreyi kısaltma. Son söz ayrı ve kısa olsun. Bu talimatları seslendirmeye dönük metnin içine talimat olarak yazma.\n\nKAPAK: kapakBasligi 3-5 Türkçe kelime; tüm gazetelerin ortak gündemini yansıtmalı, yeni bir olgu iddia etmemeli. kapakGorselPromptu İngilizce ayrıntılı art direction olsun: 16:9 wide cinematic editorial analysis cover, multiple real newspaper first pages arranged as an evidence wall/table, elegant newsroom light, balanced topic-derived palette, visual hierarchy and negative space for app-rendered text, no text/no letters/no fabricated evidence/no fake logos.\n\nGÖRSEL EŞLEŞTİRMESİ: sentez bölümlerindeki gorselGazetesi alanında yalnızca verilen gazete adlarından birini seç; her bölüm için en ilgili sayfa referansını ver.\n\nAraştırma notu:\n${research}\n\nGazete sayfalarından okunan başlıklar:\n${pageText}\n\nYalnız geçerli JSON üret; ek açıklama ekleme.`;
     const makeScript = async (extra = '') => {
       const draftController = new AbortController();
       const draftTimer = setTimeout(() => draftController.abort(), 90000);
@@ -13189,6 +13205,9 @@ export default function App() {
     };
 
     const candidates = [];
+    // v1.203: BİK YYN-*.jpg tam çözünürlük kapaktır; aynı sayfada taşınan küçük
+    // thumbnail'lerin (ExactHero/HTML) önüne geçmesi için 1010 puanla işaretlenir.
+    // Sort sonucu ilk aday hâlâ tek seçimdir; sıralama önce puana bakar.
     const addExact = (url, label = '') => {
       const src = cleanGazeteImageUrl(url, pageUrl);
       if (!src || !isLikelyGazeteImage(src)) return;
@@ -13200,7 +13219,7 @@ export default function App() {
         alt: forcedName,
         title: forcedName,
         hint: forcedName,
-        score: 1000
+        score: label === 'ExactHero/BIK' ? 1010 : 1000
       });
     };
 
@@ -13219,10 +13238,18 @@ export default function App() {
         });
 
         const srcset = el.getAttribute('srcset') || el.getAttribute('data-srcset') || '';
-        srcset.split(',').forEach(part => {
-          const value = part.trim().split(/\s+/)[0];
-          if (value) addExact(value, 'ExactHero/HTML');
-        });
+        // v1.203: srcset'te genişlik tanımlıysa EN BÜYÜK aday alınır; ilk aday
+        // (küçük thumbnail) varsayılan kazanma hatasını düzeltir.
+        const srcsetParts = srcset.split(',').map(part => part.trim().split(/\s+/)).filter(p => p[0]);
+        if (srcsetParts.length) {
+          let best = srcsetParts[0];
+          for (const p of srcsetParts) {
+            const w = parseInt(String(p[1] || '').replace(/w$/i, ''), 10) || 0;
+            const bw = parseInt(String(best[1] || '').replace(/w$/i, ''), 10) || 0;
+            if (w > bw) best = p;
+          }
+          addExact(best[0], 'ExactHero/HTML');
+        }
       });
     } catch (e) {
       ErrorHandler.silent(e);
@@ -13277,7 +13304,13 @@ export default function App() {
     };
 
     // v1.85 STRICT SOURCE POLICY:
-    // Yalnız kullanıcının verdiği üç manşet kaynağı. Önce GZT'nin tarihli detail URL'si:
+    // v1.203 sıra düzeltmesi: BİK TAM ÇÖZÜNÜRLÜK (YYN-*.jpg) ilk sırada denenir.
+    // Önce sıra GZT'DEYDİ ve ilk AD+TARİH doğrulamasında break atıldığı için
+    // BİK'e hiç sıra gelmiyordu; Korkusuz gibi kartlarda düşük çözünürlüklü
+    // thumbnail kazanıyordu (kanıt: kullanıcı videosu, Korkusuz karesi bulanık).
+    // BİK doğrulamazsa yalnız o zaman GZT/GazeteOku/Aydınlık sırası aynen işler.
+    if (meta.bik) pushSource('https://gazete.bik.gov.tr/Uygulamalar/GazeteIlkSayfalar?kapsam=yaygin', 'BİK/İlkSayfalar', { backendFirst: true, backendTimeoutMs: 16000 });
+    // Önce GZT'nin tarihli detail URL'si:
     // URL'nin kendisi hem gazete slug'ını hem tarihi taşır ve en güçlü bağdır.
     if (meta.gzt) {
       pushSource(
@@ -13295,7 +13328,7 @@ export default function App() {
     // alt metni "GG Ay Yıl - ... tarihli <ad> gazetesi ilk sayfası" = ad+tarih kesin kanıt.
     // v1.192: BİK gövdesi yalnız gateway /proxy'den 8-9 sn'de gelir; backendFirst +
     // 16 sn penceresi olmadan rescue yolları da boşa düşer (must zaaf).
-    if (meta.bik) pushSource('https://gazete.bik.gov.tr/Uygulamalar/GazeteIlkSayfalar?kapsam=yaygin', 'BİK/İlkSayfalar', { backendFirst: true, backendTimeoutMs: 16000 });
+    // v1.203: BİK pushSource bloğu üstte, kaynak sırasının ilk üyesi olarak taşındı.
     // v1.191: dijitalbasin — Read sayfası SSR'de publication-name + publication-date
     // taşır; tarih seçili tarihe eşleşmezse kapak kurulmaz (fail-closed aynen).
     // v1.192: backendFirst ile SSR HTML en hızlı yoldan gelir (1-2 sn); markdown
