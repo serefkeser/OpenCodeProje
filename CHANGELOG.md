@@ -10,6 +10,17 @@ Kesin sürüm referansı `web/src/App.tsx` içinde `APP_VERSION`; burası insan-
 
 ---
 
+## v1.206 — (2 Kasım 2026, 5 MANŞET KADROSU — KODLA ZORUNLU)
+**Kullanıcı kuralı: gazete başına EN AZ 5 manşet, asla düşürme.**
+
+- **Kanıt:** bir koşuda bir gazetede yalnız 2 manşet okundu — v1.203'ün prompt kuralı tek başına yeterli olmamıştı.
+- **(1) OCR görevi:** "en fazla 5 başka haber başlığı" → **EN AZ 4 (görselde varsa 8)** + **KADRO KURULU**: ana manşet + diğer başlıklar okunabiliyorsa toplam **EN AZ 5 başlık** döndürmek zorun; daha azı kusur sayılır ve sonraki aşamada reddedilir.
+- **(2) Döküm kapasitesi:** `cleanList` cap 6 → 8 — OCR artık daha fazla başlık taşıyabilir.
+- **(3) İÇERİk kuralı:** "5 sayısı KADRO ALT SINIRIDIR ve ASLA azaltılmaz; dökümde 5+ okunabilir başlık varken daha azını işlemek sadakat kapısında reddedilir ve koşu durur."
+- **(4) SÜRE bütçesi:** toplam 1300-1550 → **1500-1800** kelime; her gazete bölümü 130-220 → **170-240** (5 manşet + manşet başına 2-3 açıklama cümlesi taşıma tabanı); genişletme eşiği 1250 → 1450, duruş eşiği 1150 → 1350.
+- **(5) Sadakat kapısı ADET KİLİDİ:** dökümde okunabilir başlık sayısı kodla sayılır (`[OKUNAMADI]` satırları sayılmaz); hedef = min(5, okunabilir sayı); `mansetAlintilari` adedi hedefin altındaysa **ihlal** → bir kez kaynak-kilitli yeniden yazım → yine ihlalde koşu durur (fail-closed).
+- **Kanıt:** `npx vite build` ✓ (10.3 sn).
+
 ## v1.205 — (1 Kasım 2026, SIFIR UYDURMA MASTER PROMPT + KAYNAK SADAKAT KAPISI)
 **Kullanıcı montajı: verilen ULTIMATE master prompt kodda tek sabit olarak kuruldu ve üç katmana monte edildi.**
 

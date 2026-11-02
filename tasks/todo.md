@@ -46,9 +46,17 @@ Not: .env anahtarlar ASLA repoya yazılmaz.
 
 ---
 
-## DEVAM HATTI — yarın kaldığımız yerden (güncellendi: 1 Kasım v1.205)
+## DEVAM HATTI — yarın kaldığımız yerden (güncellendi: 2 Kasım v1.206)
 
-**Son sürüm:** v1.205 — SIFIR UYDURMA MASTER PROMPT + KAYNAK SADAKAT KAPISI:
+**Son sürüm:** v1.206 — 5 MANŞET KADROSU KODLA ZORUNLU: kullanıcı kuralı (min 5
+başlık, asla düşürme; kanıt: bir koşuda 2 manşet). OCR görevi EN AZ 4 (varsa 8)
+diğer başlık + KADRO KURULU (okunabiliyorsa toplam EN AZ 5); cleanList 6→8;
+İÇERİK kadro maddesi; SÜRE 1500-1800 / bölüm 170-240 / eşikler 1450-1350;
+sadakat kapısı ADET KİLİDİ (hedef min(5, okunabilir); eksikse yeniden yazım →
+yine eksikse koşu durur). Bekleyen: FreeLLMAPI dashboard'a ikinci/üçüncü Google
+anahtarı (kullanıcı "3 adet var" dedi ama DB'de hâlâ 1 — aistarudio'da
+oluşturup dashboard Keys ekranına yapıştırmaları gerekiyor; kanıt:
+probe-v206-keycount). Önceki: v1.205 — SIFIR UYDURMA MASTER PROMPT + KAYNAK SADAKAT KAPISI:
 kullanıcının verdiği ULTIMATE master prompt SIFIR_UYDURMA_MASTER_PROMPT sabiti
 olarak kuruldu; üç katmana monte: OCR görevi + IKINCI KONTROL, spiker anlatısı
 üstüne öncelik bildirimi (anlatım yalnız döküm+not), yazılım kapısı (şemaya
