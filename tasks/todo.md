@@ -46,9 +46,20 @@ Not: .env anahtarlar ASLA repoya yazılmaz.
 
 ---
 
-## DEVAM HATTI — yarın kaldığımız yerden (güncellendi: 2 Kasım v1.206)
+## DEVAM HATTI — yarın kaldığımız yerden (güncellendi: 3 Kasım v1.207)
 
-**Son sürüm:** v1.206 — 5 MANŞET KADROSU KODLA ZORUNLU: kullanıcı kuralı (min 5
+**Son sürüm:** v1.207 — CLAUDE-CODE-BEST-PRACTICE ENTEGRASYONU: kullanıcı talebi
+("bunu kur ve projemizde kullanalım"; kapsam C — tam uyarlama). vendor/
+claude-code-best-practice @ af996886 (shallow, .git yok) + OpenCode uyarlamaları:
+.opencode/commands/{weather-orchestrator,time-command,besli-yama}.md,
+.opencode/agents/{weather-agent,time-agent}.md (fail-closed + dar izinler) +
+.claude/skills/{weather-fetcher,weather-svg-creator,time-skill}/ aynen kopya.
+CANLI KANIT: oturum güncellemesi üç skill'i aktif kadroda gösterdi. Kayıt:
+tasks/best-practice-kurulum.md. Bekleyen: FreeLLMAPI dashboard'a ikinci/üçüncü Google
+anahtarı (kullanıcı Electron masaüstüne ekledi; web dashboard'a — localhost:5174 —
+eklemesi bekleniyor; npm workspace DB'si hâlâ google=1; kanıt: probe-v206-keycount;
+eklenince sayım + uçtan uca WAV probu). Önceki: v1.206 — 5 MANŞET KADROSU KODLA
+ZORUNLU: kullanıcı kuralı (min 5
 başlık, asla düşürme; kanıt: bir koşuda 2 manşet). OCR görevi EN AZ 4 (varsa 8)
 diğer başlık + KADRO KURULU (okunabiliyorsa toplam EN AZ 5); cleanList 6→8;
 İÇERİK kadro maddesi; SÜRE 1500-1800 / bölüm 170-240 / eşikler 1450-1350;

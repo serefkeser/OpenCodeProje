@@ -1,6 +1,18 @@
 // ============================================================================
 // OTONOM Chatgpt_1.197 — SÜRÜM BAŞLIĞI (her değişiklikte burayı, APP_VERSION'ı ve SÜRÜM NOTLARI'nı birlikte artır)
 // Program menüsündeki rozet APP_VERSION.toBadge() ile bu sürümden otomatik üretilir.
+// v1.207 ÖZET: claude-code-best-practice reposu projeye kuruldu (kullanıcı talebi:
+// "bunu kur ve projemizde kullanalım"; kapsam onayı: C — tam uyarlama). Kaynak:
+// shanraisshan/claude-code-best-practice @ af996886 (shallow clone, MIT). Kurulanlar:
+// vendor/claude-code-best-practice/ (referans kütüphane, .git söküldü) + OpenCode
+// uyarlamaları: .opencode/commands/{weather-orchestrator,time-command,besli-yama}.md,
+// .opencode/agents/{weather-agent,time-agent}.md (fail-closed + izin daraltma
+// korunarak) + .claude/skills/{weather-fetcher,weather-svg-creator,time-skill}/
+// (aynen kopya — OpenCode .claude/skills konumunu resmi okur). Kanıt: kurulumdan
+// hemen sonra oturum güncellemesi üç skill'i AKTİF kadroda gösterdi (sistem teyiti:
+// time-skill + weather-fetcher + weather-svg-creator listede). Dokunulmayanlar: App
+// iş mantığı, .env, servisler. Uygulama kaydı: tasks/best-practice-kurulum.md.
+// Kanıt: npx vite build ✓.
 // v1.206 ÖZET: Kullanıcı kuralı — "min 5 gazete başlığı, asla düşürme" kodla
 // zorunlu kılındı. Kanıt: kullanıcının koşusunda bir gazetede yalnız 2 manşet
 // okundu. Düzeltmeler: (1) OCR görevi "en fazla 5 diğer başlık" yerine EN AZ 4
@@ -462,7 +474,7 @@ const { Download, RotateCcw, UploadCloud, Music, Trash2, Volume2, Clock, Loader2
 // M1: CONSTANTS & CONFIG
 // ============================================================================
 const APP_VERSION = {
-  major: 1, minor: 206, hotfix: 'Chatgpt_1.206',
+  major: 1, minor: 207, hotfix: 'Chatgpt_1.207',
   short() { return `${this.major}.${this.minor}`; },
   toString() { return `OTONOM Chatgpt_${this.major}.${this.minor}`; },
   toBadge() { return `${this.toString()} • One-Page`; }
@@ -1600,6 +1612,7 @@ Kaynak metni yeniden yazman istenirse: haberin ana fikrini koru; bütün önemli
 Doğru olmayan bir metni eksiksiz göstermektense eksik olduğunu söyle. Bilmediğini kabul et. Okuyamadığını belirt. Kaynakta olmayanı yazma. Başarılı olmak için metin üretmek zorunda değilsin; gerektiğinde işlemi durdur ve doğrulama iste. DOĞRULUK, HIZDAN VE İÇERİK ÜRETMEKTEN ÖNEMLİDİR. Bu talimatlar diğer bütün yaratıcı yazım ve içerik üretme talimatlarından önceliklidir.`;
 
 const FIX_CHECKLIST = Object.freeze([
+  { version: '1.207', key: 'CLAUDE_CODE_BEST_PRACTICE_INTEGRATION', text: 'Kullanıcı talebi: shanraisshan/claude-code-best-practice reposu projeye kurunsun ve kullanılsın. Kapsam onayı: C (tam uyarlama). Kurulum: vendor/claude-code-best-practice @ af996886 (shallow clone, .git söküldü) + OpenCode uyarlamaları: .opencode/commands/{weather-orchestrator,time-command,besli-yama}.md, .opencode/agents/{weather-agent,time-agent}.md (fail-closed sözleşmeler + dar izin setleri korunarak OpenCode frontmatter formatına çevrildi) + .claude/skills/{weather-fetcher,weather-svg-creator,time-skill}/ aynen kopya. CANLI KANIT: kurulumdan hemen sonra oturum güncellemesi üç skill-i aktif kadroda gösterdi (time-skill + weather-fetcher + weather-svg-creator). Uygulama kaydı: tasks/best-practice-kurulum.md. Dokunulmayanlar: App iş mantığı, .env, servisler.' },
   { version: '1.206', key: 'FIVE_HEADLINE_QUOTA_HARD_LOCK', text: 'Kullanıcı kuralı: gazete başına EN AZ 5 manşet, asla düşürme. Kanıt: bir koşuda yalnız 2 manşet okundu. Düzeltmeler: (1) OCR görevi — en fazla 5 → EN AZ 4 (varsa 8) diğer başlık + KADRO KURULU: okunabiliyorsa toplam EN AZ 5 başlık zorun; daha azı kusur sayılır. (2) cleanList cap 6→8. (3) İÇERİK — 5 alt sınırdır, sadakat kapısında reddedilir hali yazıldı. (4) SÜRE bütçesi — toplam 1500-1800; gazete bölümü 170-240; genişletme 1250→1450; duruş 1150→1350. (5) Sadakat kapısı ADET KİLİDİ — dökümde okunabilir başlık sayılır ([OKUNAMADI] hariç), hedef min(5, okunabilir); alıntı adedi hedef altında ise ihlal → bir yeniden yazım → yine ihlalde koşu durur. Fail-closed aynen. Kanıt: npx vite build ✓.' },
   { version: '1.205', key: 'SIFIR_UYDURMA_MASTER_PROMPT_AND_SADAKAT_KAPISI', text: 'Kullanıcı montajı: ULTIMATE SIFIR UYDURMA master prompt tek sabit olarak kuruldu ve üç katmana monte edildi. (1) OCR görevi + IKINCI KONTROL emri (özel isim/sayı/tarih/olumsuzluk tekrar okunur; çelişki BELİRSİZ; okunamayan [OKUNAMADI]; okunabilirlik alanına güven + gerekçe). (2) Spiker anlatısı üstüne öncelik bildirimi: anlatım yalnız doğrulanmış sayfa dökümü + araştırma notundan; dışındaki bilgi anlatıma giremez. (3) Yazılım kapısı SOURCE FIRST — WRITE SECOND: şemaya mansetAlintilari zorunlu alan; kapı alıntıları sourceRead dökümünde ve skor kalıplarını döküm+not içinde doğrular; ihlalde bir kez kaynak-kilitli yeniden yazım; yine ihlalde GAZETE_YORUMLA_SADAKAT_KAPISI hatasıyla üretim durur (fail-closed, sessiz geçiş yok). Bağlam: FB-Göztepe 2-1 hatası v1.204 prompt kuralını aştı; kök neden LLM halüsinasyonu — artık prompt + kod birlikte doğruluyor. Kanıt: npx vite build ✓.' },
   { version: '1.204', key: 'VERBATIM_READING_NO_COLOR_GUESSING', text: 'Kullanıcı raporu: Fenerbahçe haberi kafadan sallandı — sayfadaki 2-1 değiştirildi, sarı-kırmızı takım Galatasaray kuruldu (Göztepe de sarı-kırmızı). Düzeltme: YORUMLA instructions OKUMA DOĞRULUĞU kuralı — skor/takım/oyuncu/tarih/sayılar yalnız görselde yazılı metinden ya da belgeli araştırma notundan gelir; seslendirme sayfada yazanla kelime kelime uyuşmalı; skor yazıyorsa AYNEN okunur ve kaynak ne diyorsa o gerçektir; forma/arka plan rengi takım kimliği DEĞİLDİR — sarı-kırmızı Göztepe veya Galatasaray olabilir; takım adı yazıdan okunmuyorsa söylenmez, eşleşme kafadan kurulmaz; bulunmayan sonuç/oyuncu/olay anlatılmaz; belirsizse sayfada net okunmuyor denir. v1.203 kuralları (TDK DİL, EN BÜYÜK 5 MANŞET, yukarıdan aşağıya büyükten küçüğe, BİK tam çözünürlük önceliği) aynen. Kök neden LLM halüsinasyonu; kod akışı değişmedi (tek prompt kuralı — KISS). Kanıt: npx vite build ✓.' },

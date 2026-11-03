@@ -10,6 +10,21 @@ Kesin sürüm referansı `web/src/App.tsx` içinde `APP_VERSION`; burası insan-
 
 ---
 
+## v1.207 — (3 Kasım 2026, CLAUDE-CODE-BEST-PRACTICE ENTEGRASYONU)
+**Kullanıcı talebi: shanraisshan/claude-code-best-practice reposu projeye kurulup kullanılsın. Kapsam onayı: C (tam uyarlama).**
+
+- **Referans kütüphane:** `vendor/claude-code-best-practice/` @ `af996886` (shallow clone, MIT; `.git` söküldü).
+- **OpenCode uyarlamaları (repo Command → Agent → Skill deseni):**
+  - `.opencode/commands/weather-orchestrator.md` — örnek orchestration komutu; AskUserQuestion/Agent/Skill → question/subagent/skill araçlarına çevrildi; fail-closed sözleşme aynen.
+  - `.opencode/agents/weather-agent.md` — subagent; izin seti daraltıldı (edit/bash/webfetch/websearch: deny); hooks+memory (Claude'a özgü) düşürüldü.
+  - `.opencode/commands/time-command.md` + `.opencode/agents/time-agent.md` — PKT saati demosu; bash izni tek komuta daraltıldı.
+  - `.opencode/commands/besli-yama.md` — repo Command deseni, bizim beşli yama prosedürüne uygulandı.
+- **Skill kopyaları (aynen):** `.claude/skills/weather-fetcher/`, `.claude/skills/weather-svg-creator/` (SKILL.md + reference.md + examples.md), `.claude/skills/time-skill/` — OpenCode `.claude/skills/*/SKILL.md` konumunu resmi olarak okur.
+- **CANLI KANIT:** kurulumdan hemen sonra OpenCode oturum güncellemesi üç skill'i aktif kadroda gösterdi (`time-skill`, `weather-fetcher`, `weather-svg-creator`) — yapılandırma yüklendi; varsayım değil sistem teyiti.
+- **Bilinçli kapsam dışı:** repo hooks/sesler, presentation-agent'ları, MCP ayarları, CLAUDE.md — projede eşdeğerleri var (global OmniRule + mevcut skill kadrosu; KISS/YAGNI).
+- **Uygulama kaydı:** `tasks/best-practice-kurulum.md`.
+- **Kanıt:** `npx vite build` ✓.
+
 ## v1.206 — (2 Kasım 2026, 5 MANŞET KADROSU — KODLA ZORUNLU)
 **Kullanıcı kuralı: gazete başına EN AZ 5 manşet, asla düşürme.**
 
